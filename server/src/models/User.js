@@ -4,8 +4,17 @@ const bcrypt = require('bcryptjs');
 const userSchema = new Schema({
   name:         { type: String, required: true, trim: true },
   email:        { type: String, required: true, unique: true, lowercase: true, trim: true },
+  rut:          { type: String, trim: true },
   passwordHash: { type: String, required: true },
-  userType:     { type: String, enum: ['persona_natural', 'organizacion'], default: 'persona_natural' },
+  userType:              { type: String, enum: ['persona_natural', 'organizacion'], default: 'persona_natural' },
+  isEmailVerified:       { type: Boolean, default: false },
+  emailVerificationToken:{ type: String },
+  deleteAccountToken:    { type: String },
+  preferredAccount: {
+    bank:          { type: String, default: '' },
+    accountType:   { type: String, enum: ['corriente', 'vista', 'ahorro', 'chequera_electronica', ''], default: '' },
+    accountNumber: { type: String, default: '' },
+  },
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {

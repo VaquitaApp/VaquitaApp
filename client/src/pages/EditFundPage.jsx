@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getFund, updateFund } from '../api/funds';
 import FundForm from '../components/funds/FundForm';
 
-const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount'];
+const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'type', 'visibility'];
 
 export default function EditFundPage() {
   const { id } = useParams();

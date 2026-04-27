@@ -1,25 +1,28 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { fmtCLP } from '../../utils/format';
 
 function groupByPeriod(contributions, byWeek) {
   const map = {};
   for (const c of contributions) {
     const d = new Date(c.date);
-    let key;
+    let periodStart;
     if (byWeek) {
-      const start = new Date(d);
-      start.setDate(d.getDate() - d.getDay());
-      key = start.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+      periodStart = new Date(d);
+      periodStart.setDate(d.getDate() - d.getDay());
+      periodStart.setHours(0, 0, 0, 0);
     } else {
-      key = d.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+      periodStart = new Date(d);
+      periodStart.setHours(0, 0, 0, 0);
     }
-    map[key] = (map[key] ?? 0) + c.amount;
+    const ts = periodStart.getTime();
+    if (!map[ts]) map[ts] = { ts, label: periodStart.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }), total: 0 };
+    map[ts].total += c.amount;
   }
-  return Object.entries(map).map(([name, total]) => ({ name, total }));
+  return Object.values(map)
+    .sort((a, b) => a.ts - b.ts)
+    .map(({ label, total }) => ({ name: label, total }));
 }
 
-function fmtCLP(n) {
-  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
-}
 
 export default function FundChart({ contributions = [], deadline }) {
   if (contributions.length === 0) {

@@ -14,6 +14,7 @@
 
 const request = require('supertest');
 const app = require('../../../src/app');
+const User = require('../../../src/models/User');
 const { connect, disconnect, clear } = require('../../helpers/db');
 
 beforeAll(async () => { await connect(); });
@@ -21,9 +22,17 @@ afterAll(async () => { await disconnect(); });
 beforeEach(async () => { await clear(); });
 
 async function register(data) {
-  const res = await request(app).post('/api/auth/register').send(data);
-  expect(res.status).toBe(201);
-  return { token: res.body.token, user: res.body.user };
+  const registerRes = await request(app).post('/api/auth/register').send(data);
+  expect(registerRes.status).toBe(201);
+  expect(registerRes.body.message).toBeTruthy();
+
+  const userDoc = await User.findOne({ email: data.email.toLowerCase() });
+  const verifyRes = await request(app).get(`/api/auth/verify-email/${userDoc.emailVerificationToken}`);
+  expect(verifyRes.status).toBe(200);
+
+  const loginRes = await request(app).post('/api/auth/login').send({ email: data.email, password: data.password });
+  expect(loginRes.status).toBe(200);
+  return { token: loginRes.body.token, user: loginRes.body.user };
 }
 
 async function authGet(token, url) {
@@ -40,8 +49,8 @@ async function authPatch(token, url, body = {}) {
 
 test('full fund lifecycle — happy path', async () => {
   // ── Step 1: Register users ───────────────────────────────────────────────
-  const org  = await register({ name: 'Ana Org',  email: 'ana@test.com',  password: 'Password1!' });
-  const part = await register({ name: 'Luis Part', email: 'luis@test.com', password: 'Password1!' });
+  const org  = await register({ name: 'Ana Org',  email: 'ana@test.com',  password: 'Password1!', rut: '11.111.111-1' });
+  const part = await register({ name: 'Luis Part', email: 'luis@test.com', password: 'Password1!', rut: '22.222.222-2' });
 
   expect(org.token).toBeTruthy();
   expect(part.token).toBeTruthy();
@@ -52,7 +61,7 @@ test('full fund lifecycle — happy path', async () => {
     type:             'free',
     targetAmount:     60000,
     deadline:         new Date(Date.now() + 86400000 * 30).toISOString(),
-    recipientAccount: '987654321',
+    recipientAccount: { bank: 'Banco de Chile', accountType: 'corriente', accountNumber: '987654321' },
     visibility:       'public',
   });
   expect(createRes.status).toBe(201);

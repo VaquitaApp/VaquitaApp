@@ -7,6 +7,7 @@ async function createUser(overrides = {}) {
     name: 'Test User',
     email: 'test@example.com',
     passwordHash: 'password123',
+    isEmailVerified: true,
   };
   return User.create({ ...defaults, ...overrides });
 }
@@ -17,7 +18,7 @@ async function createFund(overrides = {}) {
     type: 'free',
     targetAmount: 100000,
     deadline: new Date(Date.now() + 86400000 * 30),
-    recipientAccount: '12345678',
+    recipientAccount: { bank: 'Banco Estado', accountType: 'vista', accountNumber: '12345678' },
     visibility: 'private',
     status: 'active',
   };

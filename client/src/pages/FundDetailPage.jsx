@@ -13,9 +13,7 @@ import ContributionList from '../components/funds/ContributionList';
 import MockPaymentForm from '../components/funds/MockPaymentForm';
 import FundChart from '../components/funds/FundChart';
 
-function fmt(d) {
-  return new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+import { fmtDate, fmtName } from '../utils/format';
 
 export default function FundDetailPage() {
   const { id } = useParams();
@@ -34,15 +32,13 @@ export default function FundDetailPage() {
   const [reminderMsg, setReminderMsg] = useState('');
 
   useEffect(() => {
-    getFund(id)
-      .then(fundRes => {
+    Promise.all([
+      getFund(id),
+      getParticipants(id).then(r => r.data).catch(() => []),
+      getContributions(id).then(r => r.data).catch(() => []),
+    ])
+      .then(([fundRes, parts, contribs]) => {
         setFund(fundRes.data);
-        return Promise.all([
-          getParticipants(id).then(r => r.data).catch(() => []),
-          getContributions(id).then(r => r.data).catch(() => []),
-        ]);
-      })
-      .then(([parts, contribs]) => {
         setParticipants(parts);
         setContributions(contribs);
       })
@@ -108,7 +104,7 @@ export default function FundDetailPage() {
         <div className="flex items-start justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-gray-800">{fund.name}</h1>
-            <p className="text-sm text-gray-400 mt-0.5">Organizado por {fund.organizer?.name}</p>
+            <p className="text-sm text-gray-400 mt-0.5">Organizado por {fmtName(fund.organizer?.name)}</p>
           </div>
           <StatusBadge status={fund.status} />
         </div>
@@ -118,7 +114,7 @@ export default function FundDetailPage() {
         <div className="grid grid-cols-2 gap-4 mt-5 text-sm text-gray-600">
           <div>
             <span className="text-xs text-gray-400 block mb-0.5">Fecha límite</span>
-            {fmt(fund.deadline)}
+            {fmtDate(fund.deadline)}
           </div>
           <div>
             <span className="text-xs text-gray-400 block mb-0.5">Tipo</span>
@@ -134,6 +130,16 @@ export default function FundDetailPage() {
             <span className="text-xs text-gray-400 block mb-0.5">Visibilidad</span>
             {fund.visibility === 'public' ? 'Público' : 'Privado'}
           </div>
+          {isOrganizer && fund.recipientAccount && (
+            <div className="col-span-2">
+              <span className="text-xs text-gray-400 block mb-0.5">Cuenta destinataria</span>
+              <p className="text-sm text-gray-800 font-medium">{fund.recipientAccount.bank}</p>
+              <p className="text-xs text-gray-500">
+                {{ corriente: 'Cta. Corriente', vista: 'Cta. Vista / RUT', ahorro: 'Cta. de Ahorro', chequera_electronica: 'Chequera Electrónica' }[fund.recipientAccount.accountType]}
+              </p>
+              <p className="text-xs text-gray-500">{fund.recipientAccount.accountNumber}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -151,10 +157,8 @@ export default function FundDetailPage() {
           )}
         </div>
         <ParticipantList
-          fundId={id}
+          organizer={fund.organizer}
           participants={participants}
-          isOrganizer={isOrganizer}
-          onRemoved={userId => setParticipants(prev => prev.filter(p => p.user?._id !== userId))}
         />
       </div>
 
@@ -177,7 +181,7 @@ export default function FundDetailPage() {
               onClick={() => setShowContribForm(true)}
               className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md transition-colors"
             >
-              + Registrar aporte
+              + Realizar aporte
             </button>
           )}
         </div>
@@ -185,8 +189,15 @@ export default function FundDetailPage() {
           <div className="mb-4 p-4 border border-gray-200 rounded-lg">
             <ContributionForm
               fundId={id}
+              fund={fund}
+              userContributions={contributions.filter(
+                c => c.user?._id?.toString() === user?._id?.toString()
+              )}
               onCreated={c => {
-                setContributions(prev => [c, ...prev]);
+                setContributions(prev => [
+                  { ...c, user: { _id: user._id, name: user.name, email: user.email } },
+                  ...prev,
+                ]);
                 setShowContribForm(false);
               }}
               onCancel={() => setShowContribForm(false)}
@@ -219,39 +230,45 @@ export default function FundDetailPage() {
           )}
           {isOrganizer && (
             <>
-              <button
-                onClick={async () => {
-                  try {
-                    const res = await sendReminders(id);
-                    setReminderMsg(`Recordatorio enviado a ${res.data.sent} participante${res.data.sent !== 1 ? 's' : ''}.`);
-                    setTimeout(() => setReminderMsg(''), 4000);
-                  } catch {
-                    setReminderMsg('Error al enviar recordatorios');
-                  }
-                }}
-                className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-              >
-                Enviar recordatorio
-              </button>
+              {accepted.length > 0 && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await sendReminders(id);
+                      setReminderMsg(`Recordatorio enviado a ${res.data.sent} participante${res.data.sent !== 1 ? 's' : ''}.`);
+                      setTimeout(() => setReminderMsg(''), 4000);
+                    } catch {
+                      setReminderMsg('Error al enviar recordatorios');
+                    }
+                  }}
+                  className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  Enviar recordatorio
+                </button>
+              )}
               <Link
                 to={`/fondos/${id}/editar`}
                 className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 Editar fondo
               </Link>
-              <button
-                onClick={() => setShowPayment(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-              >
-                Pagar al destinatario
-              </button>
-              <button
-                onClick={handleClose}
-                disabled={actionLoading}
-                className="bg-white border border-amber-300 hover:border-amber-400 text-amber-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-              >
-                Cerrar fondo
-              </button>
+              {collectedAmount > 0 && (
+                <button
+                  onClick={() => setShowPayment(true)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  Pagar al destinatario
+                </button>
+              )}
+              {collectedAmount === 0 && (
+                <button
+                  onClick={handleClose}
+                  disabled={actionLoading}
+                  className="bg-white border border-amber-300 hover:border-amber-400 text-amber-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Cerrar fondo
+                </button>
+              )}
               {collectedAmount === 0 && (
                 <button
                   onClick={handleDelete}
@@ -281,6 +298,8 @@ export default function FundDetailPage() {
       {showPayment && (
         <MockPaymentForm
           fundId={id}
+          fund={fund}
+          collectedAmount={collectedAmount}
           onClose={() => setShowPayment(false)}
           onSuccess={({ fund: updatedFund }) => {
             setFund(prev => ({ ...prev, status: updatedFund.status }));

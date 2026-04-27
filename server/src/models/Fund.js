@@ -18,7 +18,11 @@ const fundSchema = new Schema({
   quotaAmount:      { type: Number },
   frequency:        { type: String, enum: ['once', 'weekly', 'monthly'] },
   deadline:         { type: Date, required: true },
-  recipientAccount: { type: String, required: true },
+  recipientAccount: {
+    bank:          { type: String, required: true },
+    accountType:   { type: String, required: true, enum: ['corriente', 'vista', 'ahorro', 'chequera_electronica'] },
+    accountNumber: { type: String, required: true, trim: true, validate: { validator: v => /^\d+$/.test(v), message: 'accountNumber must contain only digits' } },
+  },
   visibility:       { type: String, enum: ['public', 'private'], default: 'private' },
   status:           { type: String, enum: ['active', 'completed', 'closed'], default: 'active' },
   organizer:        { type: Schema.Types.ObjectId, ref: 'User', required: true },

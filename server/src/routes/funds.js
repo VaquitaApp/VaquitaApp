@@ -4,12 +4,18 @@ const Contribution = require('../models/Contribution');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { processPayment } = require('../services/paymentService');
-const { sendEmail } = require('../services/emailService');
+const { sendEmail, sendStatusChangeEmail } = require('../services/emailService');
 
 const router = express.Router();
 
 // Locked fields once contributions exist
-const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount'];
+const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'type', 'visibility'];
+
+function isDeadlineValid(deadline) {
+  const today = new Date().toISOString().slice(0, 10);
+  const dl    = new Date(deadline).toISOString().slice(0, 10);
+  return dl > today;
+}
 
 // Helper: compute collectedAmount for a fund
 async function getCollectedAmount(fundId) {
@@ -41,11 +47,15 @@ router.get('/public', auth, async (req, res) => {
       .sort(sortObj)
       .lean();
 
-    const withAmounts = await Promise.all(funds.map(async f => ({
-      ...f,
-      collectedAmount: await getCollectedAmount(f._id),
-      participantCount: f.participants.filter(p => p.status === 'accepted').length,
-    })));
+    const withAmounts = await Promise.all(
+      funds
+        .filter(f => f.organizer !== null)
+        .map(async f => ({
+          ...f,
+          collectedAmount: await getCollectedAmount(f._id),
+          participantCount: f.participants.filter(p => p.status === 'accepted').length,
+        }))
+    );
 
     res.json(withAmounts);
   } catch (err) {
@@ -92,6 +102,13 @@ router.post('/', auth, async (req, res) => {
     const { name, description, goal, type, targetAmount, quotaAmount,
             frequency, deadline, recipientAccount, visibility } = req.body;
 
+    if (deadline && !isDeadlineValid(deadline)) {
+      return res.status(400).json({ error: 'La fecha límite debe ser al menos mañana.' });
+    }
+    if (type === 'quota' && Number(quotaAmount) > Number(targetAmount)) {
+      return res.status(400).json({ error: 'El valor de la cuota no puede ser mayor al total del fondo.' });
+    }
+
     const fund = new Fund({
       name, description, goal, type, targetAmount, quotaAmount,
       frequency, deadline, recipientAccount, visibility,
@@ -113,11 +130,12 @@ router.get('/:id', auth, async (req, res) => {
       .populate('participants.user', 'name email');
 
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    if (!fund.organizer) return res.status(404).json({ error: 'Fund not found' });
 
     const userId = req.user._id;
     const isOrganizer = fund.organizer._id.equals(userId);
     const isParticipant = fund.participants.some(
-      p => p.user._id.equals(userId) && p.status === 'accepted'
+      p => p.user?._id.equals(userId) && p.status === 'accepted'
     );
     if (!isOrganizer && !isParticipant && fund.visibility !== 'public') {
       return res.status(403).json({ error: 'Access denied' });
@@ -148,7 +166,11 @@ router.patch('/:id', auth, async (req, res) => {
       }
     }
 
-    const allowed = ['name', 'description', 'goal', 'visibility', ...(!hasContribs ? LOCKED_FIELDS : [])];
+    if (body.deadline && !isDeadlineValid(body.deadline)) {
+      return res.status(400).json({ error: 'La fecha límite debe ser al menos mañana.' });
+    }
+
+    const allowed = ['name', 'description', 'goal', ...(!hasContribs ? LOCKED_FIELDS : [])];
     allowed.forEach(f => { if (body[f] !== undefined) fund[f] = body[f]; });
 
     await fund.save();
@@ -179,9 +201,11 @@ router.delete('/:id', auth, async (req, res) => {
 // POST /api/funds/:id/payment — organizer triggers payout, marks fund completed
 router.post('/:id/payment', auth, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id);
+    const fund = await Fund.findById(req.params.id)
+      .populate('organizer', 'name email')
+      .populate('participants.user', 'name email');
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    if (!fund.organizer._id.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
 
     const collectedAmount = await getCollectedAmount(fund._id);
@@ -199,6 +223,10 @@ router.post('/:id/payment', auth, async (req, res) => {
 
     fund.status = 'completed';
     await fund.save();
+
+    sendStatusChangeEmail({ fund, organizer: fund.organizer, participants: fund.participants })
+      .catch(err => console.error('Status change email failed:', err.message));
+
     res.json({ fund, transaction });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -236,13 +264,22 @@ router.post('/:id/reminders', auth, async (req, res) => {
 // POST /api/funds/:id/close
 router.post('/:id/close', auth, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id);
+    const fund = await Fund.findById(req.params.id)
+      .populate('organizer', 'name email')
+      .populate('participants.user', 'name email');
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    if (!fund.organizer._id.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+
+    const hasContribs = await Contribution.countDocuments({ fund: fund._id, status: 'succeeded' }) > 0;
+    if (hasContribs) return res.status(422).json({ error: 'Cannot close a fund with contributions — pay the recipient instead' });
 
     fund.status = 'closed';
     await fund.save();
+
+    sendStatusChangeEmail({ fund, organizer: fund.organizer, participants: fund.participants })
+      .catch(err => console.error('Status change email failed:', err.message));
+
     res.json(fund);
   } catch (err) {
     res.status(500).json({ error: err.message });

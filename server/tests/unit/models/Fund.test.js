@@ -7,7 +7,7 @@ const ORG_ID = new mongoose.Types.ObjectId();
 const base = {
   name: 'Test Fund', type: 'free', targetAmount: 100000,
   deadline: new Date(Date.now() + 86400000 * 30),
-  recipientAccount: '12345678', organizer: ORG_ID,
+  recipientAccount: { bank: 'Banco Estado', accountType: 'vista', accountNumber: '12345678' }, organizer: ORG_ID,
 };
 
 beforeAll(() => db.connect());

@@ -183,6 +183,7 @@ docker-compose run --rm server npm test
 | Aplicación web | http://localhost:5173 |
 | API / Health check | http://localhost:3001/api/health |
 | Mailpit (emails) | http://localhost:8025 |
+| Mongo Express (BD) | http://localhost:8081 *(solo Docker)* |
 
 ---
 

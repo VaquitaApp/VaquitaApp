@@ -17,7 +17,8 @@ async function authHeader(user) {
 const fundBody = {
   name: 'Fondo Paseo', type: 'free', targetAmount: 200000,
   deadline: new Date(Date.now() + 86400000 * 30).toISOString(),
-  recipientAccount: '12345678', visibility: 'private',
+  recipientAccount: { bank: 'Banco Estado', accountType: 'vista', accountNumber: '12345678' },
+  visibility: 'private',
 };
 
 describe('POST /api/funds', () => {

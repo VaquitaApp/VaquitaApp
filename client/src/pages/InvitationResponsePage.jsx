@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { acceptInvitation, rejectInvitation } from '../api/participants';
-
-function fmt(d) {
-  return new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
-}
+import { fmtDateLong } from '../utils/format';
 
 export default function InvitationResponsePage() {
   const { token } = useParams();
@@ -45,7 +42,7 @@ export default function InvitationResponsePage() {
             <h1 className="text-xl font-bold text-gray-800 mb-2">Invitación aceptada</h1>
             <p className="text-sm text-gray-500">
               Ahora eres participante del fondo <strong>{fund.name}</strong>.<br />
-              Fecha límite: {fmt(fund.deadline)}.
+              Fecha límite: {fmtDateLong(fund.deadline)}.
             </p>
             <Link to="/fondos" className="mt-5 inline-block text-indigo-600 hover:underline text-sm">
               Ir a mis fondos →

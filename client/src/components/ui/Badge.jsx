@@ -30,6 +30,15 @@ export function StatusBadge({ status }) {
   );
 }
 
+export function TypeBadge({ type }) {
+  const isQuota = type === 'quota';
+  return (
+    <span className={`inline-flex shrink-0 items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium ${isQuota ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
+      {isQuota ? 'Por cuotas' : 'Libre'}
+    </span>
+  );
+}
+
 export function ContributionBadge({ status }) {
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${CONTRIBUTION_STYLES[status] ?? 'bg-gray-100 text-gray-500'}`}>

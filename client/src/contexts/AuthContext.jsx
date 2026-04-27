@@ -22,15 +22,14 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const res = await apiLogin({ email, password });
     localStorage.setItem('token', res.data.token);
-    setUser(res.data.user);
+    const meRes = await getMe();
+    setUser(meRes.data.user);
     return res.data;
   };
 
   const register = async (data) => {
     const res = await apiRegister(data);
-    localStorage.setItem('token', res.data.token);
-    setUser(res.data.user);
-    return res.data;
+    return res.data; // { message } — user must verify email before logging in
   };
 
   const logout = () => {
@@ -38,8 +37,11 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const refreshUser = () =>
+    getMe().then(res => setUser(res.data.user));
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

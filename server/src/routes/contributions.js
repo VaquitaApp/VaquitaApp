@@ -2,6 +2,7 @@ const express = require('express');
 const Fund = require('../models/Fund');
 const Contribution = require('../models/Contribution');
 const auth = require('../middleware/auth');
+const { pendingQuotas } = require('../services/quotaService');
 
 const router = express.Router({ mergeParams: true });
 
@@ -20,6 +21,22 @@ router.post('/', auth, async (req, res) => {
 
     const { amount, method, date } = req.body;
     if (!amount || Number(amount) <= 0) return res.status(400).json({ error: 'amount must be > 0' });
+
+    if (fund.type === 'quota') {
+      const userContribs = await Contribution.find({ fund: fund._id, user: userId, status: 'succeeded' }).lean();
+      const pending = pendingQuotas(fund, userContribs);
+      if (pending === 0) {
+        return res.status(400).json({ error: 'Estás al día, no tienes cuotas pendientes.' });
+      }
+      const required = pending * fund.quotaAmount;
+      if (Number(amount) !== required) {
+        return res.status(400).json({
+          error: `Debes pagar ${pending} cuota${pending !== 1 ? 's' : ''} pendiente${pending !== 1 ? 's' : ''} — monto requerido: $${required.toLocaleString('es-CL')} CLP`,
+          requiredAmount: required,
+          pendingQuotas: pending,
+        });
+      }
+    }
 
     const contribution = await Contribution.create({
       fund: fund._id,

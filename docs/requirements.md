@@ -30,9 +30,9 @@ Plataforma web que permite crear y gestionar fondos colectivos digitales. El org
 
 ### 4.1 Autenticación y Usuarios
 
-- RF-01: Registro de usuario con nombre, email, contraseña y tipo (persona natural u organización). El tipo es informativo y no afecta permisos. El token de sesión se emite inmediatamente al completar el registro sin verificación de email.
+- RF-01: Registro de usuario con nombre, RUT chileno (validado con módulo 11, formato XX.XXX.XXX-X), email, contraseña y tipo (persona natural u organización). El tipo es informativo y no afecta permisos. El sistema envía un email de verificación al completar el registro; el usuario debe verificar su cuenta antes de poder iniciar sesión.
 - RF-02: Inicio y cierre de sesión con token de sesión seguro.
-- RF-03: Perfil de usuario con historial de participación en fondos.
+- RF-03: Perfil de usuario con visualización de datos personales (nombre, RUT y email en solo lectura), edición de cuenta bancaria preferida (banco, tipo de cuenta, número), e historial de participación en fondos. El usuario puede solicitar la eliminación de su cuenta mediante confirmación por email; la eliminación solo se permite si el usuario no pertenece a ningún fondo como organizador ni como participante aceptado.
 
 ### 4.2 Gestión de Fondos
 
@@ -52,7 +52,7 @@ Los fondos tienen tres estados posibles: `activo`, `completado` y `cerrado`.
   - Fecha límite
   - Cuenta destinatario
   - Visibilidad: público o privado
-- RF-05: Editar datos del fondo (solo el organizador, solo mientras el fondo esté `activo`). Los campos `montoEsperado`, `fechaLimite`, `cuentaDestinatario`, `frecuencia` y `montoAportePorParticipante` quedan bloqueados una vez que existe al menos un aporte registrado.
+- RF-05: Editar datos del fondo (solo el organizador, solo mientras el fondo esté `activo`). Los campos `montoEsperado`, `fechaLimite`, `cuentaDestinatario`, `frecuencia`, `montoAportePorParticipante`, `tipo` y `visibilidad` quedan bloqueados una vez que existe al menos un aporte registrado. La `fechaLimite` debe ser siempre posterior al día actual (mínimo mañana).
 - RF-06: Cerrar un fondo manualmente (solo el organizador). El fondo pasa a estado `cerrado`.
 - RF-07: Eliminar un fondo (solo el organizador). No se puede eliminar si hay dinero recaudado.
 - RF-08: Listar fondos en los que el usuario autenticado participa o administra. Permite filtrar por texto libre y estado, y ordenar por fecha límite.
@@ -164,6 +164,10 @@ Funcionalidades adicionales incluidas en E1:
 | 2026-04-27 | Flujo de pago simulado visualmente | Permite demostrar el flujo sin dependencias externas |
 | 2026-04-27 | Notificaciones incluidas en E1 con cron automático y botón manual | Cobertura completa del RF-19 desde el MVP |
 | 2026-04-27 | Email local: servidor SMTP local para desarrollo | Sin dependencias externas en E1; intercambiable en producción |
-| 2026-04-27 | Registro sin verificación de email | Simplifica el flujo de onboarding en E1 |
+| 2026-04-27 | Verificación de email requerida en E1 | Garantiza autenticidad del usuario antes de permitir operar; reemplaza la decisión original de registro sin verificación |
+| 2026-04-27 | RUT chileno obligatorio en registro | Identificación única del usuario en el contexto chileno; validado con módulo 11 en cliente y servidor |
+| 2026-04-27 | Campos `tipo` y `visibilidad` bloqueados con aportes | Prevención de fraude: no se puede cambiar el tipo ni la visibilidad de un fondo una vez que hay dinero comprometido |
+| 2026-04-27 | Eliminación de cuenta con confirmación por email | Proceso de dos pasos para prevenir eliminaciones accidentales; bloqueada si el usuario administra o participa en algún fondo activo |
+| 2026-04-27 | `quotaAmount` no puede superar `targetAmount` | Consistencia de datos: una cuota mayor al total del fondo no tiene sentido y confundiría a los participantes |
 | 2026-04-27 | Funcionalidad de IA diferida | No es obligatoria en E1 según el enunciado oficial |
 | 2026-04-27 | Herramienta de testing: Jest | Compatibilidad con el stack JS; cubre unit e integration tests |

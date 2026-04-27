@@ -214,10 +214,19 @@ APP_BASE_URL=http://localhost:5173
 ### `User.js`
 ```js
 const userSchema = new Schema({
-  name:         { type: String, required: true, trim: true },
-  email:        { type: String, required: true, unique: true, lowercase: true },
-  passwordHash: { type: String, required: true },
-  userType:     { type: String, enum: ['persona_natural', 'organizacion'], default: 'persona_natural' },
+  name:                   { type: String, required: true, trim: true },
+  email:                  { type: String, required: true, unique: true, lowercase: true },
+  passwordHash:           { type: String, required: true },
+  userType:               { type: String, enum: ['persona_natural', 'organizacion'], default: 'persona_natural' },
+  rut:                    { type: String, trim: true },          // optional — factories omit it
+  isEmailVerified:        { type: Boolean, default: false },
+  emailVerificationToken: { type: String },
+  deleteAccountToken:     { type: String },
+  preferredAccount: {
+    bank:          { type: String },
+    accountType:   { type: String, enum: ['corriente', 'vista', 'ahorro', 'chequera_electronica'] },
+    accountNumber: { type: String },
+  },
 }, { timestamps: true });
 ```
 
@@ -241,7 +250,11 @@ const fundSchema = new Schema({
   quotaAmount:     { type: Number },      // required when type === 'quota'
   frequency:       { type: String, enum: ['once', 'weekly', 'monthly'] }, // required when type === 'quota'
   deadline:        { type: Date, required: true },
-  recipientAccount:{ type: String, required: true },
+  recipientAccount: {
+    bank:          { type: String, required: true },
+    accountType:   { type: String, required: true, enum: ['corriente', 'vista', 'ahorro', 'chequera_electronica'] },
+    accountNumber: { type: String, required: true, validate: { validator: v => /^\d+$/.test(v), message: 'solo dígitos' } },
+  },
   visibility:      { type: String, enum: ['public', 'private'], default: 'private' },
   status:          { type: String, enum: ['active', 'completed', 'closed'], default: 'active' },
   organizer:       { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -286,17 +299,21 @@ Auth header for protected routes: `Authorization: Bearer <token>`
 
 | Method | Path | Auth | Body | Response |
 |---|---|---|---|---|
-| POST | `/auth/register` | No | `{ name, email, password, userType? }` | `201 { token, user: { _id, name, email, userType } }` |
-| POST | `/auth/login` | No | `{ email, password }` | `200 { token, user: { _id, name, email, userType } }` |
-| GET | `/auth/me` | Yes | — | `200 { user }` |
+| POST | `/auth/register` | No | `{ name, rut, email, password, userType? }` | `201 { message }` — sends verification email; no token yet |
+| GET | `/auth/verify-email/:token` | No | — | `200 { message }` — activates account (`isEmailVerified = true`) |
+| POST | `/auth/login` | No | `{ email, password }` | `200 { token, user: { _id, name, email, userType } }` — 403 if not verified |
+| GET | `/auth/me` | Yes | — | `200 { user }` — queries DB (includes rut, preferredAccount) |
 
-**Error responses:** `400` validation, `401` invalid credentials, `409` email in use.
+**Error responses:** `400` validation / RUT inválido, `401` credenciales incorrectas, `403` email no verificado, `409` email o RUT ya registrado.
 
 ### 4.2 Users
 
-| Method | Path | Auth | Params | Response |
+| Method | Path | Auth | Body / Params | Response |
 |---|---|---|---|---|
 | GET | `/users/search` | Yes | `?q=<string>` | `200 [{ _id, name, email }]` — excludes caller |
+| PATCH | `/users/profile` | Yes | `{ preferredAccount: { bank, accountType, accountNumber } }` | `200 { user }` — solo actualiza cuenta preferida |
+| POST | `/users/request-delete` | Yes | — | `200 { message }` — falla 422 si usuario es organizador/participante activo en algún fondo; genera token y envía email |
+| GET | `/users/confirm-delete/:token` | No | — | `200 { message }` — elimina cuenta |
 
 ### 4.3 Funds
 
@@ -311,7 +328,7 @@ Auth header for protected routes: `Authorization: Bearer <token>`
 | POST | `/funds/:id/payment` | Yes (organizer) | Executes payment simulation → sets status → completed. |
 | POST | `/funds/:id/reminders` | Yes (organizer) | Sends manual reminder email to all accepted participants with pending contributions. |
 
-**Locked fields (PATCH /funds/:id):** `targetAmount`, `deadline`, `recipientAccount`, `frequency`, `quotaAmount` — locked once `Contribution.countDocuments({ fund: id }) > 0`.
+**Locked fields (PATCH /funds/:id):** `targetAmount`, `deadline`, `recipientAccount`, `frequency`, `quotaAmount`, `type`, `visibility` — locked once `Contribution.countDocuments({ fund: id, status: 'succeeded' }) > 0`. Deadline also validated: must be > today (isDeadlineValid). POST /funds also validates `quotaAmount <= targetAmount`.
 
 **GET /funds response shape:**
 ```json
@@ -401,38 +418,43 @@ Both return `{ message, fund: { name, deadline } }`.
 ## 5. Frontend Routes
 
 ```
-/                          → redirect to /fondos if auth, else /login
-/login                     → LoginPage
-/register                  → RegisterPage
-/fondos                    → FundsPage (my funds list, HU07)
-/fondos/nuevo              → CreateFundPage (HU06)
-/fondos/:id                → FundDetailPage (HU08/HU14)
-/fondos/:id/editar         → EditFundPage (HU09)
-/directorio                → PublicDirectoryPage (HU13)
-/invitaciones/:token       → InvitationResponsePage (token-based accept/reject)
+/                               → redirect to /fondos if auth, else /login
+/login                          → LoginPage
+/register                       → RegisterPage
+/verificar-email/:token         → VerifyEmailPage (no auth — activates account)
+/fondos                         → FundsPage (my funds list, HU07)
+/fondos/nuevo                   → CreateFundPage (HU06)
+/fondos/:id                     → FundDetailPage (HU08/HU14)
+/fondos/:id/editar              → EditFundPage (HU09)
+/directorio                     → PublicDirectoryPage (HU13)
+/invitaciones/:token            → InvitationResponsePage (token-based accept/reject)
+/perfil                         → ProfilePage (protected — view name/RUT/email, edit bank account, delete account)
+/confirmar-eliminacion/:token   → ConfirmDeletePage (no auth — confirms account deletion)
 ```
 
-All routes except `/login`, `/register`, and `/invitaciones/:token` require auth (ProtectedRoute wrapper).
+Routes requiring auth (ProtectedRoute): all except `/login`, `/register`, `/verificar-email/:token`, `/invitaciones/:token`, `/confirmar-eliminacion/:token`.
 
 ---
 
 ## 6. Payment Simulation UX Specification
 
-The payment flow must feel real. Steps:
+Steps:
 
-1. Organizer clicks "Pagar al destinatario" button on FundDetailPage.
+1. Organizer clicks "Pagar al destinatario" (only visible when `collectedAmount > 0`).
 2. Modal opens with header "Pago al destinatario".
 3. `MockPaymentForm` shows:
-   - Read-only field: Cuenta destino (value from fund.recipientAccount)
-   - Read-only field: Monto total (value from fund.collectedAmount, formatted as CLP)
-   - Simulated card inputs (visually real but not validated): Número de tarjeta, Fecha expiración, CVV
-   - "Confirmar pago" button
-4. On submit: button shows spinner + text "Procesando…" for 1500ms.
-5. Then: success state shows green checkmark + "Pago realizado. El fondo ha sido completado." for 800ms.
-6. Modal closes. Fund status updates to `completed` (react-query invalidateQueries or local state update).
-7. FundDetailPage re-renders: status badge shows "Completado", action buttons are hidden.
+   - Cuenta destinataria (read-only): banco, tipo de cuenta, número — from `fund.recipientAccount`
+   - Monto a transferir (read-only): `collectedAmount` formatted as CLP
+   - "Confirmar transferencia" button
+   - No card fields — the data is already known.
+4. On confirm: spinner + "Procesando…" for ~1400ms.
+5. Success state: green checkmark + "Pago realizado. El fondo ha sido completado."
+6. Modal closes. Fund status updates to `completed` in local state.
+7. FundDetailPage re-renders: status badge "Completado", action buttons hidden.
 
-API call: `POST /api/funds/:id/payment` → `{ transactionId: 'sim_<timestamp>', amount, status: 'succeeded', provider: 'simulation' }`.
+API call: `POST /api/funds/:id/payment` → `{ fund, transaction: { transactionId: 'sim_<timestamp>', amount, status: 'succeeded', provider: 'simulation' } }`.
+
+Note: After payment, `sendStatusChangeEmail` is fired (fire-and-forget) to organizer and all accepted participants.
 
 ---
 
@@ -1281,11 +1303,20 @@ All integration tests use `MongoMemoryServer` (in-memory DB, no external MongoDB
 |---|---|---|
 | Only organizer can edit | `PATCH /funds/:id` | `fund.organizer.equals(req.user._id)` |
 | Edit only if active | `PATCH /funds/:id` | `fund.status === 'active'` |
-| Locked fields after contributions | `PATCH /funds/:id` | `Contribution.countDocuments({ fund: id }) > 0` |
-| Cannot delete with contributions | `DELETE /funds/:id` | same count check |
+| Locked fields after contributions | `PATCH /funds/:id` | `Contribution.countDocuments({ fund: id, status: 'succeeded' }) > 0` |
+| Locked fields include type + visibility | `PATCH /funds/:id` | `['targetAmount','deadline','recipientAccount','frequency','quotaAmount','type','visibility']` |
+| Deadline must be > today | `POST + PATCH /funds` | `isDeadlineValid(deadline)` — compare ISO date strings |
+| quotaAmount cannot exceed targetAmount | `POST /funds` | `Number(quotaAmount) > Number(targetAmount)` → 400 |
+| Cannot delete with contributions | `DELETE /funds/:id` | `Contribution.countDocuments({ fund: id }) > 0` |
+| Cannot close fund with contributions | `POST /funds/:id/close` | `Contribution.countDocuments({ fund: id, status: 'succeeded' }) > 0` → 422 |
 | Invitation only while active + deadline > now | `POST /invitations` + `/invitations/:token/accept` | `fund.status === 'active' && fund.deadline > new Date()` |
 | Cannot remove participant with contributions | `DELETE /funds/:id/participants/:uid` | `Contribution.countDocuments({ fund: id, user: uid }) > 0` |
 | Only organizer or accepted participant can contribute | `POST /funds/:id/contributions` | role check |
-| Payment sets fund to completed | `POST /funds/:id/payment` | `fund.status = 'completed'` |
+| Quota funds: block overpayment | `POST /funds/:id/contributions` | `pendingQuotas === 0` → 400 "Estás al día" |
+| Payment sets fund to completed | `POST /funds/:id/payment` | `fund.status = 'completed'`; fires `sendStatusChangeEmail` |
+| Close sets fund to closed | `POST /funds/:id/close` | `fund.status = 'closed'`; fires `sendStatusChangeEmail` |
+| Status change emails | `emailService.sendStatusChangeEmail` | Sent to organizer + accepted participants on `completed` / `closed` |
 | Organizer can also contribute | `POST /funds/:id/contributions` | `fund.organizer.equals(req.user._id) \|\| accepted` |
 | Reminder dedup | `notificationService` | `participant.lastReminder?.toDateString() === today` |
+| Delete account blocked if in funds | `POST /users/request-delete` | `Fund.exists({ organizer: userId })` or accepted participant |
+| Login blocked if not verified | `POST /auth/login` | `user.isEmailVerified === false` → 403 |

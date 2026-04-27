@@ -2,6 +2,7 @@ const request = require('supertest');
 const app = require('../../../src/app');
 const { connect, disconnect, clear } = require('../../helpers/db');
 const { createUser, createFund, createContribution } = require('../../helpers/factories');
+const Fund = require('../../../src/models/Fund');
 
 let organizer, participant, stranger, pending;
 let orgToken, partToken, strangerToken, pendingToken;
@@ -12,12 +13,12 @@ async function login(user) {
   return res.body.token;
 }
 
-async function invite(token, userId) {
+async function invite(token, userId, fundId) {
   const res = await request(app)
-    .post(`/api/funds/${fund._id}/invitations`)
+    .post(`/api/funds/${fundId ?? fund._id}/invitations`)
     .set('Authorization', `Bearer ${token}`)
     .send({ userId: userId.toString() });
-  return res.body[0]?.invitationToken;
+  return res.body[res.body.length - 1]?.invitationToken;
 }
 
 beforeAll(async () => { await connect(); });
@@ -39,7 +40,7 @@ beforeEach(async () => {
     status: 'active',
     deadline: new Date(Date.now() + 86400000 * 30),
     targetAmount: 100000,
-    recipientAccount: '12345678',
+    recipientAccount: { bank: 'Banco Estado', accountType: 'vista', accountNumber: '12345678' },
   });
 
   // Accept participant
@@ -156,5 +157,93 @@ describe('POST /api/funds/:id/payment', () => {
       .set('Authorization', `Bearer ${partToken}`);
 
     expect(res.status).toBe(403);
+  });
+});
+
+describe('POST /api/funds/:id/contributions — quota fund', () => {
+  const quotaAmount = 10000;
+  let quotaFund;
+
+  beforeEach(async () => {
+    quotaFund = await createFund({
+      organizer: organizer._id,
+      type: 'quota',
+      quotaAmount,
+      frequency: 'monthly',
+      status: 'active',
+      deadline: new Date(Date.now() + 86400000 * 30),
+      targetAmount: 60000,
+    });
+    const invToken = await invite(orgToken, participant._id, quotaFund._id);
+    await request(app).post(`/api/invitations/${invToken}/accept`);
+  });
+
+  it('201 with exact quota amount (1 period, no prior payments)', async () => {
+    const res = await request(app)
+      .post(`/api/funds/${quotaFund._id}/contributions`)
+      .set('Authorization', `Bearer ${partToken}`)
+      .send({ amount: quotaAmount, method: 'transfer' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.amount).toBe(quotaAmount);
+  });
+
+  it('400 if amount is less than required quota', async () => {
+    const res = await request(app)
+      .post(`/api/funds/${quotaFund._id}/contributions`)
+      .set('Authorization', `Bearer ${partToken}`)
+      .send({ amount: quotaAmount - 1, method: 'transfer' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.requiredAmount).toBe(quotaAmount);
+  });
+
+  it('400 if amount is more than required quota', async () => {
+    const res = await request(app)
+      .post(`/api/funds/${quotaFund._id}/contributions`)
+      .set('Authorization', `Bearer ${partToken}`)
+      .send({ amount: quotaAmount + 1, method: 'transfer' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('400 if amount covers only partial catch-up when multiple quotas are overdue', async () => {
+    // bypass Mongoose timestamps protection to backdate the fund 1 month
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    await Fund.collection.updateOne({ _id: quotaFund._id }, { $set: { createdAt: oneMonthAgo } });
+
+    const res = await request(app)
+      .post(`/api/funds/${quotaFund._id}/contributions`)
+      .set('Authorization', `Bearer ${partToken}`)
+      .send({ amount: quotaAmount, method: 'transfer' }); // only 1 when 2 are owed
+
+    expect(res.status).toBe(400);
+    expect(res.body.pendingQuotas).toBe(2);
+    expect(res.body.requiredAmount).toBe(quotaAmount * 2);
+  });
+
+  it('201 with catch-up amount when multiple quotas are overdue', async () => {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    await Fund.collection.updateOne({ _id: quotaFund._id }, { $set: { createdAt: oneMonthAgo } });
+
+    const res = await request(app)
+      .post(`/api/funds/${quotaFund._id}/contributions`)
+      .set('Authorization', `Bearer ${partToken}`)
+      .send({ amount: quotaAmount * 2, method: 'transfer' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.amount).toBe(quotaAmount * 2);
+  });
+
+  it('free fund still accepts any positive amount', async () => {
+    const res = await request(app)
+      .post(`/api/funds/${fund._id}/contributions`)
+      .set('Authorization', `Bearer ${orgToken}`)
+      .send({ amount: 1234, method: 'transfer' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.amount).toBe(1234);
   });
 });

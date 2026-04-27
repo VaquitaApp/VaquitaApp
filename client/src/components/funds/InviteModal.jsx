@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { searchUsers, inviteUser } from '../../api/participants';
+import { fmtName } from '../../utils/format';
 
 export default function InviteModal({ fundId, existingParticipants = [], onClose, onInvited }) {
   const [query, setQuery] = useState('');
@@ -68,7 +69,7 @@ export default function InviteModal({ fundId, existingParticipants = [], onClose
             return (
               <li key={u._id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50">
                 <div>
-                  <p className="text-sm font-medium text-gray-800">{u.name}</p>
+                  <p className="text-sm font-medium text-gray-800">{fmtName(u.name)}</p>
                   <p className="text-xs text-gray-400">{u.email}</p>
                 </div>
                 {invited ? (

@@ -1,29 +1,89 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import PasswordInput from '../components/ui/PasswordInput';
+
+function formatRut(value) {
+  const clean = value.replace(/[^0-9kK]/g, '').toUpperCase();
+  if (clean.length <= 1) return clean;
+  const dv = clean.slice(-1);
+  const body = clean.slice(0, -1);
+  return `${body.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}-${dv}`;
+}
+
+function validateRut(rut) {
+  const clean = rut.replace(/\./g, '').replace(/-/, '').toUpperCase();
+  if (!/^\d{7,8}[0-9K]$/.test(clean)) return false;
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1);
+  let sum = 0, mul = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += Number(body[i]) * mul;
+    mul = mul < 7 ? mul + 1 : 2;
+  }
+  const rem = 11 - (sum % 11);
+  const computed = rem === 11 ? '0' : rem === 10 ? 'K' : String(rem);
+  return dv === computed;
+}
 
 export default function RegisterPage() {
   const { register } = useAuth();
-  const navigate     = useNavigate();
-  const [form, setForm]     = useState({ name: '', email: '', password: '', userType: 'persona_natural' });
+  const [form, setForm]     = useState({ name: '', email: '', password: '', rut: '', userType: 'persona_natural' });
+  const [rutError, setRutError] = useState('');
   const [error, setError]   = useState('');
   const [loading, setLoading] = useState(false);
+  const [sent, setSent]     = useState(false);
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
 
+  function handleRutChange(e) {
+    const formatted = formatRut(e.target.value);
+    setForm(f => ({ ...f, rut: formatted }));
+    setRutError('');
+  }
+
+  function handleRutBlur() {
+    if (form.rut && !validateRut(form.rut)) setRutError('RUT inválido');
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateRut(form.rut)) { setRutError('RUT inválido'); return; }
     setError('');
     setLoading(true);
     try {
       await register(form);
-      navigate('/fondos');
+      setSent(true);
     } catch (err) {
       setError(err.response?.data?.error || 'Error al registrarse');
     } finally {
       setLoading(false);
     }
   };
+
+  if (sent) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-md p-8 w-full max-w-sm text-center">
+          <div className="text-4xl mb-4">📬</div>
+          <h1 className="text-2xl font-bold text-indigo-600 mb-2">Revisa tu correo</h1>
+          <p className="text-gray-600 text-sm mb-1">
+            Enviamos un enlace de verificación a
+          </p>
+          <p className="font-medium text-gray-800 mb-4">{form.email}</p>
+          <p className="text-gray-500 text-xs mb-6">
+            Haz clic en el enlace para activar tu cuenta. Si usas Mailpit en desarrollo, encuéntralo en{' '}
+            <a href="http://localhost:8025" target="_blank" rel="noreferrer" className="text-indigo-500 hover:underline">
+              localhost:8025
+            </a>.
+          </p>
+          <Link to="/login" className="text-sm text-indigo-600 hover:underline">
+            Ir al inicio de sesión
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -42,6 +102,16 @@ export default function RegisterPage() {
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">RUT</label>
+            <input
+              type="text" required placeholder="12.345.678-9"
+              value={form.rut} onChange={handleRutChange} onBlur={handleRutBlur}
+              maxLength={12}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 ${rutError ? 'border-red-400' : 'border-gray-200'}`}
+            />
+            {rutError && <p className="text-xs text-red-500 mt-1">{rutError}</p>}
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email" required value={form.email} onChange={set('email')}
@@ -50,8 +120,8 @@ export default function RegisterPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-            <input
-              type="password" required minLength={6} value={form.password} onChange={set('password')}
+            <PasswordInput
+              required minLength={6} value={form.password} onChange={set('password')}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
             />
           </div>

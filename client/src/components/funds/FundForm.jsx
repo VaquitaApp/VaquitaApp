@@ -25,14 +25,43 @@ function Field({ label, required, children }) {
   );
 }
 
+const BANKS = [
+  'Banco de Chile',
+  'Banco Santander',
+  'BCI',
+  'Scotiabank Chile',
+  'Banco Estado',
+  'BICE',
+  'Itaú Chile',
+  'Banco Security',
+  'Banco Falabella',
+  'Banco Ripley',
+  'Banco Consorcio',
+  'Banco Internacional',
+  'Banco BTG Pactual',
+  'HSBC Bank Chile',
+];
+
+const ACCOUNT_TYPES = [
+  { value: 'corriente',          label: 'Cuenta Corriente' },
+  { value: 'vista',              label: 'Cuenta Vista / RUT' },
+  { value: 'ahorro',             label: 'Cuenta de Ahorro' },
+  { value: 'chequera_electronica', label: 'Chequera Electrónica' },
+];
+
 export default function FundForm({ initial = {}, lockedFields = [], onSubmit, loading }) {
+  const [validationError, setValidationError] = useState('');
   const [form, setForm] = useState({
     name: initial.name ?? '',
     type: initial.type ?? 'free',
     targetAmount: initial.targetAmount ?? '',
     deadline: toDateInput(initial.deadline),
-    recipientAccount: initial.recipientAccount ?? '',
-    visibility: initial.visibility ?? 'private',
+    recipientAccount: {
+      bank:          initial.recipientAccount?.bank          ?? '',
+      accountType:   initial.recipientAccount?.accountType   ?? 'corriente',
+      accountNumber: initial.recipientAccount?.accountNumber ?? '',
+    },
+    visibility: initial.visibility ?? 'public',
     frequency: initial.frequency ?? 'monthly',
     quotaAmount: initial.quotaAmount ?? '',
   });
@@ -41,18 +70,27 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     setForm(f => ({ ...f, [key]: val }));
   }
 
+  function setAccount(key, val) {
+    setForm(f => ({ ...f, recipientAccount: { ...f.recipientAccount, [key]: val } }));
+  }
+
   function locked(key) {
     return lockedFields.includes(key);
   }
 
   function handleSubmit(e) {
     e.preventDefault();
+    setValidationError('');
     const data = { ...form, targetAmount: Number(form.targetAmount) };
     if (form.type !== 'quota') {
       delete data.frequency;
       delete data.quotaAmount;
     } else {
       data.quotaAmount = Number(data.quotaAmount);
+      if (data.quotaAmount > data.targetAmount) {
+        setValidationError('El valor de la cuota no puede ser mayor al total del fondo.');
+        return;
+      }
     }
     onSubmit(data);
   }
@@ -102,19 +140,40 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
           disabled={locked('deadline')}
           className={inputCls(locked('deadline'))}
           required
-          min={new Date().toISOString().slice(0, 10)}
+          min={(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toLocaleDateString('en-CA'); })()}
         />
       </Field>
 
       <Field label="Cuenta destinataria" required>
-        <input
-          type="text"
-          value={form.recipientAccount}
-          onChange={e => set('recipientAccount', e.target.value)}
-          disabled={locked('recipientAccount')}
-          className={inputCls(locked('recipientAccount'))}
-          required
-        />
+        <div className={`space-y-2 ${locked('recipientAccount') ? 'opacity-60 pointer-events-none' : ''}`}>
+          <select
+            value={form.recipientAccount.bank}
+            onChange={e => setAccount('bank', e.target.value)}
+            className={inputCls(locked('recipientAccount'))}
+            required
+          >
+            <option value="">Selecciona un banco</option>
+            {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
+          <select
+            value={form.recipientAccount.accountType}
+            onChange={e => setAccount('accountType', e.target.value)}
+            className={inputCls(locked('recipientAccount'))}
+            required
+          >
+            {ACCOUNT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]+"
+            placeholder="Número de cuenta (solo dígitos)"
+            value={form.recipientAccount.accountNumber}
+            onChange={e => setAccount('accountNumber', e.target.value.replace(/\D/g, ''))}
+            className={inputCls(locked('recipientAccount'))}
+            required
+          />
+        </div>
       </Field>
 
       <Field label="Visibilidad">
@@ -155,6 +214,10 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
             />
           </Field>
         </>
+      )}
+
+      {validationError && (
+        <p className="text-xs text-red-500">{validationError}</p>
       )}
 
       <button
