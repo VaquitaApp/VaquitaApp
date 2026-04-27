@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getFund, closeFund, deleteFund } from '../api/funds';
 import { getParticipants } from '../api/participants';
+import { getContributions } from '../api/contributions';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge } from '../components/ui/Badge';
 import ProgressBar from '../components/ui/ProgressBar';
 import InviteModal from '../components/funds/InviteModal';
 import ParticipantList from '../components/funds/ParticipantList';
+import ContributionForm from '../components/funds/ContributionForm';
+import ContributionList from '../components/funds/ContributionList';
+import MockPaymentForm from '../components/funds/MockPaymentForm';
 
 function fmt(d) {
   return new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -16,18 +20,23 @@ export default function FundDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+
   const [fund, setFund] = useState(null);
   const [participants, setParticipants] = useState([]);
+  const [contributions, setContributions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [showContribForm, setShowContribForm] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
 
   useEffect(() => {
-    Promise.all([getFund(id), getParticipants(id)])
-      .then(([fundRes, partRes]) => {
+    Promise.all([getFund(id), getParticipants(id), getContributions(id)])
+      .then(([fundRes, partRes, contribRes]) => {
         setFund(fundRes.data);
         setParticipants(partRes.data);
+        setContributions(contribRes.data);
       })
       .catch(() => setError('Fondo no encontrado o sin acceso'))
       .finally(() => setLoading(false));
@@ -40,6 +49,8 @@ export default function FundDetailPage() {
   const organizerId = fund.organizer?._id?.toString() ?? fund.organizer?.toString();
   const isOrganizer = user && organizerId === user._id?.toString();
   const accepted = participants.filter(p => p.status === 'accepted');
+  const isMember = isOrganizer || accepted.some(p => p.user?._id?.toString() === user?._id?.toString());
+  const collectedAmount = contributions.reduce((sum, c) => sum + c.amount, 0);
 
   async function handleClose() {
     if (!window.confirm('¿Cerrar este fondo? Esta acción no se puede deshacer.')) return;
@@ -72,6 +83,19 @@ export default function FundDetailPage() {
         <Link to="/fondos" className="text-gray-400 hover:text-gray-600 text-sm">← Mis fondos</Link>
       </div>
 
+      {/* Status banners */}
+      {fund.status === 'completed' && (
+        <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm rounded-lg px-4 py-3 mb-4">
+          Este fondo ha sido completado. Los fondos fueron transferidos al destinatario.
+        </div>
+      )}
+      {fund.status === 'closed' && (
+        <div className="bg-gray-50 border border-gray-200 text-gray-600 text-sm rounded-lg px-4 py-3 mb-4">
+          Este fondo fue cerrado por el organizador.
+        </div>
+      )}
+
+      {/* Fund overview */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -81,7 +105,7 @@ export default function FundDetailPage() {
           <StatusBadge status={fund.status} />
         </div>
 
-        <ProgressBar value={fund.collectedAmount ?? 0} max={fund.targetAmount} />
+        <ProgressBar value={collectedAmount} max={fund.targetAmount} />
 
         <div className="grid grid-cols-2 gap-4 mt-5 text-sm text-gray-600">
           <div>
@@ -105,7 +129,7 @@ export default function FundDetailPage() {
         </div>
       </div>
 
-      {/* Participant section */}
+      {/* Participants */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-800 text-sm">Participantes</h2>
@@ -126,33 +150,68 @@ export default function FundDetailPage() {
         />
       </div>
 
-      {isOrganizer && (
+      {/* Contributions */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-gray-800 text-sm">Historial de aportes</h2>
+          {isMember && fund.status === 'active' && !showContribForm && (
+            <button
+              onClick={() => setShowContribForm(true)}
+              className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md transition-colors"
+            >
+              + Registrar aporte
+            </button>
+          )}
+        </div>
+        {showContribForm && (
+          <div className="mb-4 p-4 border border-gray-200 rounded-lg">
+            <ContributionForm
+              fundId={id}
+              onCreated={c => {
+                setContributions(prev => [c, ...prev]);
+                setShowContribForm(false);
+              }}
+              onCancel={() => setShowContribForm(false)}
+            />
+          </div>
+        )}
+        <ContributionList contributions={contributions} />
+      </div>
+
+      {/* Actions */}
+      {fund.status === 'active' && (
         <div className="flex flex-wrap gap-3">
-          {fund.status === 'active' && (
-            <Link
-              to={`/fondos/${id}/editar`}
-              className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            >
-              Editar fondo
-            </Link>
-          )}
-          {fund.status === 'active' && (
-            <button
-              onClick={handleClose}
-              disabled={actionLoading}
-              className="bg-white border border-amber-300 hover:border-amber-400 text-amber-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-            >
-              Cerrar fondo
-            </button>
-          )}
-          {(fund.collectedAmount ?? 0) === 0 && (
-            <button
-              onClick={handleDelete}
-              disabled={actionLoading}
-              className="bg-white border border-red-200 hover:border-red-400 text-red-600 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-            >
-              Eliminar fondo
-            </button>
+          {isOrganizer && (
+            <>
+              <Link
+                to={`/fondos/${id}/editar`}
+                className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                Editar fondo
+              </Link>
+              <button
+                onClick={() => setShowPayment(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                Pagar al destinatario
+              </button>
+              <button
+                onClick={handleClose}
+                disabled={actionLoading}
+                className="bg-white border border-amber-300 hover:border-amber-400 text-amber-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cerrar fondo
+              </button>
+              {collectedAmount === 0 && (
+                <button
+                  onClick={handleDelete}
+                  disabled={actionLoading}
+                  className="bg-white border border-red-200 hover:border-red-400 text-red-600 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Eliminar fondo
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -165,6 +224,17 @@ export default function FundDetailPage() {
           onInvited={updated => {
             setParticipants(updated);
             setShowInvite(false);
+          }}
+        />
+      )}
+
+      {showPayment && (
+        <MockPaymentForm
+          fundId={id}
+          onClose={() => setShowPayment(false)}
+          onSuccess={({ fund: updatedFund }) => {
+            setFund(prev => ({ ...prev, status: updatedFund.status }));
+            setShowPayment(false);
           }}
         />
       )}

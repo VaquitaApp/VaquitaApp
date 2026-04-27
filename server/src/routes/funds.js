@@ -2,6 +2,7 @@ const express = require('express');
 const Fund = require('../models/Fund');
 const Contribution = require('../models/Contribution');
 const auth = require('../middleware/auth');
+const { processPayment } = require('../services/paymentService');
 
 const router = express.Router();
 
@@ -168,6 +169,35 @@ router.delete('/:id', auth, async (req, res) => {
 
     await fund.deleteOne();
     res.status(204).send();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/funds/:id/payment — organizer triggers payout, marks fund completed
+router.post('/:id/payment', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id);
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+
+    const collectedAmount = await getCollectedAmount(fund._id);
+    const transaction = await processPayment({ amount: collectedAmount, recipientAccount: fund.recipientAccount });
+
+    await Contribution.create({
+      fund: fund._id,
+      user: req.user._id,
+      amount: collectedAmount,
+      method: 'simulation',
+      transactionId: transaction.transactionId,
+      provider: transaction.provider,
+      status: 'succeeded',
+    });
+
+    fund.status = 'completed';
+    await fund.save();
+    res.json({ fund, transaction });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
