@@ -11,6 +11,8 @@ router.post('/', auth, async (req, res) => {
     const fund = await Fund.findById(req.params.id);
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
 
+    if (fund.status !== 'active') return res.status(403).json({ error: 'Fund is not active' });
+
     const userId = req.user._id;
     const isOrganizer = fund.organizer.equals(userId);
     const isAccepted = fund.participants.some(p => p.user.equals(userId) && p.status === 'accepted');
