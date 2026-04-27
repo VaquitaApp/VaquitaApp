@@ -567,11 +567,14 @@ Display in UI:
    npm create vite@latest client -- --template react
    cd client && npm install
    npm install axios react-router-dom recharts
-   npm install -D tailwindcss postcss autoprefixer
-   npx tailwindcss init -p
+   npm install -D tailwindcss @tailwindcss/vite
    ```
-   Configure `tailwind.config.js` content: `['./index.html', './src/**/*.{js,jsx}']`.
-   Add to `src/index.css`: `@tailwind base; @tailwind components; @tailwind utilities;`
+   **Note:** Tailwind v4 is installed (no `tailwind.config.js` needed). Add the Vite plugin to `vite.config.js`:
+   ```js
+   import tailwindcss from '@tailwindcss/vite'
+   // plugins: [tailwindcss(), react()]
+   ```
+   In `src/index.css` use: `@import "tailwindcss";`
 
 9. Create `.env`, `.env.test`, `.env.example` in `server/`. Create `.env` in `client/`.
 
