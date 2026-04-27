@@ -1,7 +1,7 @@
 const request = require('supertest');
 const app = require('../../../src/app');
 const db = require('../../helpers/db');
-const { createUser, createFund } = require('../../helpers/factories');
+const { createUser, createFund, createContribution } = require('../../helpers/factories');
 
 beforeAll(() => db.connect());
 afterEach(() => db.clear());
@@ -208,5 +208,33 @@ describe('POST /api/funds/:id/close', () => {
       .post(`/api/funds/${fund._id}/close`)
       .set(await authHeader(user));
     expect(res.status).toBe(422);
+  });
+});
+
+describe('GET /api/funds/:id — Phase 5 visualization', () => {
+  test('collectedAmount reflects real contributions', async () => {
+    const user = await createUser();
+    const fund = await createFund({ organizer: user._id });
+    await createContribution({ fund: fund._id, user: user._id, amount: 30000 });
+    await createContribution({ fund: fund._id, user: user._id, amount: 20000 });
+
+    const res = await request(app)
+      .get(`/api/funds/${fund._id}`)
+      .set(await authHeader(user));
+
+    expect(res.status).toBe(200);
+    expect(res.body.collectedAmount).toBe(50000);
+  });
+
+  test('collectedAmount is 0 when no contributions', async () => {
+    const user = await createUser();
+    const fund = await createFund({ organizer: user._id });
+
+    const res = await request(app)
+      .get(`/api/funds/${fund._id}`)
+      .set(await authHeader(user));
+
+    expect(res.status).toBe(200);
+    expect(res.body.collectedAmount).toBe(0);
   });
 });

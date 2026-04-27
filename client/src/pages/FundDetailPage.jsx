@@ -11,6 +11,7 @@ import ParticipantList from '../components/funds/ParticipantList';
 import ContributionForm from '../components/funds/ContributionForm';
 import ContributionList from '../components/funds/ContributionList';
 import MockPaymentForm from '../components/funds/MockPaymentForm';
+import FundChart from '../components/funds/FundChart';
 
 function fmt(d) {
   return new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -150,6 +151,16 @@ export default function FundDetailPage() {
         />
       </div>
 
+      {/* Participant status summary */}
+      {accepted.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-6 py-3 mb-4 text-sm text-gray-600">
+          {(() => {
+            const onTime = participants.filter(p => p.contributionStatus === 'onTime').length;
+            return `${onTime} de ${accepted.length} participante${accepted.length !== 1 ? 's' : ''} al día`;
+          })()}
+        </div>
+      )}
+
       {/* Contributions */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
@@ -176,6 +187,12 @@ export default function FundDetailPage() {
           </div>
         )}
         <ContributionList contributions={contributions} />
+        {contributions.length > 0 && (
+          <div className="mt-5">
+            <p className="text-xs text-gray-400 mb-2">Aportes en el tiempo</p>
+            <FundChart contributions={contributions} deadline={fund.deadline} />
+          </div>
+        )}
       </div>
 
       {/* Actions */}
