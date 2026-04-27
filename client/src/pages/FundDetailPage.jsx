@@ -34,11 +34,17 @@ export default function FundDetailPage() {
   const [reminderMsg, setReminderMsg] = useState('');
 
   useEffect(() => {
-    Promise.all([getFund(id), getParticipants(id), getContributions(id)])
-      .then(([fundRes, partRes, contribRes]) => {
+    getFund(id)
+      .then(fundRes => {
         setFund(fundRes.data);
-        setParticipants(partRes.data);
-        setContributions(contribRes.data);
+        return Promise.all([
+          getParticipants(id).then(r => r.data).catch(() => []),
+          getContributions(id).then(r => r.data).catch(() => []),
+        ]);
+      })
+      .then(([parts, contribs]) => {
+        setParticipants(parts);
+        setContributions(contribs);
       })
       .catch(() => setError('Fondo no encontrado o sin acceso'))
       .finally(() => setLoading(false));
@@ -195,6 +201,13 @@ export default function FundDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Visitor notice */}
+      {!isMember && fund.visibility === 'public' && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-lg px-4 py-3 mb-4">
+          Estás visitando este fondo público. Para participar, contacta al organizador.
+        </div>
+      )}
 
       {/* Actions */}
       {fund.status === 'active' && (
