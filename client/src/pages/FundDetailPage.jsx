@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getFund, closeFund, deleteFund } from '../api/funds';
+import { getParticipants } from '../api/participants';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge } from '../components/ui/Badge';
 import ProgressBar from '../components/ui/ProgressBar';
+import InviteModal from '../components/funds/InviteModal';
+import ParticipantList from '../components/funds/ParticipantList';
 
 function fmt(d) {
   return new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -14,13 +17,18 @@ export default function FundDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [fund, setFund] = useState(null);
+  const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
 
   useEffect(() => {
-    getFund(id)
-      .then(r => setFund(r.data))
+    Promise.all([getFund(id), getParticipants(id)])
+      .then(([fundRes, partRes]) => {
+        setFund(fundRes.data);
+        setParticipants(partRes.data);
+      })
       .catch(() => setError('Fondo no encontrado o sin acceso'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -31,7 +39,7 @@ export default function FundDetailPage() {
 
   const organizerId = fund.organizer?._id?.toString() ?? fund.organizer?.toString();
   const isOrganizer = user && organizerId === user._id?.toString();
-  const accepted = fund.participants?.filter(p => p.status === 'accepted') ?? [];
+  const accepted = participants.filter(p => p.status === 'accepted');
 
   async function handleClose() {
     if (!window.confirm('¿Cerrar este fondo? Esta acción no se puede deshacer.')) return;
@@ -97,6 +105,27 @@ export default function FundDetailPage() {
         </div>
       </div>
 
+      {/* Participant section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-gray-800 text-sm">Participantes</h2>
+          {isOrganizer && fund.status === 'active' && (
+            <button
+              onClick={() => setShowInvite(true)}
+              className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md transition-colors"
+            >
+              + Invitar
+            </button>
+          )}
+        </div>
+        <ParticipantList
+          fundId={id}
+          participants={participants}
+          isOrganizer={isOrganizer}
+          onRemoved={userId => setParticipants(prev => prev.filter(p => p.user?._id !== userId))}
+        />
+      </div>
+
       {isOrganizer && (
         <div className="flex flex-wrap gap-3">
           {fund.status === 'active' && (
@@ -126,6 +155,18 @@ export default function FundDetailPage() {
             </button>
           )}
         </div>
+      )}
+
+      {showInvite && (
+        <InviteModal
+          fundId={id}
+          existingParticipants={participants}
+          onClose={() => setShowInvite(false)}
+          onInvited={updated => {
+            setParticipants(updated);
+            setShowInvite(false);
+          }}
+        />
       )}
     </div>
   );

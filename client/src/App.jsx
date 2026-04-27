@@ -9,6 +9,7 @@ import CreateFundPage from './pages/CreateFundPage';
 import EditFundPage from './pages/EditFundPage';
 import FundDetailPage from './pages/FundDetailPage';
 import PublicDirectoryPage from './pages/PublicDirectoryPage';
+import InvitationResponsePage from './pages/InvitationResponsePage';
 
 function Layout({ children }) {
   return (
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/fondos/:id"        element={<Protected><FundDetailPage /></Protected>} />
           <Route path="/fondos/:id/editar" element={<Protected><EditFundPage /></Protected>} />
           <Route path="/directorio"        element={<Protected><PublicDirectoryPage /></Protected>} />
+          <Route path="/invitaciones/:token" element={<InvitationResponsePage />} />
           <Route path="*"                  element={<Navigate to="/fondos" replace />} />
         </Routes>
       </AuthProvider>
