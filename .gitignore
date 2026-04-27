@@ -30,5 +30,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Claude Code (local config, credentials)
+.mcp.json
+.claude/
+
 # MongoDB local data
 data/
