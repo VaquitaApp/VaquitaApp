@@ -111,7 +111,8 @@ Tag de entrega: `v1.0-entrega1` apuntando a un commit en `main`.
 - [x] README con instrucciones de instalación
 - [x] `.gitignore` y `LICENSE`
 - [x] Directorio `docs/`
+- [x] Código en `develop` (PR #1 mergeado — `chore/SCRUM-15-project-setup` → `develop`)
 - [ ] README: agregar links a video, Wiki e integrantes
 - [ ] GitHub Wiki: Home + páginas del proyecto + Entrega 1
-- [ ] Tag `v1.0-entrega1` + GitHub Release en `main`
-- [ ] JIRA Kanban actualizado
+- [ ] PR `develop` → `main` + Tag `v1.0-entrega1` + GitHub Release
+- [ ] JIRA: solo SCRUM-15 debe quedar en Finalizado; el resto permanece sin cambios
