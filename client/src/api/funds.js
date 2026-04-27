@@ -7,3 +7,4 @@ export const createFund     = (data)   => api.post('/funds', data);
 export const updateFund     = (id, data) => api.patch(`/funds/${id}`, data);
 export const deleteFund     = (id)     => api.delete(`/funds/${id}`);
 export const closeFund      = (id)     => api.post(`/funds/${id}/close`);
+export const sendReminders  = (id)     => api.post(`/funds/${id}/reminders`);

@@ -1,8 +1,10 @@
 const express = require('express');
 const Fund = require('../models/Fund');
 const Contribution = require('../models/Contribution');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { processPayment } = require('../services/paymentService');
+const { sendEmail } = require('../services/emailService');
 
 const router = express.Router();
 
@@ -198,6 +200,34 @@ router.post('/:id/payment', auth, async (req, res) => {
     fund.status = 'completed';
     await fund.save();
     res.json({ fund, transaction });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/funds/:id/reminders — manual reminder to all accepted participants
+router.post('/:id/reminders', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id).populate('participants.user', 'name email');
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+
+    const accepted = fund.participants.filter(p => p.status === 'accepted' && p.user?.email);
+    let sent = 0;
+
+    for (const p of accepted) {
+      await sendEmail({
+        to: p.user.email,
+        subject: `Recordatorio: fondo "${fund.name}"`,
+        html: `<p>Hola ${p.user.name}, recuerda registrar tu aporte al fondo <b>${fund.name}</b>. Fecha límite: ${new Date(fund.deadline).toLocaleDateString('es-CL')}.</p>`,
+      }).catch(() => {});
+      p.lastReminder = new Date();
+      sent++;
+    }
+
+    await fund.save();
+    res.json({ sent });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

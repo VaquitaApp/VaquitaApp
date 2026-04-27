@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getFund, closeFund, deleteFund } from '../api/funds';
+import { getFund, closeFund, deleteFund, sendReminders } from '../api/funds';
 import { getParticipants } from '../api/participants';
 import { getContributions } from '../api/contributions';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,6 +31,7 @@ export default function FundDetailPage() {
   const [showInvite, setShowInvite] = useState(false);
   const [showContribForm, setShowContribForm] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [reminderMsg, setReminderMsg] = useState('');
 
   useEffect(() => {
     Promise.all([getFund(id), getParticipants(id), getContributions(id)])
@@ -198,8 +199,27 @@ export default function FundDetailPage() {
       {/* Actions */}
       {fund.status === 'active' && (
         <div className="flex flex-wrap gap-3">
+          {reminderMsg && (
+            <p className="w-full text-xs text-green-700 bg-green-50 border border-green-200 rounded px-3 py-1.5 mb-1">
+              {reminderMsg}
+            </p>
+          )}
           {isOrganizer && (
             <>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await sendReminders(id);
+                    setReminderMsg(`Recordatorio enviado a ${res.data.sent} participante${res.data.sent !== 1 ? 's' : ''}.`);
+                    setTimeout(() => setReminderMsg(''), 4000);
+                  } catch {
+                    setReminderMsg('Error al enviar recordatorios');
+                  }
+                }}
+                className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                Enviar recordatorio
+              </button>
               <Link
                 to={`/fondos/${id}/editar`}
                 className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"

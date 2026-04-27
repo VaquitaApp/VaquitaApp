@@ -1,6 +1,7 @@
 require('dotenv').config();
 const app = require('./app');
 const connectDB = require('./config/db');
+require('./jobs/reminderJob');
 
 const PORT = process.env.PORT || 3001;
 
