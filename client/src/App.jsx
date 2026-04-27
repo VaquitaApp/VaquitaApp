@@ -5,6 +5,10 @@ import Navbar from './components/layout/Navbar';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import FundsPage from './pages/FundsPage';
+import CreateFundPage from './pages/CreateFundPage';
+import EditFundPage from './pages/EditFundPage';
+import FundDetailPage from './pages/FundDetailPage';
+import PublicDirectoryPage from './pages/PublicDirectoryPage';
 
 function Layout({ children }) {
   return (
@@ -15,17 +19,23 @@ function Layout({ children }) {
   );
 }
 
+function Protected({ children }) {
+  return <ProtectedRoute><Layout>{children}</Layout></ProtectedRoute>;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login"    element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/fondos"   element={
-            <ProtectedRoute><Layout><FundsPage /></Layout></ProtectedRoute>
-          } />
-          <Route path="*" element={<Navigate to="/fondos" replace />} />
+          <Route path="/login"             element={<LoginPage />} />
+          <Route path="/register"          element={<RegisterPage />} />
+          <Route path="/fondos"            element={<Protected><FundsPage /></Protected>} />
+          <Route path="/fondos/crear"      element={<Protected><CreateFundPage /></Protected>} />
+          <Route path="/fondos/:id"        element={<Protected><FundDetailPage /></Protected>} />
+          <Route path="/fondos/:id/editar" element={<Protected><EditFundPage /></Protected>} />
+          <Route path="/directorio"        element={<Protected><PublicDirectoryPage /></Protected>} />
+          <Route path="*"                  element={<Navigate to="/fondos" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
