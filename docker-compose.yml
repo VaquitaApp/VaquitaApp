@@ -1,0 +1,88 @@
+name: vaquitaapp
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Requisito previo: crear server/.env antes de levantar los servicios.
+#
+#   Opción A — si tienes Node.js instalado:
+#     ./scripts/setup.sh   (macOS/Linux)
+#     .\scripts\setup.ps1  (Windows PowerShell)
+#
+#   Opción B — sin Node.js, usando Docker para generar el JWT_SECRET:
+#     cp server/.env.example server/.env
+#     docker run --rm node:20-alpine \
+#       node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+#     Pegar el resultado en JWT_SECRET= dentro de server/.env
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Base de datos ──────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: vaquitaapp-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Servidor SMTP local + bandeja web ─────────────────────────────────────
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: vaquitaapp-mailpit
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI → http://localhost:8025
+
+  # ── Backend (Express) ─────────────────────────────────────────────────────
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: vaquitaapp-server
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./server/.env           # carga JWT_SECRET y demás variables locales
+    environment:
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongodb:27017/vaquitaapp   # override: usar red Docker
+      SMTP_HOST: mailpit                               # override: usar servicio mailpit
+      SMTP_PORT: "1025"
+    volumes:
+      - ./server/src:/app/src         # hot-reload: cambios en src/ se reflejan sin rebuild
+      - ./server/tests:/app/tests
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+
+  # ── Frontend (React + Vite) ───────────────────────────────────────────────
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: vaquitaapp-client
+    ports:
+      - "5173:5173"
+    environment:
+      # VITE_API_URL debe apuntar a localhost:3001 porque es el browser
+      # (en el host) el que hace las llamadas, no el contenedor.
+      VITE_API_URL: http://localhost:3001/api
+    volumes:
+      - ./client/src:/app/src           # hot-reload
+      - ./client/public:/app/public
+      - ./client/index.html:/app/index.html
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
