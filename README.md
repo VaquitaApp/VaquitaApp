@@ -40,15 +40,13 @@ Hay tres formas de levantar el proyecto. Elige la que más te acomode.
 
 | Opción | Requiere | Ideal para |
 |---|---|---|
-| [A — Script automático](#opción-a--script-automático) | Node.js 20, MongoDB, Mailpit | Desarrollo con hot-reload completo |
-| [B — Manual](#opción-b--instalación-manual) | Node.js 20, MongoDB, Mailpit | Cuando el script no funciona |
-| [C — Docker](#opción-c--docker) | Docker Desktop | No querer instalar MongoDB/Mailpit; equipos Windows/Linux |
+| [A — Makefile](#opción-a--makefile-recomendado) | Node.js 20, MongoDB, Mailpit | macOS / Linux — dos comandos desde cero |
+| [B — Manual](#opción-b--instalación-manual) | Node.js 20, MongoDB, Mailpit | Cuando el Makefile no funciona |
+| [C — Docker](#opción-c--docker) | Docker Desktop | No querer instalar MongoDB/Mailpit; equipos Windows |
 
 ---
 
-## Opción A — Script automático
-
-El script instala dependencias, crea los `.env` y genera el `JWT_SECRET` automáticamente.
+## Opción A — Makefile (recomendado)
 
 ### 1. Requisitos previos
 
@@ -59,35 +57,18 @@ El script instala dependencias, crea los `.env` y genera el `JWT_SECRET` automá
 | Mailpit | cualquiera | Ver sección [Instalar Mailpit](#instalar-mailpit) |
 | Git | 2 | https://git-scm.com |
 
-### 2. Clonar y configurar
+### 2. Clonar, configurar y levantar
 
 ```bash
 git clone https://github.com/VaquitaApp/VaquitaApp.git
 cd VaquitaApp
+make setup   # instala dependencias, crea .env y genera JWT_SECRET
+make dev     # arranca MongoDB, Mailpit, backend y frontend — todo en una terminal
 ```
 
-**macOS / Linux:**
-```bash
-chmod +x scripts/setup.sh
-./scripts/setup.sh
-```
+`Ctrl+C` detiene todos los servicios.
 
-**Windows (PowerShell):**
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\scripts\setup.ps1
-```
-
-### 3. Levantar los servicios
-
-Necesitas cuatro terminales.
-
-| Terminal | Comando |
-|---|---|
-| 1 — MongoDB | Ver [Arrancar MongoDB](#arrancar-mongodb) |
-| 2 — Mailpit | `mailpit` |
-| 3 — Backend | `cd server && npm run dev` |
-| 4 — Frontend | `cd client && npm run dev` |
+**Windows:** usa la Opción B o la Opción C (Docker). El Makefile y `dev.sh` requieren bash.
 
 ---
 
@@ -148,15 +129,13 @@ docker run --rm node:20-alpine `
 ### 3. Levantar
 
 ```bash
-docker-compose up          # en primer plano
-docker-compose up -d       # en segundo plano
-docker-compose down        # detener
-docker-compose down -v     # detener y eliminar datos de MongoDB
-```
+make docker          # en primer plano  (docker-compose up)
+make docker-down     # detener          (docker-compose down)
+make docker-clean    # detener y borrar datos de MongoDB
 
-Para rebuild tras cambiar dependencias:
-```bash
-docker-compose up --build
+# O directamente:
+docker-compose up -d          # en segundo plano
+docker-compose up --build     # rebuild tras cambiar dependencias
 ```
 
 ---
@@ -166,7 +145,10 @@ docker-compose up --build
 Los tests usan base de datos en memoria. **No requieren MongoDB en ejecución.**
 
 ```bash
-# Local
+make test        # todos los tests
+make coverage    # tests + reporte de cobertura
+
+# O directamente:
 cd server && npm test
 cd server && npm run test:coverage
 
