@@ -37,26 +37,29 @@ Estructura de carpetas:
 │       ├── routes/          # auth, funds, participants, contributions, invitations, users
 │       └── services/        # emailService, paymentService, notificationService, quotaService
 ├── docs/                    # Plan de implementación y requerimientos
-├── scripts/                 # setup.sh / setup.ps1
+├── scripts/                 # setup.sh / setup.ps1 / dev.sh
+├── Makefile                 # setup · dev · test · coverage · docker · docker-down · docker-clean
 └── docker-compose.yml
 ```
 
 ## Commands
 
 ```bash
-# Backend
-cd server && npm install
-npm run dev               # nodemon → http://localhost:3001
+# Setup inicial (una sola vez tras clonar)
+make setup          # instala deps, crea .env, genera JWT_SECRET
 
-# Frontend
-cd client && npm install
-npm run dev               # Vite → http://localhost:5173
+# Desarrollo (todo en una terminal)
+make dev            # arranca MongoDB + Mailpit + backend + frontend
 
-# Tests (Jest + Supertest, sin MongoDB externo)
-cd server
-npm test                        # todos los tests
-npm test -- <path/to/test>      # archivo específico
-npm test:coverage               # con reporte de cobertura
+# Tests (sin MongoDB externo)
+make test           # todos los tests
+make coverage       # con reporte de cobertura
+cd server && npm test -- <path/to/test>   # archivo específico
+
+# Docker
+make docker         # levanta todo con Docker Compose
+make docker-down    # detiene los contenedores
+make docker-clean   # detiene y elimina datos de MongoDB
 ```
 
 ## Branch Naming & Git Workflow
