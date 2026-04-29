@@ -127,7 +127,8 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const fund = await Fund.findById(req.params.id)
       .populate('organizer', 'name email')
-      .populate('participants.user', 'name email');
+      .populate('participants.user', 'name email')
+      .populate('messages.user', 'name email');
 
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
     if (!fund.organizer) return res.status(404).json({ error: 'Fund not found' });
@@ -281,6 +282,39 @@ router.post('/:id/close', auth, async (req, res) => {
       .catch(err => console.error('Status change email failed:', err.message));
 
     res.json(fund);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// POST /api/funds/:id/messages
+router.post('/:id/messages', auth, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
+
+    const fund = await Fund.findById(req.params.id)
+      .populate('organizer', 'name email')
+      .populate('participants.user', 'name email');
+    if (!fund) return res.status(404).json({ error: 'Fondo no encontrado' });
+
+    const isMember = fund.organizer._id.equals(req.user._id) || 
+      fund.participants.some(p => p.user?._id?.equals(req.user._id) && p.status === 'accepted');
+
+    if (!isMember) return res.status(403).json({ error: 'Solo los participantes pueden enviar mensajes' });
+
+    fund.messages.push({
+      user: req.user._id,
+      text: text.trim(),
+    });
+    
+    await fund.save();
+    
+    const updatedFund = await Fund.findById(req.params.id)
+      .populate('organizer', 'name email')
+      .populate('participants.user', 'name email')
+      .populate('messages.user', 'name email');
+      
+    res.status(201).json(updatedFund.messages);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
