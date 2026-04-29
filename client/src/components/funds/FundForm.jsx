@@ -1,24 +1,17 @@
 import { useState } from 'react';
+import './FundForm.css';
 
 function toDateInput(d) {
   if (!d) return '';
   return new Date(d).toISOString().slice(0, 10);
 }
 
-function inputCls(disabled) {
-  return `w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-    disabled
-      ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
-      : 'border-gray-300'
-  }`;
-}
-
 function Field({ label, required, children }) {
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+    <div className="fund-form-group">
+      <label className="fund-form-label">
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required && <span className="fund-form-required">*</span>}
       </label>
       {children}
     </div>
@@ -40,6 +33,9 @@ const BANKS = [
   'Banco Internacional',
   'Banco BTG Pactual',
   'HSBC Bank Chile',
+  'Tenpo',
+  'MACH',
+  'Mercado Pago',
 ];
 
 const ACCOUNT_TYPES = [
@@ -53,8 +49,12 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
   const [validationError, setValidationError] = useState('');
   const [form, setForm] = useState({
     name: initial.name ?? '',
+    description: initial.description ?? '',
+    goal: initial.goal ?? '',
+    coverImage: initial.coverImage ?? '',
     type: initial.type ?? 'free',
     targetAmount: initial.targetAmount ?? '',
+    minAmount: initial.minAmount ?? '',
     deadline: toDateInput(initial.deadline),
     recipientAccount: {
       bank:          initial.recipientAccount?.bank          ?? '',
@@ -85,7 +85,17 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     if (form.type !== 'quota') {
       delete data.frequency;
       delete data.quotaAmount;
+      if (data.minAmount) {
+        data.minAmount = Number(data.minAmount);
+        if (data.minAmount > data.targetAmount) {
+          setValidationError('El monto mínimo no puede ser mayor al total del fondo.');
+          return;
+        }
+      } else {
+        delete data.minAmount;
+      }
     } else {
+      delete data.minAmount;
       data.quotaAmount = Number(data.quotaAmount);
       if (data.quotaAmount > data.targetAmount) {
         setValidationError('El valor de la cuota no puede ser mayor al total del fondo.');
@@ -95,138 +105,209 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     onSubmit(data);
   }
 
+  // Calculate min and max dates
+  const today = new Date();
+  const minDate = new Date(today);
+  const maxDate = new Date(today);
+  maxDate.setFullYear(maxDate.getFullYear() + 1);
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Field label="Nombre" required>
-        <input
-          type="text"
-          value={form.name}
-          onChange={e => set('name', e.target.value)}
-          disabled={locked('name')}
-          className={inputCls(locked('name'))}
-          required
-        />
-      </Field>
-
-      <Field label="Tipo de fondo">
-        <select
-          value={form.type}
-          onChange={e => set('type', e.target.value)}
-          disabled={locked('type')}
-          className={inputCls(locked('type'))}
-        >
-          <option value="free">Libre (sin cuotas fijas)</option>
-          <option value="quota">Por cuotas</option>
-        </select>
-      </Field>
-
-      <Field label="Meta (CLP)" required>
-        <input
-          type="number"
-          min="1"
-          value={form.targetAmount}
-          onChange={e => set('targetAmount', e.target.value)}
-          disabled={locked('targetAmount')}
-          className={inputCls(locked('targetAmount'))}
-          required
-        />
-      </Field>
-
-      <Field label="Fecha límite" required>
-        <input
-          type="date"
-          value={form.deadline}
-          onChange={e => set('deadline', e.target.value)}
-          disabled={locked('deadline')}
-          className={inputCls(locked('deadline'))}
-          required
-          min={(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toLocaleDateString('en-CA'); })()}
-        />
-      </Field>
-
-      <Field label="Cuenta destinataria" required>
-        <div className={`space-y-2 ${locked('recipientAccount') ? 'opacity-60 pointer-events-none' : ''}`}>
-          <select
-            value={form.recipientAccount.bank}
-            onChange={e => setAccount('bank', e.target.value)}
-            className={inputCls(locked('recipientAccount'))}
-            required
-          >
-            <option value="">Selecciona un banco</option>
-            {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-          </select>
-          <select
-            value={form.recipientAccount.accountType}
-            onChange={e => setAccount('accountType', e.target.value)}
-            className={inputCls(locked('recipientAccount'))}
-            required
-          >
-            {ACCOUNT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
+    <div className="fund-form-container">
+      <form onSubmit={handleSubmit}>
+        <Field label="Nombre del Fondo" required>
           <input
             type="text"
-            inputMode="numeric"
-            pattern="[0-9]+"
-            placeholder="Número de cuenta (solo dígitos)"
-            value={form.recipientAccount.accountNumber}
-            onChange={e => setAccount('accountNumber', e.target.value.replace(/\D/g, ''))}
-            className={inputCls(locked('recipientAccount'))}
+            value={form.name}
+            onChange={e => set('name', e.target.value)}
+            disabled={locked('name')}
+            className="fund-form-input"
+            placeholder="Ej: Regalo de Cumpleaños para Ana"
             required
           />
-        </div>
-      </Field>
+        </Field>
 
-      <Field label="Visibilidad">
-        <select
-          value={form.visibility}
-          onChange={e => set('visibility', e.target.value)}
-          className={inputCls(false)}
-        >
-          <option value="private">Privado</option>
-          <option value="public">Público</option>
-        </select>
-      </Field>
-
-      {form.type === 'quota' && (
-        <>
-          <Field label="Frecuencia de aporte">
-            <select
-              value={form.frequency}
-              onChange={e => set('frequency', e.target.value)}
-              disabled={locked('frequency')}
-              className={inputCls(locked('frequency'))}
-            >
-              <option value="monthly">Mensual</option>
-              <option value="biweekly">Quincenal</option>
-              <option value="weekly">Semanal</option>
-            </select>
-          </Field>
-
-          <Field label="Monto por cuota (CLP)" required>
+        <div className="fund-form-row">
+          <Field label="Objetivo" required>
             <input
-              type="number"
-              min="1"
-              value={form.quotaAmount}
-              onChange={e => set('quotaAmount', e.target.value)}
-              disabled={locked('quotaAmount')}
-              className={inputCls(locked('quotaAmount'))}
+              type="text"
+              value={form.goal}
+              onChange={e => set('goal', e.target.value)}
+              disabled={locked('goal')}
+              className="fund-form-input"
+              placeholder="¿Qué quieres lograr?"
               required
             />
           </Field>
-        </>
-      )}
+          
+          <Field label="Visibilidad">
+            <select
+              value={form.visibility}
+              onChange={e => set('visibility', e.target.value)}
+              className="fund-form-input fund-form-select"
+            >
+              <option value="private">Privado (Solo con enlace/invitación)</option>
+              <option value="public">Público (Visible en el directorio)</option>
+            </select>
+          </Field>
+        </div>
 
-      {validationError && (
-        <p className="text-xs text-red-500">{validationError}</p>
-      )}
+        <Field label="Descripción" required>
+          <textarea
+            value={form.description}
+            onChange={e => set('description', e.target.value)}
+            disabled={locked('description')}
+            className="fund-form-input"
+            placeholder="Cuéntanos más detalles sobre este fondo..."
+            required
+            rows={3}
+          />
+        </Field>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
-      >
-        {loading ? 'Guardando…' : 'Guardar fondo'}
-      </button>
-    </form>
+        <Field label="Imagen de Portada (URL) - Opcional">
+          <input
+            type="url"
+            value={form.coverImage}
+            onChange={e => set('coverImage', e.target.value)}
+            disabled={locked('coverImage')}
+            className="fund-form-input"
+            placeholder="https://ejemplo.com/imagen.jpg"
+          />
+        </Field>
+
+        <div className="fund-form-row">
+          <Field label="Tipo de recolección">
+            <select
+              value={form.type}
+              onChange={e => set('type', e.target.value)}
+              disabled={locked('type')}
+              className="fund-form-input fund-form-select"
+            >
+              <option value="free">Libre (Montos a elección del participante)</option>
+              <option value="quota">Por cuotas (Monto fijo obligatorio)</option>
+            </select>
+          </Field>
+
+          <Field label="Meta Total (CLP)" required>
+            <input
+              type="number"
+              min="1"
+              value={form.targetAmount}
+              onChange={e => set('targetAmount', e.target.value)}
+              disabled={locked('targetAmount')}
+              className="fund-form-input"
+              placeholder="Monto esperado"
+              required
+            />
+          </Field>
+        </div>
+
+        <Field label="Fecha límite" required>
+          <input
+            type="date"
+            value={form.deadline}
+            onChange={e => set('deadline', e.target.value)}
+            disabled={locked('deadline')}
+            className="fund-form-input"
+            required
+            min={minDate.toLocaleDateString('en-CA')}
+            max={maxDate.toLocaleDateString('en-CA')}
+          />
+        </Field>
+
+        {form.type === 'quota' && (
+          <div className="fund-form-row">
+            <Field label="Frecuencia de aporte">
+              <select
+                value={form.frequency}
+                onChange={e => set('frequency', e.target.value)}
+                disabled={locked('frequency')}
+                className="fund-form-input fund-form-select"
+              >
+                <option value="monthly">Mensual</option>
+                <option value="biweekly">Quincenal</option>
+                <option value="weekly">Semanal</option>
+              </select>
+            </Field>
+
+            <Field label="Monto por cuota (CLP)" required>
+              <input
+                type="number"
+                min="1"
+                value={form.quotaAmount}
+                onChange={e => set('quotaAmount', e.target.value)}
+                disabled={locked('quotaAmount')}
+                className="fund-form-input"
+                placeholder="Monto fijo"
+                required
+              />
+            </Field>
+          </div>
+        )}
+
+        {form.type === 'free' && (
+          <div className="fund-form-row">
+            <Field label="Monto mínimo de aporte (CLP) - Opcional">
+              <input
+                type="number"
+                min="1"
+                value={form.minAmount}
+                onChange={e => set('minAmount', e.target.value)}
+                disabled={locked('minAmount')}
+                className="fund-form-input"
+                placeholder="Sin mínimo"
+              />
+            </Field>
+          </div>
+        )}
+
+        <Field label="Cuenta Destinataria (Para el retiro de fondos)" required>
+          <div className={`fund-form-account-group ${locked('recipientAccount') ? 'opacity-60 pointer-events-none' : ''}`}>
+            <div className="fund-form-row">
+              <select
+                value={form.recipientAccount.bank}
+                onChange={e => setAccount('bank', e.target.value)}
+                className="fund-form-input fund-form-select"
+                required
+              >
+                <option value="">Selecciona un banco</option>
+                {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              <select
+                value={form.recipientAccount.accountType}
+                onChange={e => setAccount('accountType', e.target.value)}
+                className="fund-form-input fund-form-select"
+                required
+              >
+                {ACCOUNT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]+"
+              placeholder="Número de cuenta (solo dígitos)"
+              value={form.recipientAccount.accountNumber}
+              onChange={e => setAccount('accountNumber', e.target.value.replace(/\D/g, ''))}
+              className="fund-form-input"
+              required
+            />
+          </div>
+        </Field>
+
+        {validationError && (
+          <div className="fund-form-error-text">
+            {validationError}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="fund-form-submit"
+        >
+          {loading ? 'Procesando...' : 'Crear Fondo Colectivo'}
+        </button>
+      </form>
+    </div>
   );
 }

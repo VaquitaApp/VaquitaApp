@@ -9,12 +9,22 @@ const { sendEmail, sendStatusChangeEmail } = require('../services/emailService')
 const router = express.Router();
 
 // Locked fields once contributions exist
-const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'type', 'visibility'];
+const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'minAmount', 'type', 'visibility'];
 
 function isDeadlineValid(deadline) {
-  const today = new Date().toISOString().slice(0, 10);
-  const dl    = new Date(deadline).toISOString().slice(0, 10);
-  return dl > today;
+  const today = new Date();
+  const dl = new Date(deadline);
+  
+  const todayStr = today.toISOString().slice(0, 10);
+  const dlStr = dl.toISOString().slice(0, 10);
+  
+  if (dlStr < todayStr) return false;
+  
+  const oneYearFromNow = new Date(today);
+  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+  const maxStr = oneYearFromNow.toISOString().slice(0, 10);
+  
+  return dlStr <= maxStr;
 }
 
 // Helper: compute collectedAmount for a fund
@@ -100,18 +110,21 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { name, description, goal, type, targetAmount, quotaAmount,
-            frequency, deadline, recipientAccount, visibility } = req.body;
+            frequency, deadline, recipientAccount, visibility, coverImage, minAmount } = req.body;
 
     if (deadline && !isDeadlineValid(deadline)) {
-      return res.status(400).json({ error: 'La fecha límite debe ser al menos mañana.' });
+      return res.status(400).json({ error: 'La fecha límite no puede estar en el pasado y debe ser máximo en 1 año.' });
     }
     if (type === 'quota' && Number(quotaAmount) > Number(targetAmount)) {
       return res.status(400).json({ error: 'El valor de la cuota no puede ser mayor al total del fondo.' });
     }
+    if (type === 'free' && minAmount && Number(minAmount) > Number(targetAmount)) {
+      return res.status(400).json({ error: 'El monto mínimo no puede ser mayor al total del fondo.' });
+    }
 
     const fund = new Fund({
       name, description, goal, type, targetAmount, quotaAmount,
-      frequency, deadline, recipientAccount, visibility,
+      frequency, deadline, recipientAccount, visibility, coverImage, minAmount,
       organizer: req.user._id,
     });
     await fund.save();
@@ -167,10 +180,10 @@ router.patch('/:id', auth, async (req, res) => {
     }
 
     if (body.deadline && !isDeadlineValid(body.deadline)) {
-      return res.status(400).json({ error: 'La fecha límite debe ser al menos mañana.' });
+      return res.status(400).json({ error: 'La fecha límite no puede estar en el pasado y debe ser máximo en 1 año.' });
     }
 
-    const allowed = ['name', 'description', 'goal', ...(!hasContribs ? LOCKED_FIELDS : [])];
+    const allowed = ['name', 'description', 'goal', 'coverImage', ...(!hasContribs ? LOCKED_FIELDS : [])];
     allowed.forEach(f => { if (body[f] !== undefined) fund[f] = body[f]; });
 
     await fund.save();
