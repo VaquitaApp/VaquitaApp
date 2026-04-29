@@ -143,6 +143,26 @@ export default function FundDetailPage() {
         </div>
       </div>
 
+      {/* Update Logs */}
+      {fund.updateLogs && fund.updateLogs.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+          <h3 className="text-xs font-semibold text-amber-800 mb-2 uppercase tracking-wide">Registro de Actualizaciones</h3>
+          <ul className="space-y-2">
+            {fund.updateLogs.map((log, idx) => (
+              <li key={idx} className="text-sm text-amber-700 flex items-start">
+                <span className="mr-2 mt-0.5 opacity-60">•</span>
+                <div>
+                  <p>{log.message}</p>
+                  <p className="text-xs opacity-75 mt-0.5">
+                    {new Date(log.date).toLocaleDateString('es-CL')} a las {new Date(log.date).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Participants */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
         <div className="flex items-center justify-between mb-4">

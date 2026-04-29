@@ -27,6 +27,7 @@ const fundSchema = new Schema({
   status:           { type: String, enum: ['active', 'completed', 'closed'], default: 'active' },
   organizer:        { type: Schema.Types.ObjectId, ref: 'User', required: true },
   participants:     [participantSchema],
+  updateLogs:       [{ message: { type: String, required: true }, date: { type: Date, default: Date.now } }],
 }, { timestamps: true });
 
 fundSchema.pre('validate', function (next) {
