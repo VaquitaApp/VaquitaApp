@@ -12,6 +12,7 @@ import ContributionForm from '../components/funds/ContributionForm';
 import ContributionList from '../components/funds/ContributionList';
 import MockPaymentForm from '../components/funds/MockPaymentForm';
 import FundChart from '../components/funds/FundChart';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 import { fmtDate, fmtName } from '../utils/format';
 
@@ -30,6 +31,8 @@ export default function FundDetailPage() {
   const [showContribForm, setShowContribForm] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [reminderMsg, setReminderMsg] = useState('');
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [confirmActionType, setConfirmActionType] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -56,8 +59,7 @@ export default function FundDetailPage() {
   const isMember = isOrganizer || accepted.some(p => p.user?._id?.toString() === user?._id?.toString());
   const collectedAmount = contributions.reduce((sum, c) => sum + c.amount, 0);
 
-  async function handleClose() {
-    if (!window.confirm('¿Cerrar este fondo? Esta acción no se puede deshacer.')) return;
+  async function executeClose() {
     setActionLoading(true);
     try {
       const res = await closeFund(id);
@@ -69,8 +71,7 @@ export default function FundDetailPage() {
     }
   }
 
-  async function handleDelete() {
-    if (!window.confirm('¿Eliminar este fondo? Esta acción no se puede deshacer.')) return;
+  async function executeDelete() {
     setActionLoading(true);
     try {
       await deleteFund(id);
@@ -79,6 +80,16 @@ export default function FundDetailPage() {
       window.alert(err.response?.data?.error ?? 'Error al eliminar');
       setActionLoading(false);
     }
+  }
+
+  function handleClose() {
+    setConfirmActionType('close');
+    setConfirmModalOpen(true);
+  }
+
+  function handleDelete() {
+    setConfirmActionType('delete');
+    setConfirmModalOpen(true);
   }
 
   return (
@@ -307,6 +318,24 @@ export default function FundDetailPage() {
           }}
         />
       )}
+
+      <ConfirmModal
+        isOpen={confirmModalOpen}
+        onClose={() => setConfirmModalOpen(false)}
+        onConfirm={() => {
+          setConfirmModalOpen(false);
+          if (confirmActionType === 'close') executeClose();
+          if (confirmActionType === 'delete') executeDelete();
+        }}
+        title={confirmActionType === 'delete' ? 'Eliminar fondo' : 'Cerrar fondo'}
+        message={
+          confirmActionType === 'delete' 
+            ? '¿Estás seguro de que deseas eliminar este fondo? Esta acción no se puede deshacer y se borrarán todos los datos asociados.' 
+            : '¿Estás seguro de que deseas cerrar este fondo? Ya no se podrán recibir aportes nuevos.'
+        }
+        requireKeyword={true}
+        keyword={confirmActionType === 'delete' ? 'ELIMINAR' : 'CERRAR'}
+      />
     </div>
   );
 }
