@@ -50,7 +50,7 @@ export default function LoginPage() {
             />
           </div>
           <button
-            type="submit" disabled={loading}
+            type="submit" disabled={loading || form.password.length < 6}
             className="w-full bg-indigo-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Ingresando...' : 'Ingresar'}
