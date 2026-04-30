@@ -7,18 +7,23 @@ async function respond(req, res, action) {
   try {
     const { token } = req.params;
     const fund = await Fund.findOne({ 'participants.invitationToken': token });
-    if (!fund) return res.status(404).json({ error: 'Invalid or expired invitation' });
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is no longer active' });
+    if (!fund) return res.status(404).json({ error: 'La invitacion es invalida o ya expiro.' });
+    if (fund.status !== 'active') {
+      return res.status(422).json({ error: 'No puedes responder la invitacion: el fondo esta cerrado o completado.' });
+    }
     if (new Date(fund.deadline).toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
-      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+      return res.status(422).json({ error: 'No puedes responder la invitacion: la fecha limite ya fue superada.' });
     }
 
     const idx = fund.participants.findIndex(p => p.invitationToken === token);
     const participant = fund.participants[idx];
+    if (!participant || participant.status !== 'pending') {
+      return res.status(404).json({ error: 'La invitacion es invalida o ya expiro.' });
+    }
 
     if (action === 'accepted') {
-      participant.status          = 'accepted';
-      participant.respondedAt     = new Date();
+      participant.status = 'accepted';
+      participant.respondedAt = new Date();
       participant.invitationToken = undefined;
     } else {
       fund.participants.splice(idx, 1);

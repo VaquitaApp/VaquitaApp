@@ -90,8 +90,10 @@ export default function ParticipantList({
                       )}
                       {p.contributionStatus ? (
                         <ContributionBadge status={p.contributionStatus} />
+                      ) : (p.contributionCount ?? 0) > 0 ? (
+                        <span className="text-xs text-gray-500">{p.contributionCount}</span>
                       ) : (
-                        total === 0 && <span className="text-xs text-gray-300">—</span>
+                        <span className="text-xs text-gray-300">—</span>
                       )}
                     </>
                   )}

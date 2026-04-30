@@ -34,10 +34,9 @@ export default function InviteModal({
     }, 300);
   }, [query]);
 
-  function isAlreadyAccepted(userId) {
-    return existingParticipants.some(p =>
-      (p.user?._id === userId || p.user === userId) && p.status === 'accepted'
-    );
+  function getExisting(userId) {
+    const id = userId?.toString();
+    return existingParticipants.find(p => (p.user?._id ?? p.user)?.toString() === id);
   }
 
   const invited = existingParticipants.filter(p => p.status !== 'accepted');
@@ -47,7 +46,11 @@ export default function InviteModal({
     setError('');
     try {
       const res = await inviteUser(fundId, userId);
-      onInvited(res.data);
+      if (res.status === 200) {
+        onUpdateParticipants?.(res.data);
+      } else {
+        onInvited(res.data);
+      }
     } catch (err) {
       setError(err.response?.data?.error ?? 'Error al invitar');
     } finally {
@@ -90,16 +93,14 @@ export default function InviteModal({
 
         <ul className="space-y-1 max-h-52 overflow-y-auto">
           {results.map(u => {
-            const accepted = isAlreadyAccepted(u._id);
+            const existing = getExisting(u._id);
             return (
               <li key={u._id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50">
                 <div>
                   <p className="text-sm font-medium text-gray-800">{fmtName(u.name)}</p>
                   <p className="text-xs text-gray-400">{u.email}</p>
                 </div>
-                {accepted ? (
-                  <span className="text-xs text-gray-400 italic">Ya participante</span>
-                ) : (
+                {!existing ? (
                   <button
                     onClick={() => handleInvite(u._id)}
                     disabled={inviting === u._id}
@@ -107,6 +108,18 @@ export default function InviteModal({
                   >
                     {inviting === u._id ? '…' : 'Invitar'}
                   </button>
+                ) : existing.status === 'rejected' ? (
+                  <button
+                    onClick={() => handleInvite(u._id)}
+                    disabled={inviting === u._id}
+                    className="text-xs border border-indigo-300 text-indigo-700 hover:border-indigo-400 px-3 py-1 rounded-md disabled:opacity-50"
+                  >
+                    {inviting === u._id ? '…' : 'Reinvitar'}
+                  </button>
+                ) : (
+                  <span className="text-xs text-gray-400 italic">
+                    {existing.status === 'accepted' ? 'Ya participa' : 'Invitación pendiente'}
+                  </span>
                 )}
               </li>
             );
@@ -138,6 +151,16 @@ export default function InviteModal({
                         className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
                       >
                         {canceling === p.user?._id?.toString() ? 'Cancelando…' : 'Cancelar'}
+                      </button>
+                    )}
+                    {p.status === 'rejected' && (
+                      <button
+                        type="button"
+                        onClick={() => handleInvite(p.user?._id?.toString())}
+                        disabled={inviting === p.user?._id?.toString()}
+                        className="text-xs text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                      >
+                        {inviting === p.user?._id?.toString() ? 'Reinvitando…' : 'Reinvitar'}
                       </button>
                     )}
                   </div>

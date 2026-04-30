@@ -29,19 +29,22 @@ router.post('/invitations', auth, async (req, res) => {
     if (fund.organizer.equals(userId)) return res.status(422).json({ error: 'Cannot invite the organizer' });
 
     const existing = fund.participants.find(p => p.user.equals(userId));
+    let statusCode = 201;
+
     if (existing) {
       if (existing.status === 'accepted') {
         return res.status(409).json({ error: 'User already a participant' });
       }
-      // Re-invitation: invalidate previous token(s) and issue a new one
-      existing.invitationToken  = uuidv4();
+      existing.invitationToken = uuidv4();
       existing.joinRequestToken = undefined;
-      existing.status           = 'pending';
-      existing.invitedAt        = new Date();
-      existing.respondedAt      = undefined;
+      existing.status = 'pending';
+      existing.invitedAt = new Date();
+      existing.respondedAt = undefined;
+      statusCode = 200;
     } else {
       fund.participants.push({ user: userId, status: 'pending', invitationToken: uuidv4(), invitedAt: new Date() });
     }
+
     await fund.save();
 
     const participant = fund.participants.find(p => p.user.equals(userId));
@@ -65,7 +68,7 @@ router.post('/invitations', auth, async (req, res) => {
     }).catch(() => {});
 
     await fund.populate('participants.user', 'name email');
-    res.status(201).json(fund.participants);
+    res.status(statusCode).json(fund.participants);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -182,8 +185,10 @@ router.get('/participants', auth, async (req, res) => {
 
     const participants = fund.participants.map(p => {
       let contributionStatus = null;
+      let contributionCount = 0;
       if (p.status === 'accepted') {
         const userContribs = contributions.filter(c => c.user.equals(p.user._id));
+        contributionCount = userContribs.length;
         if (fund.type === 'quota') {
           const pending = pendingQuotas(fund, userContribs);
           contributionStatus = pending > 0 ? 'overdue' : 'onTime';
@@ -196,6 +201,7 @@ router.get('/participants', auth, async (req, res) => {
         _id: p._id,
         user: p.user,
         status: p.status,
+        contributionCount,
         contributionStatus,
         hasInvitation: !!p.invitationToken,
         invitedAt: p.invitedAt,
