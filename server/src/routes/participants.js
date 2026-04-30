@@ -97,9 +97,9 @@ router.post('/join-request', auth, async (req, res) => {
       }
       // Re-request: invalidate previous join request token and issue a new one
       existing.joinRequestToken = uuidv4();
-      existing.status           = 'pending';
-      existing.invitedAt        = new Date();
-      existing.respondedAt      = undefined;
+      existing.status = 'pending';
+      existing.invitedAt = new Date();
+      existing.respondedAt = undefined;
     } else {
       fund.participants.push({ user: req.user._id, status: 'pending', joinRequestToken: uuidv4(), invitedAt: new Date() });
     }
@@ -121,6 +121,29 @@ router.post('/join-request', auth, async (req, res) => {
   }
 });
 
+// DELETE /api/funds/:id/invitations/:userId
+router.delete('/invitations/:userId', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id).populate('participants.user', 'name email');
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+
+    const participant = fund.participants.find(p => p.user?._id?.equals(req.params.userId));
+    if (!participant) return res.status(404).json({ error: 'Invitation not found' });
+    if (participant.status !== 'pending') {
+      return res.status(422).json({ error: 'Only pending invitations can be canceled' });
+    }
+
+    fund.participants = fund.participants.filter(p => !p.user?._id?.equals(req.params.userId));
+    await fund.save();
+    await fund.populate('participants.user', 'name email');
+
+    res.json(fund.participants);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/funds/:id/participants/:userId
 router.delete('/participants/:userId', auth, async (req, res) => {
   try {
@@ -128,8 +151,12 @@ router.delete('/participants/:userId', auth, async (req, res) => {
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
     if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
 
-    const hasContribs = await Contribution.countDocuments({ fund: fund._id, user: req.params.userId }) > 0;
-    if (hasContribs) return res.status(422).json({ error: 'Cannot remove participant with contributions' });
+    const hasContribs = await Contribution.countDocuments({
+      fund: fund._id,
+      user: req.params.userId,
+      status: 'succeeded',
+    }) > 0;
+    if (hasContribs) return res.status(422).json({ error: 'Este participante no se puede eliminar' });
 
     fund.participants = fund.participants.filter(p => !p.user.equals(req.params.userId));
     await fund.save();

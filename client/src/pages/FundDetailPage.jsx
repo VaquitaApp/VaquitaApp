@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getFund, closeFund, deleteFund, sendReminders, pauseFund, resumeFund } from '../api/funds';
-import { getParticipants, requestJoin, acceptMyInvitation } from '../api/participants';
+import { getParticipants, removeParticipant, requestJoin, acceptMyInvitation } from '../api/participants';
 import { getContributions } from '../api/contributions';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge } from '../components/ui/Badge';
@@ -40,6 +40,7 @@ export default function FundDetailPage() {
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState('');
   const [acceptingInvite, setAcceptingInvite] = useState(false);
+  const [removingId, setRemovingId] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -149,6 +150,20 @@ export default function FundDetailPage() {
     } catch (err) {
       window.alert(err.response?.data?.error ?? 'Error al eliminar');
       setActionLoading(false);
+    }
+  }
+
+  async function handleRemoveParticipant(userId) {
+    if (!isOrganizer) return;
+    if (!window.confirm('¿Eliminar participante? Solo se puede si no ha realizado aportes.')) return;
+    setRemovingId(userId);
+    try {
+      await removeParticipant(id, userId);
+      setParticipants(prev => prev.filter(p => p.user?._id?.toString() !== userId));
+    } catch (err) {
+      window.alert(err.response?.data?.error ?? 'Error al eliminar participante');
+    } finally {
+      setRemovingId('');
     }
   }
 
@@ -271,8 +286,13 @@ export default function FundDetailPage() {
         </div>
         <ParticipantList
           organizer={fund.organizer}
-          participants={participants}
+          participants={participants.filter(p => p.status !== 'rejected')}
           contributions={contributions}
+          isOrganizer={isOrganizer}
+          onRemove={handleRemoveParticipant}
+          removingId={removingId}
+          emptyMessage="No hay participantes aún."
+          showStatus
         />
       </div>
 
@@ -494,6 +514,7 @@ export default function FundDetailPage() {
             setParticipants(updated);
             setShowInvite(false);
           }}
+          onUpdateParticipants={updated => setParticipants(updated)}
         />
       )}
 

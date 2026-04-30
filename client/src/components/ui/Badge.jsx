@@ -22,6 +22,18 @@ const CONTRIBUTION_LABELS = {
   overdue: 'En mora',
 };
 
+const INVITATION_STYLES = {
+  pending:  'bg-yellow-100 text-yellow-700',
+  accepted: 'bg-green-100 text-green-700',
+  rejected: 'bg-red-100 text-red-700',
+};
+
+const INVITATION_LABELS = {
+  pending:  'Pendiente',
+  accepted: 'Aceptada',
+  rejected: 'Rechazada',
+};
+
 export function StatusBadge({ status }) {
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-500'}`}>
@@ -43,6 +55,14 @@ export function ContributionBadge({ status }) {
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${CONTRIBUTION_STYLES[status] ?? 'bg-gray-100 text-gray-500'}`}>
       {CONTRIBUTION_LABELS[status] ?? status}
+    </span>
+  );
+}
+
+export function InvitationBadge({ status }) {
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${INVITATION_STYLES[status] ?? 'bg-gray-100 text-gray-500'}`}>
+      {INVITATION_LABELS[status] ?? status}
     </span>
   );
 }
