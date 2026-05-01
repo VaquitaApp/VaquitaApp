@@ -12,10 +12,10 @@ const BANKS = [
 ];
 
 const ACCOUNT_TYPE_LABELS = {
-  corriente:             'Cuenta Corriente',
-  vista:                 'Cuenta Vista / RUT',
-  ahorro:                'Cuenta de Ahorro',
-  chequera_electronica:  'Chequera Electrónica',
+  corriente: 'Cuenta Corriente',
+  vista: 'Cuenta Vista / RUT',
+  ahorro: 'Cuenta de Ahorro',
+  chequera_electronica: 'Chequera Electrónica',
 };
 
 function periodsElapsed(fund) {
@@ -42,38 +42,43 @@ export default function ContributionForm({ fundId, fund, userContributions = [],
   const saved = user?.preferredAccount;
   const hasSaved = saved?.bank && saved?.accountNumber;
 
-  const isQuota   = fund?.type === 'quota';
-  const pending   = isQuota ? computePending(fund, userContributions) : null;
-  const fixedAmt  = isQuota ? pending * fund.quotaAmount : null;
+  const isQuota = fund?.type === 'quota';
+  const pending = isQuota ? computePending(fund, userContributions) : null;
+  const fixedAmt = isQuota ? pending * fund.quotaAmount : null;
   const destination = fund?.recipientAccount;
 
   const [origin, setOrigin] = useState({
-    bank:          saved?.bank          ?? '',
-    accountType:   saved?.accountType   || 'corriente',
+    bank: saved?.bank ?? '',
+    accountType: saved?.accountType || 'corriente',
     accountNumber: saved?.accountNumber ?? '',
   });
-  const [amount,       setAmount]       = useState('');
-  const [step,         setStep]         = useState('form');
-  const [error,        setError]        = useState('');
+  const [amount, setAmount] = useState('');
+  const [step, setStep] = useState('form');
+  const [error, setError] = useState('');
+  const [successError, setSuccessError] = useState('');
+  const [savedAfterSuccess, setSavedAfterSuccess] = useState(false);
   const [savingAccount, setSavingAccount] = useState(false);
 
   const isDirty = hasSaved && (
-    origin.bank          !== saved.bank ||
-    origin.accountType   !== (saved.accountType || 'corriente') ||
+    origin.bank !== saved.bank ||
+    origin.accountType !== (saved.accountType || 'corriente') ||
     origin.accountNumber !== saved.accountNumber
   );
   const canSaveNew = !hasSaved && origin.bank && origin.accountNumber;
   const showSaveSuggestion = isDirty || canSaveNew;
+  const shouldPromptSaveAfterSuccess = !hasSaved && Boolean(origin.bank && origin.accountNumber);
 
   function setO(key, val) {
     setOrigin(o => ({ ...o, [key]: val }));
   }
 
   async function handleSaveAccount() {
+    setSuccessError('');
     setSavingAccount(true);
     try {
       await updateProfile({ preferredAccount: origin });
       await refreshUser();
+      setSavedAfterSuccess(true);
     } finally {
       setSavingAccount(false);
     }
@@ -90,7 +95,11 @@ export default function ContributionForm({ fundId, fund, userContributions = [],
         method: 'transfer',
       });
       setStep('success');
-      setTimeout(() => onCreated(res.data), 1200);
+      if (shouldPromptSaveAfterSuccess) {
+        onCreated(res.data, { keepOpen: true });
+      } else {
+        setTimeout(() => onCreated(res.data, { keepOpen: false }), 1200);
+      }
     } catch (err) {
       setError(err.response?.data?.error ?? 'Error al procesar la transferencia');
       setStep('form');
@@ -130,6 +139,35 @@ export default function ContributionForm({ fundId, fund, userContributions = [],
         <div className="text-4xl mb-3">✅</div>
         <p className="font-semibold text-gray-800">Transferencia realizada</p>
         <p className="text-xs text-gray-400 mt-1">El aporte fue registrado correctamente</p>
+
+        {shouldPromptSaveAfterSuccess && !savedAfterSuccess ? (
+          <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-left">
+            <p className="text-xs text-indigo-700">
+              Usaste una cuenta que no tenías guardada. Puedes registrarla como preferida para no volver a escribirla.
+            </p>
+            {successError && <p className="mt-2 text-xs text-red-500">{successError}</p>}
+            <button
+              type="button"
+              onClick={handleSaveAccount}
+              disabled={savingAccount}
+              className="mt-3 w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {savingAccount ? 'Guardando…' : 'Guardar esta cuenta en mi perfil'}
+            </button>
+          </div>
+        ) : shouldPromptSaveAfterSuccess ? (
+          <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-left">
+            <p className="text-xs text-green-700">La cuenta quedó guardada en tu perfil.</p>
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onCancel}
+          className="mt-4 text-xs text-indigo-600 underline hover:text-indigo-800"
+        >
+          Cerrar
+        </button>
       </div>
     );
   }
