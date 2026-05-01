@@ -11,9 +11,9 @@ const BANKS = [
 ];
 
 const ACCOUNT_TYPES = [
-  { value: 'corriente',            label: 'Cuenta Corriente' },
-  { value: 'vista',                label: 'Cuenta Vista / RUT' },
-  { value: 'ahorro',               label: 'Cuenta de Ahorro' },
+  { value: 'corriente', label: 'Cuenta Corriente' },
+  { value: 'vista', label: 'Cuenta Vista / RUT' },
+  { value: 'ahorro', label: 'Cuenta de Ahorro' },
   { value: 'chequera_electronica', label: 'Chequera Electrónica' },
 ];
 
@@ -32,17 +32,17 @@ export default function ProfilePage() {
   const { user, refreshUser, logout } = useAuth();
 
   const [account, setAccount] = useState({
-    bank:          user?.preferredAccount?.bank          ?? '',
-    accountType:   user?.preferredAccount?.accountType   ?? 'corriente',
+    bank: user?.preferredAccount?.bank ?? '',
+    accountType: user?.preferredAccount?.accountType ?? 'corriente',
     accountNumber: user?.preferredAccount?.accountNumber ?? '',
   });
-  const [saved,   setSaved]   = useState(false);
+  const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
+  const [error, setError] = useState('');
 
-  const [deleteStep,  setDeleteStep]  = useState('idle'); // idle | sent | error
+  const [deleteStep, setDeleteStep] = useState('idle'); // idle | sent | error
   const [deleteError, setDeleteError] = useState('');
-  const [deleting,    setDeleting]    = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   function setA(key, val) {
     setAccount(a => ({ ...a, [key]: val }));
@@ -66,6 +66,9 @@ export default function ProfilePage() {
   }
 
   async function handleRequestDelete() {
+    if (!window.confirm('¿Seguro deseas eliminar tu cuenta?')) {
+      return;
+    }
     setDeleting(true);
     setDeleteError('');
     try {
@@ -81,14 +84,12 @@ export default function ProfilePage() {
 
   const rutFormatted = user?.rut
     ? user.rut.replace(/^(\d+)([0-9K])$/, (_, body, dv) =>
-        body.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv)
+      body.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv)
     : '';
 
   return (
     <div className="max-w-md mx-auto space-y-6">
       <h1 className="text-xl font-bold text-gray-800">Mi perfil</h1>
-
-      {/* Read-only info */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Información de cuenta</p>
         <ReadOnlyField label="Nombre" value={fmtName(user?.name)} />
