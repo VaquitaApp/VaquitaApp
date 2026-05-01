@@ -11,10 +11,12 @@ const participantSchema = new Schema({
 
 const fundSchema = new Schema({
   name:             { type: String, required: true, trim: true },
-  description:      { type: String, default: '' },
-  goal:             { type: String, default: '' },
+  description:      { type: String, required: true, trim: true },
+  goal:             { type: String, required: true, trim: true },
+  coverImage:       { type: String, default: '' },
   type:             { type: String, enum: ['quota', 'free'], required: true },
   targetAmount:     { type: Number, required: true, min: 1 },
+  minAmount:        { type: Number },
   quotaAmount:      { type: Number },
   frequency:        { type: String, enum: ['once', 'weekly', 'monthly'] },
   deadline:         { type: Date, required: true },
@@ -27,6 +29,12 @@ const fundSchema = new Schema({
   status:           { type: String, enum: ['active', 'completed', 'closed', 'paused'], default: 'active' },
   organizer:        { type: Schema.Types.ObjectId, ref: 'User', required: true },
   participants:     [participantSchema],
+  messages:         [{
+    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    text: { type: String, required: true, trim: true },
+    createdAt: { type: Date, default: Date.now }
+  }],
+  updateLogs:       [{ message: { type: String, required: true }, date: { type: Date, default: Date.now } }],
 }, { timestamps: true });
 
 fundSchema.pre('validate', function (next) {

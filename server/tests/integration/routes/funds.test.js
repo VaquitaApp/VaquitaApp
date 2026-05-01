@@ -16,6 +16,7 @@ async function authHeader(user) {
 
 const fundBody = {
   name: 'Fondo Paseo', type: 'free', targetAmount: 200000,
+  description: 'Un fondo para el paseo de curso', goal: 'Pagar el bus',
   deadline: new Date(Date.now() + 86400000 * 30).toISOString(),
   recipientAccount: { bank: 'Banco Estado', accountType: 'vista', accountNumber: '12345678' },
   visibility: 'private',
@@ -45,6 +46,35 @@ describe('POST /api/funds', () => {
   test('401 without token', async () => {
     const res = await request(app).post('/api/funds').send(fundBody);
     expect(res.status).toBe(401);
+  });
+
+  test('400 targetAmount is zero or negative', async () => {
+    const user = await createUser();
+    const res = await request(app)
+      .post('/api/funds')
+      .set(await authHeader(user))
+      .send({ ...fundBody, targetAmount: 0 });
+    expect(res.status).toBe(400);
+  });
+
+  test('400 deadline is in the past', async () => {
+    const user = await createUser();
+    const pastDate = new Date(Date.now() - 86400000).toISOString();
+    const res = await request(app)
+      .post('/api/funds')
+      .set(await authHeader(user))
+      .send({ ...fundBody, deadline: pastDate });
+    expect(res.status).toBe(400);
+  });
+
+  test('400 minAmount is greater than targetAmount', async () => {
+    const user = await createUser();
+    const res = await request(app)
+      .post('/api/funds')
+      .set(await authHeader(user))
+      .send({ ...fundBody, targetAmount: 1000, minAmount: 2000 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/mayor al total/i);
   });
 });
 
@@ -134,6 +164,45 @@ describe('GET /api/funds/:id', () => {
       .set(await authHeader(u2));
     expect(res.status).toBe(200);
   });
+  test('200 populates messages with user names', async () => {
+    const user = await createUser();
+    const fund = await createFund({ organizer: user._id, messages: [{ user: user._id, text: 'Hola a todos' }] });
+    const res = await request(app)
+      .get(`/api/funds/${fund._id}`)
+      .set(await authHeader(user));
+    expect(res.status).toBe(200);
+    expect(res.body.messages[0].user.name).toBe(user.name);
+  });
+});
+
+describe('POST /api/funds/:id/messages', () => {
+  test('201 creates message for accepted participant', async () => {
+    const org = await createUser({ email: 'org@test.com' });
+    const part = await createUser({ email: 'part@test.com' });
+    const fund = await createFund({
+      organizer: org._id,
+      participants: [{ user: part._id, status: 'accepted' }]
+    });
+
+    const res = await request(app)
+      .post(`/api/funds/${fund._id}/messages`)
+      .set(await authHeader(part))
+      .send({ text: 'Ya transferí' });
+    expect(res.status).toBe(201);
+    expect(res.body[0].text).toBe('Ya transferí');
+  });
+
+  test('403 rejects message if not member', async () => {
+    const org = await createUser({ email: 'org@test.com' });
+    const stranger = await createUser({ email: 'stranger@test.com' });
+    const fund = await createFund({ organizer: org._id });
+
+    const res = await request(app)
+      .post(`/api/funds/${fund._id}/messages`)
+      .set(await authHeader(stranger))
+      .send({ text: 'Spam' });
+    expect(res.status).toBe(403);
+  });
 });
 
 describe('PATCH /api/funds/:id', () => {
@@ -167,6 +236,68 @@ describe('PATCH /api/funds/:id', () => {
       .set(await authHeader(user))
       .send({ name: 'X' });
     expect(res.status).toBe(422);
+  });
+
+  test('422 rejects modifying locked fields if has contributions', async () => {
+    const user = await createUser();
+    const fund = await createFund({ organizer: user._id });
+    await createContribution({ fund: fund._id, user: user._id, status: 'succeeded' });
+
+    const res = await request(app)
+      .patch(`/api/funds/${fund._id}`)
+      .set(await authHeader(user))
+      .send({ targetAmount: 500000 });
+    expect(res.status).toBe(422);
+  });
+
+  test('200 allows modifying visibility even with contributions', async () => {
+    const user = await createUser();
+    const fund = await createFund({ organizer: user._id, visibility: 'private' });
+    await createContribution({ fund: fund._id, user: user._id, status: 'succeeded' });
+
+    const res = await request(app)
+      .patch(`/api/funds/${fund._id}`)
+      .set(await authHeader(user))
+      .send({ visibility: 'public' });
+    expect(res.status).toBe(200);
+    expect(res.body.visibility).toBe('public');
+  });
+
+  test('200 registers updateLog for description change with participants', async () => {
+    const org = await createUser({ email: 'org@test.com' });
+    const part = await createUser({ email: 'part@test.com' });
+    const fund = await createFund({ 
+      organizer: org._id, 
+      participants: [{ user: part._id, status: 'accepted' }],
+      description: 'Old desc' 
+    });
+
+    const res = await request(app)
+      .patch(`/api/funds/${fund._id}`)
+      .set(await authHeader(org))
+      .send({ description: 'New desc' });
+    
+    expect(res.status).toBe(200);
+    expect(res.body.description).toBe('New desc');
+    expect(res.body.updateLogs).toHaveLength(1);
+    expect(res.body.updateLogs[0].message).toMatch(/descripción/i);
+  });
+
+  test('200 extends deadline without crashing email service', async () => {
+    const org = await createUser({ email: 'org@test.com' });
+    const part = await createUser({ email: 'part@test.com' });
+    const fund = await createFund({ 
+      organizer: org._id,
+      participants: [{ user: part._id, status: 'accepted' }],
+      deadline: new Date(Date.now() + 86400000).toISOString() 
+    });
+
+    const res = await request(app)
+      .patch(`/api/funds/${fund._id}`)
+      .set(await authHeader(org))
+      .send({ deadline: new Date(Date.now() + 86400000 * 10).toISOString() });
+    
+    expect(res.status).toBe(200);
   });
 });
 

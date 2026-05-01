@@ -1,0 +1,157 @@
+.fund-form-container {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  border-radius: 20px;
+  padding: 32px;
+  transition: all 0.3s ease;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #2d3748;
+}
+
+.fund-form-container:hover {
+  box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.15);
+}
+
+.fund-form-group {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.fund-form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 8px;
+  transition: color 0.2s ease;
+}
+
+.fund-form-group:focus-within .fund-form-label {
+  color: #667eea;
+}
+
+.fund-form-required {
+  color: #e53e3e;
+  margin-left: 4px;
+}
+
+.fund-form-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #f7fafc;
+  color: #2d3748;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.fund-form-input:focus {
+  outline: none;
+  border-color: #667eea;
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+}
+
+.fund-form-input:disabled {
+  background-color: #edf2f7;
+  color: #a0aec0;
+  cursor: not-allowed;
+  border-color: #e2e8f0;
+}
+
+textarea.fund-form-input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.fund-form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234a5568'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+.fund-form-account-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fund-form-error-text {
+  color: #e53e3e;
+  font-size: 0.875rem;
+  margin-top: 8px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.fund-form-submit {
+  width: 100%;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  position: relative;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.fund-form-submit::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.fund-form-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.fund-form-submit:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.fund-form-submit:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+}
+
+.fund-form-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background: #a0aec0;
+  box-shadow: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Specific custom layouts for desktop */
+@media (min-width: 640px) {
+  .fund-form-row {
+    display: flex;
+    gap: 16px;
+  }
+  .fund-form-row > * {
+    flex: 1;
+  }
+}

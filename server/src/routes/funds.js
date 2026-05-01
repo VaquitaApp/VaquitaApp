@@ -4,17 +4,35 @@ const Contribution = require('../models/Contribution');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { processPayment } = require('../services/paymentService');
+<<<<<<< HEAD
+const { sendEmail, sendStatusChangeEmail, sendDeadlineExtendedEmail } = require('../services/emailService');
+=======
 const { sendEmail, sendStatusChangeEmail, sendFundDeletedEmail } = require('../services/emailService');
+>>>>>>> feature/SCRUM-10-modal-confirmacion-eliminar
 
 const router = express.Router();
 
 // Locked fields once contributions exist
-const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'type', 'visibility'];
+<<<<<<< HEAD
+const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'minAmount', 'type', 'visibility'];
+=======
+const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'type'];
+>>>>>>> feature/hu09-editar-fondo
 
 function isDeadlineValid(deadline) {
-  const today = new Date().toISOString().slice(0, 10);
-  const dl    = new Date(deadline).toISOString().slice(0, 10);
-  return dl > today;
+  const today = new Date();
+  const dl = new Date(deadline);
+  
+  const todayStr = today.toISOString().slice(0, 10);
+  const dlStr = dl.toISOString().slice(0, 10);
+  
+  if (dlStr < todayStr) return false;
+  
+  const oneYearFromNow = new Date(today);
+  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+  const maxStr = oneYearFromNow.toISOString().slice(0, 10);
+  
+  return dlStr <= maxStr;
 }
 
 // Helper: compute collectedAmount for a fund
@@ -100,18 +118,21 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { name, description, goal, type, targetAmount, quotaAmount,
-            frequency, deadline, recipientAccount, visibility } = req.body;
+            frequency, deadline, recipientAccount, visibility, coverImage, minAmount } = req.body;
 
     if (deadline && !isDeadlineValid(deadline)) {
-      return res.status(400).json({ error: 'La fecha límite debe ser al menos mañana.' });
+      return res.status(400).json({ error: 'La fecha límite no puede estar en el pasado y debe ser máximo en 1 año.' });
     }
     if (type === 'quota' && Number(quotaAmount) > Number(targetAmount)) {
       return res.status(400).json({ error: 'El valor de la cuota no puede ser mayor al total del fondo.' });
     }
+    if (type === 'free' && minAmount && Number(minAmount) > Number(targetAmount)) {
+      return res.status(400).json({ error: 'El monto mínimo no puede ser mayor al total del fondo.' });
+    }
 
     const fund = new Fund({
       name, description, goal, type, targetAmount, quotaAmount,
-      frequency, deadline, recipientAccount, visibility,
+      frequency, deadline, recipientAccount, visibility, coverImage, minAmount,
       organizer: req.user._id,
     });
     await fund.save();
@@ -127,7 +148,8 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const fund = await Fund.findById(req.params.id)
       .populate('organizer', 'name email')
-      .populate('participants.user', 'name email');
+      .populate('participants.user', 'name email')
+      .populate('messages.user', 'name email');
 
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
     if (!fund.organizer) return res.status(404).json({ error: 'Fund not found' });
@@ -151,9 +173,11 @@ router.get('/:id', auth, async (req, res) => {
 // PATCH /api/funds/:id
 router.patch('/:id', auth, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id);
+    const fund = await Fund.findById(req.params.id)
+      .populate('organizer', 'name email')
+      .populate('participants.user', 'name email');
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    if (!fund.organizer._id.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
 
     const hasContribs = await Contribution.countDocuments({ fund: fund._id, status: 'succeeded' }) > 0;
@@ -167,13 +191,37 @@ router.patch('/:id', auth, async (req, res) => {
     }
 
     if (body.deadline && !isDeadlineValid(body.deadline)) {
-      return res.status(400).json({ error: 'La fecha límite debe ser al menos mañana.' });
+      return res.status(400).json({ error: 'La fecha límite no puede estar en el pasado y debe ser máximo en 1 año.' });
     }
 
-    const allowed = ['name', 'description', 'goal', ...(!hasContribs ? LOCKED_FIELDS : [])];
+    const hasInvited = fund.participants.length > 0;
+    const oldDeadline = fund.deadline ? new Date(fund.deadline) : null;
+    let deadlineExtended = false;
+
+    if (hasInvited && body.description && body.description !== fund.description) {
+      fund.updateLogs.push({ message: 'El organizador actualizó la descripción' });
+    }
+    if (hasInvited && body.goal && body.goal !== fund.goal) {
+      fund.updateLogs.push({ message: 'El organizador actualizó el objetivo' });
+    }
+
+    if (body.deadline && oldDeadline) {
+      const newDeadline = new Date(body.deadline);
+      if (newDeadline.getTime() > oldDeadline.getTime()) {
+        deadlineExtended = true;
+      }
+    }
+
+    const allowed = ['name', 'description', 'goal', 'coverImage', 'visibility', ...(!hasContribs ? LOCKED_FIELDS : [])];
     allowed.forEach(f => { if (body[f] !== undefined) fund[f] = body[f]; });
 
     await fund.save();
+
+    if (deadlineExtended) {
+      sendDeadlineExtendedEmail({ fund, organizer: fund.organizer, participants: fund.participants, newDate: fund.deadline })
+        .catch(err => console.error('Deadline email failed:', err.message));
+    }
+
     res.json(fund);
   } catch (err) {
     if (err.name === 'ValidationError') return res.status(400).json({ error: err.message });
@@ -285,6 +333,39 @@ router.post('/:id/close', auth, async (req, res) => {
       .catch(err => console.error('Status change email failed:', err.message));
 
     res.json(fund);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// POST /api/funds/:id/messages
+router.post('/:id/messages', auth, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
+
+    const fund = await Fund.findById(req.params.id)
+      .populate('organizer', 'name email')
+      .populate('participants.user', 'name email');
+    if (!fund) return res.status(404).json({ error: 'Fondo no encontrado' });
+
+    const isMember = fund.organizer._id.equals(req.user._id) || 
+      fund.participants.some(p => p.user?._id?.equals(req.user._id) && p.status === 'accepted');
+
+    if (!isMember) return res.status(403).json({ error: 'Solo los participantes pueden enviar mensajes' });
+
+    fund.messages.push({
+      user: req.user._id,
+      text: text.trim(),
+    });
+    
+    await fund.save();
+    
+    const updatedFund = await Fund.findById(req.params.id)
+      .populate('organizer', 'name email')
+      .populate('participants.user', 'name email')
+      .populate('messages.user', 'name email');
+      
+    res.status(201).json(updatedFund.messages);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

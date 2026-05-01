@@ -21,13 +21,31 @@ export default function CreateFundPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto">
-      <div className="mb-6">
-        <Link to="/fondos" className="text-gray-400 hover:text-gray-600 text-sm">← Mis fondos</Link>
+    <div className="min-h-screen py-10 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-indigo-50 via-white to-purple-50 -mt-8 mx-[-1rem]">
+      <div className="max-w-3xl mx-auto">
+        <div className="mb-6 flex items-center justify-between">
+          <Link to="/fondos" className="text-indigo-500 hover:text-indigo-700 font-medium text-sm transition-colors flex items-center">
+            <span className="mr-2">←</span> Volver a mis fondos
+          </Link>
+        </div>
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-2">
+            Comienza una nueva colecta
+          </h1>
+          <p className="text-gray-500">Configura los detalles de tu fondo y empieza a reunir dinero de manera fácil y segura.</p>
+        </div>
+        
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-md">
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+        
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-300 to-purple-300 blur-[60px] opacity-20 -z-10 rounded-[3rem]"></div>
+          <FundForm onSubmit={handleSubmit} loading={loading} />
+        </div>
       </div>
-      <h1 className="text-xl font-bold text-gray-800 mb-5">Crear nuevo fondo</h1>
-      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-      <FundForm onSubmit={handleSubmit} loading={loading} />
     </div>
   );
 }

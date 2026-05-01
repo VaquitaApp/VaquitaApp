@@ -69,6 +69,24 @@ async function sendDeleteConfirmationEmail({ to, name, token }) {
   });
 }
 
+async function sendDeadlineExtendedEmail({ fund, organizer, participants, newDate }) {
+  const recipients = [
+    ...participants.filter(p => p.status === 'accepted' && p.user?.email).map(p => p.user),
+  ].filter(Boolean);
+
+  const formattedDate = new Date(newDate).toLocaleDateString('es-CL');
+
+  for (const r of recipients) {
+    await sendEmail({
+      to: r.email,
+      subject: `Fecha límite aplazada: fondo "${fund.name}"`,
+      html: `<h2>Hola ${r.name}</h2>
+             <p>El organizador <b>${organizer.name}</b> ha aplazado la fecha límite del fondo <b>${fund.name}</b>.</p>
+             <p>La nueva fecha límite es el <b>${formattedDate}</b>.</p>`,
+    }).catch(() => {});
+  }
+}
+
 async function sendFundDeletedEmail({ fund, participants }) {
   const recipients = participants.filter(p => p.status === 'accepted' && p.user?.email).map(p => p.user);
   for (const r of recipients) {
@@ -80,4 +98,4 @@ async function sendFundDeletedEmail({ fund, participants }) {
   }
 }
 
-module.exports = { sendEmail, sendVerificationEmail, sendStatusChangeEmail, sendDeleteConfirmationEmail, sendFundDeletedEmail };
+module.exports = { sendEmail, sendVerificationEmail, sendStatusChangeEmail, sendDeleteConfirmationEmail, sendDeadlineExtendedEmail, sendFundDeletedEmail };
