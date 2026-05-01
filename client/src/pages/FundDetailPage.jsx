@@ -193,12 +193,14 @@ export default function FundDetailPage() {
               userContributions={contributions.filter(
                 c => c.user?._id?.toString() === user?._id?.toString()
               )}
-              onCreated={c => {
+              onCreated={(c, options) => {
                 setContributions(prev => [
                   { ...c, user: { _id: user._id, name: user.name, email: user.email } },
                   ...prev,
                 ]);
-                setShowContribForm(false);
+                if (!options?.keepOpen) {
+                  setShowContribForm(false);
+                }
               }}
               onCancel={() => setShowContribForm(false)}
             />
