@@ -4,20 +4,12 @@ const Contribution = require('../models/Contribution');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { processPayment } = require('../services/paymentService');
-<<<<<<< HEAD
-const { sendEmail, sendStatusChangeEmail, sendDeadlineExtendedEmail } = require('../services/emailService');
-=======
-const { sendEmail, sendStatusChangeEmail, sendFundDeletedEmail } = require('../services/emailService');
->>>>>>> feature/SCRUM-10-modal-confirmacion-eliminar
+const { sendEmail, sendStatusChangeEmail, sendDeadlineExtendedEmail, sendFundDeletedEmail } = require('../services/emailService');
 
 const router = express.Router();
 
 // Locked fields once contributions exist
-<<<<<<< HEAD
-const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'minAmount', 'type', 'visibility'];
-=======
-const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'type'];
->>>>>>> feature/hu09-editar-fondo
+const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'minAmount', 'type'];
 
 function isDeadlineValid(deadline) {
   const today = new Date();
