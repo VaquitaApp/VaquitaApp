@@ -66,9 +66,6 @@ export default function ProfilePage() {
   }
 
   async function handleRequestDelete() {
-    if (!window.confirm('¿Seguro deseas eliminar tu cuenta?')) {
-      return;
-    }
     setDeleting(true);
     setDeleteError('');
     try {
@@ -90,6 +87,8 @@ export default function ProfilePage() {
   return (
     <div className="max-w-md mx-auto space-y-6">
       <h1 className="text-xl font-bold text-gray-800">Mi perfil</h1>
+
+      {/* Read-only info */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Información de cuenta</p>
         <ReadOnlyField label="Nombre" value={fmtName(user?.name)} />
