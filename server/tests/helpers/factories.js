@@ -15,6 +15,8 @@ async function createUser(overrides = {}) {
 async function createFund(overrides = {}) {
   const defaults = {
     name: 'Test Fund',
+    description: 'Test description',
+    goal: 'Test goal',
     type: 'free',
     targetAmount: 100000,
     deadline: new Date(Date.now() + 86400000 * 30),

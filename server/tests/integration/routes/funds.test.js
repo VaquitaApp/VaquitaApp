@@ -16,6 +16,7 @@ async function authHeader(user) {
 
 const fundBody = {
   name: 'Fondo Paseo', type: 'free', targetAmount: 200000,
+  description: 'Un fondo para el paseo de curso', goal: 'Pagar el bus',
   deadline: new Date(Date.now() + 86400000 * 30).toISOString(),
   recipientAccount: { bank: 'Banco Estado', accountType: 'vista', accountNumber: '12345678' },
   visibility: 'private',
@@ -45,6 +46,35 @@ describe('POST /api/funds', () => {
   test('401 without token', async () => {
     const res = await request(app).post('/api/funds').send(fundBody);
     expect(res.status).toBe(401);
+  });
+
+  test('400 targetAmount is zero or negative', async () => {
+    const user = await createUser();
+    const res = await request(app)
+      .post('/api/funds')
+      .set(await authHeader(user))
+      .send({ ...fundBody, targetAmount: 0 });
+    expect(res.status).toBe(400);
+  });
+
+  test('400 deadline is in the past', async () => {
+    const user = await createUser();
+    const pastDate = new Date(Date.now() - 86400000).toISOString();
+    const res = await request(app)
+      .post('/api/funds')
+      .set(await authHeader(user))
+      .send({ ...fundBody, deadline: pastDate });
+    expect(res.status).toBe(400);
+  });
+
+  test('400 minAmount is greater than targetAmount', async () => {
+    const user = await createUser();
+    const res = await request(app)
+      .post('/api/funds')
+      .set(await authHeader(user))
+      .send({ ...fundBody, targetAmount: 1000, minAmount: 2000 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/mayor al total/i);
   });
 });
 
