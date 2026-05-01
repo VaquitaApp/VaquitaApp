@@ -22,6 +22,10 @@ function validateRut(rut) {
   return dv === computed;
 }
 
+function validateName(name) {
+  return /^[\p{L} ]+$/u.test(name.trim());
+}
+
 function signToken(user) {
   return jwt.sign(
     { sub: user._id, email: user.email },
@@ -35,6 +39,9 @@ router.post('/register', async (req, res) => {
     const { name, email, password, rut, userType } = req.body;
     if (!name || !email || !password || !rut) {
       return res.status(400).json({ error: 'Name, email, password and RUT are required' });
+    }
+    if (!validateName(name)) {
+      return res.status(400).json({ error: 'El nombre solo puede contener letras y espacios' });
     }
     if (!validateRut(rut)) {
       return res.status(400).json({ error: 'RUT inválido' });

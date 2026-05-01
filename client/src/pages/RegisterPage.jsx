@@ -26,15 +26,29 @@ function validateRut(rut) {
   return dv === computed;
 }
 
+function validateName(name) {
+  const normalized = name.trim();
+  return /^[\p{L} ]+$/u.test(normalized);
+}
+
 export default function RegisterPage() {
   const { register } = useAuth();
-  const [form, setForm]     = useState({ name: '', email: '', password: '', rut: '', userType: 'persona_natural' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', rut: '', userType: 'persona_natural' });
   const [rutError, setRutError] = useState('');
-  const [error, setError]   = useState('');
+  const [nameError, setNameError] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sent, setSent]     = useState(false);
+  const [sent, setSent] = useState(false);
 
-  const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
+  const set = (field) => (e) => {
+    const value = field === 'name'
+      ? e.target.value.replace(/[^\p{L} ]/gu, '')
+      : e.target.value;
+
+    setForm(f => ({ ...f, [field]: value }));
+
+    if (field === 'name') setNameError('');
+  };
 
   function handleRutChange(e) {
     const formatted = formatRut(e.target.value);
@@ -46,8 +60,18 @@ export default function RegisterPage() {
     if (form.rut && !validateRut(form.rut)) setRutError('RUT inválido');
   }
 
+  function handleNameBlur() {
+    if (form.name && !validateName(form.name)) {
+      setNameError('El nombre solo puede contener letras y espacios');
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateName(form.name)) {
+      setNameError('El nombre solo puede contener letras y espacios');
+      return;
+    }
     if (!validateRut(form.rut)) { setRutError('RUT inválido'); return; }
     setError('');
     setLoading(true);
@@ -98,8 +122,10 @@ export default function RegisterPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
             <input
               type="text" required value={form.name} onChange={set('name')}
+              onBlur={handleNameBlur}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
             />
+            {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">RUT</label>
