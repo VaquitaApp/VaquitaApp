@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getFund, closeFund, deleteFund, sendReminders } from '../api/funds';
+import { getFund, closeFund, deleteFund, sendReminders, pauseFund, resumeFund } from '../api/funds';
 import { getParticipants } from '../api/participants';
 import { getContributions } from '../api/contributions';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +13,7 @@ import ContributionList from '../components/funds/ContributionList';
 import MockPaymentForm from '../components/funds/MockPaymentForm';
 import FundChart from '../components/funds/FundChart';
 import CommentSection from '../components/funds/CommentSection';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 import { fmtDate, fmtName } from '../utils/format';
 
@@ -31,6 +32,8 @@ export default function FundDetailPage() {
   const [showContribForm, setShowContribForm] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [reminderMsg, setReminderMsg] = useState('');
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [confirmActionType, setConfirmActionType] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -90,8 +93,7 @@ export default function FundDetailPage() {
     document.body.removeChild(link);
   }
 
-  async function handleClose() {
-    if (!window.confirm('¿Cerrar este fondo? Esta acción no se puede deshacer.')) return;
+  async function executeClose() {
     setActionLoading(true);
     try {
       const res = await closeFund(id);
@@ -103,14 +105,47 @@ export default function FundDetailPage() {
     }
   }
 
-  async function handleDelete() {
-    if (!window.confirm('¿Eliminar este fondo? Esta acción no se puede deshacer.')) return;
+  async function executeDelete() {
     setActionLoading(true);
     try {
       await deleteFund(id);
       navigate('/fondos');
     } catch (err) {
       window.alert(err.response?.data?.error ?? 'Error al eliminar');
+      setActionLoading(false);
+    }
+  }
+
+  function handleClose() {
+    setConfirmActionType('close');
+    setConfirmModalOpen(true);
+  }
+
+  function handleDelete() {
+    setConfirmActionType('delete');
+    setConfirmModalOpen(true);
+  }
+
+  async function handlePause() {
+    setActionLoading(true);
+    try {
+      const res = await pauseFund(id);
+      setFund(prev => ({ ...prev, status: res.data.status }));
+    } catch (err) {
+      window.alert(err.response?.data?.error ?? 'Error al pausar');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleResume() {
+    setActionLoading(true);
+    try {
+      const res = await resumeFund(id);
+      setFund(prev => ({ ...prev, status: res.data.status }));
+    } catch (err) {
+      window.alert(err.response?.data?.error ?? 'Error al reanudar');
+    } finally {
       setActionLoading(false);
     }
   }
@@ -130,6 +165,11 @@ export default function FundDetailPage() {
       {fund.status === 'closed' && (
         <div className="bg-gray-50 border border-gray-200 text-gray-600 text-sm rounded-lg px-4 py-3 mb-4">
           Este fondo fue cerrado por el organizador.
+        </div>
+      )}
+      {fund.status === 'paused' && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3 mb-4">
+          Este fondo se encuentra pausado por el organizador. No se reciben aportes temporalmente.
         </div>
       )}
 
@@ -300,7 +340,7 @@ export default function FundDetailPage() {
       )}
 
       {/* Actions */}
-      {fund.status === 'active' && (
+      {(fund.status === 'active' || fund.status === 'paused') && (
         <div className="flex flex-wrap gap-3">
           {reminderMsg && (
             <p className="w-full text-xs text-green-700 bg-green-50 border border-green-200 rounded px-3 py-1.5 mb-1">
@@ -309,7 +349,7 @@ export default function FundDetailPage() {
           )}
           {isOrganizer && (
             <>
-              {accepted.length > 0 && (
+              {fund.status === 'active' && accepted.length > 0 && (
                 <button
                   onClick={async () => {
                     try {
@@ -325,13 +365,15 @@ export default function FundDetailPage() {
                   Enviar recordatorio
                 </button>
               )}
-              <Link
-                to={`/fondos/${id}/editar`}
-                className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-              >
-                Editar fondo
-              </Link>
-              {collectedAmount > 0 && (
+              {fund.status === 'active' && (
+                <Link
+                  to={`/fondos/${id}/editar`}
+                  className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  Editar fondo
+                </Link>
+              )}
+              {fund.status === 'active' && collectedAmount > 0 && (
                 <button
                   onClick={() => setShowPayment(true)}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
@@ -339,7 +381,7 @@ export default function FundDetailPage() {
                   Pagar al destinatario
                 </button>
               )}
-              {collectedAmount === 0 && (
+              {fund.status === 'active' && collectedAmount === 0 && (
                 <button
                   onClick={handleClose}
                   disabled={actionLoading}
@@ -348,13 +390,31 @@ export default function FundDetailPage() {
                   Cerrar fondo
                 </button>
               )}
-              {collectedAmount === 0 && (
+              {fund.status === 'active' && collectedAmount === 0 && (
                 <button
                   onClick={handleDelete}
                   disabled={actionLoading}
                   className="bg-white border border-red-200 hover:border-red-400 text-red-600 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
                 >
                   Eliminar fondo
+                </button>
+              )}
+              {fund.status === 'active' && (
+                <button
+                  onClick={handlePause}
+                  disabled={actionLoading}
+                  className="bg-white border border-yellow-300 hover:border-yellow-400 text-yellow-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Pausar fondo
+                </button>
+              )}
+              {fund.status === 'paused' && (
+                <button
+                  onClick={handleResume}
+                  disabled={actionLoading}
+                  className="bg-white border border-green-300 hover:border-green-400 text-green-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Reanudar fondo
                 </button>
               )}
             </>
@@ -386,6 +446,24 @@ export default function FundDetailPage() {
           }}
         />
       )}
+
+      <ConfirmModal
+        isOpen={confirmModalOpen}
+        onClose={() => setConfirmModalOpen(false)}
+        onConfirm={() => {
+          setConfirmModalOpen(false);
+          if (confirmActionType === 'close') executeClose();
+          if (confirmActionType === 'delete') executeDelete();
+        }}
+        title={confirmActionType === 'delete' ? 'Eliminar fondo' : 'Cerrar fondo'}
+        message={
+          confirmActionType === 'delete' 
+            ? '¿Estás seguro de que deseas eliminar este fondo? Esta acción no se puede deshacer y se borrarán todos los datos asociados.' 
+            : '¿Estás seguro de que deseas cerrar este fondo? Ya no se podrán recibir aportes nuevos.'
+        }
+        requireKeyword={true}
+        keyword={confirmActionType === 'delete' ? 'ELIMINAR' : 'CERRAR'}
+      />
     </div>
   );
 }

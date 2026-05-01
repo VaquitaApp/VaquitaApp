@@ -9,3 +9,5 @@ export const deleteFund     = (id)     => api.delete(`/funds/${id}`);
 export const closeFund      = (id)     => api.post(`/funds/${id}/close`);
 export const sendReminders  = (id)     => api.post(`/funds/${id}/reminders`);
 export const postMessage    = (id, data) => api.post(`/funds/${id}/messages`, data);
+export const pauseFund      = (id)     => api.post(`/funds/${id}/pause`);
+export const resumeFund     = (id)     => api.post(`/funds/${id}/resume`);

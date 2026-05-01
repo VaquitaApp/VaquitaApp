@@ -4,7 +4,11 @@ const Contribution = require('../models/Contribution');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { processPayment } = require('../services/paymentService');
+<<<<<<< HEAD
 const { sendEmail, sendStatusChangeEmail, sendDeadlineExtendedEmail } = require('../services/emailService');
+=======
+const { sendEmail, sendStatusChangeEmail, sendFundDeletedEmail } = require('../services/emailService');
+>>>>>>> feature/SCRUM-10-modal-confirmacion-eliminar
 
 const router = express.Router();
 
@@ -228,12 +232,16 @@ router.patch('/:id', auth, async (req, res) => {
 // DELETE /api/funds/:id
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id);
+    const fund = await Fund.findById(req.params.id)
+      .populate('participants.user', 'name email');
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
     if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
 
     const hasContribs = await Contribution.countDocuments({ fund: fund._id }) > 0;
     if (hasContribs) return res.status(422).json({ error: 'Cannot delete fund with contributions' });
+
+    sendFundDeletedEmail({ fund, participants: fund.participants })
+      .catch(err => console.error('Delete email failed:', err.message));
 
     await fund.deleteOne();
     res.status(204).send();
@@ -358,6 +366,38 @@ router.post('/:id/messages', auth, async (req, res) => {
       .populate('messages.user', 'name email');
       
     res.status(201).json(updatedFund.messages);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/funds/:id/pause
+router.post('/:id/pause', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id);
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund can only be paused from active state' });
+
+    fund.status = 'paused';
+    await fund.save();
+    res.json(fund);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/funds/:id/resume
+router.post('/:id/resume', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id);
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    if (fund.status !== 'paused') return res.status(422).json({ error: 'Fund is not paused' });
+
+    fund.status = 'active';
+    await fund.save();
+    res.json(fund);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

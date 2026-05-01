@@ -26,7 +26,7 @@ const fundSchema = new Schema({
     accountNumber: { type: String, required: true, trim: true, validate: { validator: v => /^\d+$/.test(v), message: 'accountNumber must contain only digits' } },
   },
   visibility:       { type: String, enum: ['public', 'private'], default: 'private' },
-  status:           { type: String, enum: ['active', 'completed', 'closed'], default: 'active' },
+  status:           { type: String, enum: ['active', 'completed', 'closed', 'paused'], default: 'active' },
   organizer:        { type: Schema.Types.ObjectId, ref: 'User', required: true },
   participants:     [participantSchema],
   messages:         [{

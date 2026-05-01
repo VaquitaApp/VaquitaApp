@@ -87,4 +87,15 @@ async function sendDeadlineExtendedEmail({ fund, organizer, participants, newDat
   }
 }
 
-module.exports = { sendEmail, sendVerificationEmail, sendStatusChangeEmail, sendDeleteConfirmationEmail, sendDeadlineExtendedEmail };
+async function sendFundDeletedEmail({ fund, participants }) {
+  const recipients = participants.filter(p => p.status === 'accepted' && p.user?.email).map(p => p.user);
+  for (const r of recipients) {
+    await sendEmail({
+      to: r.email,
+      subject: `Fondo "${fund.name}" cancelado/eliminado`,
+      html: `<p>Hola ${r.name},</p><p>Te informamos que el fondo <b>${fund.name}</b> ha sido cancelado y eliminado por el organizador.</p>`,
+    }).catch(() => {});
+  }
+}
+
+module.exports = { sendEmail, sendVerificationEmail, sendStatusChangeEmail, sendDeleteConfirmationEmail, sendDeadlineExtendedEmail, sendFundDeletedEmail };
