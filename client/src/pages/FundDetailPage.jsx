@@ -183,7 +183,18 @@ export default function FundDetailPage() {
           <StatusBadge status={fund.status} />
         </div>
 
-        <ProgressBar value={collectedAmount} max={fund.targetAmount} />
+        {fund.description && (
+          <p className="text-sm text-gray-600 mt-2">{fund.description}</p>
+        )}
+        {fund.goal && (
+          <p className="text-xs text-gray-400 mt-1">
+            <span className="font-medium text-gray-500">Objetivo: </span>{fund.goal}
+          </p>
+        )}
+
+        <div className="mt-4">
+          <ProgressBar value={collectedAmount} max={fund.targetAmount} />
+        </div>
 
         <div className="grid grid-cols-2 gap-4 mt-5 text-sm text-gray-600">
           <div>
