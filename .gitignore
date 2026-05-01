@@ -31,10 +31,9 @@ Thumbs.db
 *.swp
 *.swo
 
-# Local agent config and meta docs (not project docs)
+# Local agent config
 .mcp.json
 .claude/
-CLAUDE.md
 
 # MongoDB local data
 data/
