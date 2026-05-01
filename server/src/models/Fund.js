@@ -34,6 +34,7 @@ const fundSchema = new Schema({
     text: { type: String, required: true, trim: true },
     createdAt: { type: Date, default: Date.now }
   }],
+  updateLogs:       [{ message: { type: String, required: true }, date: { type: Date, default: Date.now } }],
 }, { timestamps: true });
 
 fundSchema.pre('validate', function (next) {
