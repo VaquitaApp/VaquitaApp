@@ -168,6 +168,68 @@ describe('PATCH /api/funds/:id', () => {
       .send({ name: 'X' });
     expect(res.status).toBe(422);
   });
+
+  test('422 rejects modifying locked fields if has contributions', async () => {
+    const user = await createUser();
+    const fund = await createFund({ organizer: user._id });
+    await createContribution({ fund: fund._id, user: user._id, status: 'succeeded' });
+
+    const res = await request(app)
+      .patch(`/api/funds/${fund._id}`)
+      .set(await authHeader(user))
+      .send({ targetAmount: 500000 });
+    expect(res.status).toBe(422);
+  });
+
+  test('200 allows modifying visibility even with contributions', async () => {
+    const user = await createUser();
+    const fund = await createFund({ organizer: user._id, visibility: 'private' });
+    await createContribution({ fund: fund._id, user: user._id, status: 'succeeded' });
+
+    const res = await request(app)
+      .patch(`/api/funds/${fund._id}`)
+      .set(await authHeader(user))
+      .send({ visibility: 'public' });
+    expect(res.status).toBe(200);
+    expect(res.body.visibility).toBe('public');
+  });
+
+  test('200 registers updateLog for description change with participants', async () => {
+    const org = await createUser({ email: 'org@test.com' });
+    const part = await createUser({ email: 'part@test.com' });
+    const fund = await createFund({ 
+      organizer: org._id, 
+      participants: [{ user: part._id, status: 'accepted' }],
+      description: 'Old desc' 
+    });
+
+    const res = await request(app)
+      .patch(`/api/funds/${fund._id}`)
+      .set(await authHeader(org))
+      .send({ description: 'New desc' });
+    
+    expect(res.status).toBe(200);
+    expect(res.body.description).toBe('New desc');
+    expect(res.body.updateLogs).toHaveLength(1);
+    expect(res.body.updateLogs[0].message).toMatch(/descripción/i);
+  });
+
+  test('200 extends deadline without crashing email service', async () => {
+    const org = await createUser({ email: 'org@test.com' });
+    const part = await createUser({ email: 'part@test.com' });
+    const fund = await createFund({ 
+      organizer: org._id,
+      participants: [{ user: part._id, status: 'accepted' }],
+      deadline: new Date(Date.now() + 86400000).toISOString() 
+    });
+
+    const res = await request(app)
+      .patch(`/api/funds/${fund._id}`)
+      .set(await authHeader(org))
+      .send({ deadline: new Date(Date.now() + 86400000 * 10).toISOString() });
+    
+    expect(res.status).toBe(200);
+  });
 });
 
 describe('DELETE /api/funds/:id', () => {
