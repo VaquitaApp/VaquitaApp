@@ -134,6 +134,45 @@ describe('GET /api/funds/:id', () => {
       .set(await authHeader(u2));
     expect(res.status).toBe(200);
   });
+  test('200 populates messages with user names', async () => {
+    const user = await createUser();
+    const fund = await createFund({ organizer: user._id, messages: [{ user: user._id, text: 'Hola a todos' }] });
+    const res = await request(app)
+      .get(`/api/funds/${fund._id}`)
+      .set(await authHeader(user));
+    expect(res.status).toBe(200);
+    expect(res.body.messages[0].user.name).toBe(user.name);
+  });
+});
+
+describe('POST /api/funds/:id/messages', () => {
+  test('201 creates message for accepted participant', async () => {
+    const org = await createUser({ email: 'org@test.com' });
+    const part = await createUser({ email: 'part@test.com' });
+    const fund = await createFund({
+      organizer: org._id,
+      participants: [{ user: part._id, status: 'accepted' }]
+    });
+
+    const res = await request(app)
+      .post(`/api/funds/${fund._id}/messages`)
+      .set(await authHeader(part))
+      .send({ text: 'Ya transferí' });
+    expect(res.status).toBe(201);
+    expect(res.body[0].text).toBe('Ya transferí');
+  });
+
+  test('403 rejects message if not member', async () => {
+    const org = await createUser({ email: 'org@test.com' });
+    const stranger = await createUser({ email: 'stranger@test.com' });
+    const fund = await createFund({ organizer: org._id });
+
+    const res = await request(app)
+      .post(`/api/funds/${fund._id}/messages`)
+      .set(await authHeader(stranger))
+      .send({ text: 'Spam' });
+    expect(res.status).toBe(403);
+  });
 });
 
 describe('PATCH /api/funds/:id', () => {
