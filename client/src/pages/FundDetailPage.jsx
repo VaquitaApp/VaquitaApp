@@ -12,6 +12,7 @@ import ContributionForm from '../components/funds/ContributionForm';
 import ContributionList from '../components/funds/ContributionList';
 import MockPaymentForm from '../components/funds/MockPaymentForm';
 import FundChart from '../components/funds/FundChart';
+import CommentSection from '../components/funds/CommentSection';
 
 import { fmtDate, fmtName } from '../utils/format';
 
@@ -55,6 +56,39 @@ export default function FundDetailPage() {
   const accepted = participants.filter(p => p.status === 'accepted');
   const isMember = isOrganizer || accepted.some(p => p.user?._id?.toString() === user?._id?.toString());
   const collectedAmount = contributions.reduce((sum, c) => sum + c.amount, 0);
+
+  function handleCopyLink() {
+    navigator.clipboard.writeText(window.location.href);
+    setReminderMsg('Enlace copiado al portapapeles');
+    setTimeout(() => setReminderMsg(''), 3000);
+  }
+
+  function handleDownloadCSV() {
+    let csv = `Fondo:,"${fund.name}"\n`;
+    csv += `Objetivo:,"${fund.goal}"\n`;
+    csv += `Meta Total:,${fund.targetAmount}\n`;
+    csv += `Recaudado:,${collectedAmount}\n`;
+    csv += `Estado:,${fund.status}\n\n`;
+
+    csv += 'Nombre,Email,Rol/Estado de Aporte\n';
+    if (fund.organizer) {
+      csv += `"${fund.organizer.name || ''}","${fund.organizer.email || ''}","Organizador"\n`;
+    }
+    accepted.forEach(p => {
+      const statusStr = p.contributionStatus === 'onTime' ? 'Al dia' :
+                        p.contributionStatus === 'overdue' ? 'En mora' : 'Pendiente';
+      csv += `"${p.user?.name || ''}","${p.user?.email || ''}","${statusStr}"\n`;
+    });
+
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); // \uFEFF for Excel UTF-8 BOM
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `fondo_${fund.name.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
   async function handleClose() {
     if (!window.confirm('¿Cerrar este fondo? Esta acción no se puede deshacer.')) return;
@@ -119,7 +153,7 @@ export default function FundDetailPage() {
           <div>
             <span className="text-xs text-gray-400 block mb-0.5">Tipo</span>
             {fund.type === 'quota'
-              ? `Por cuotas (${fund.quotaAmount?.toLocaleString('es-CL')} CLP)`
+              ? `Por cuotas (${fund.quotaAmount?.toLocaleString('es-CL')} CLP, ${fund.frequency === 'monthly' ? 'Mensual' : fund.frequency === 'biweekly' ? 'Quincenal' : fund.frequency === 'weekly' ? 'Semanal' : 'Única vez'})`
               : 'Libre'}
           </div>
           <div>
@@ -212,6 +246,31 @@ export default function FundDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Utility Actions */}
+      <div className="flex flex-wrap gap-3 mb-4">
+        <button
+          onClick={handleCopyLink}
+          className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+        >
+          Copiar enlace
+        </button>
+        {(isOrganizer || isMember) && (
+          <button
+            onClick={handleDownloadCSV}
+            className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            Descargar CSV
+          </button>
+        )}
+      </div>
+
+      <CommentSection 
+        fundId={id} 
+        messages={fund.messages || []} 
+        isMember={isMember} 
+        onMessageAdded={(newMessages) => setFund(prev => ({ ...prev, messages: newMessages }))} 
+      />
 
       {/* Visitor notice */}
       {!isMember && fund.visibility === 'public' && (
