@@ -36,36 +36,38 @@ describe('POST /api/funds/:id/invitations', () => {
     expect(res.body[0].user.email).toBe('participante@prueba.cl');
   });
 
-  it('re-envia invitacion con nuevo token si el usuario ya tiene invitacion pendiente', async () => {
-    const res1 = await request(app)
+  it('returns 200 with new token when re-inviting pending user', async () => {
+    const first = await request(app)
       .post(`/api/funds/${fund._id}/invitations`)
       .set('Authorization', `Bearer ${orgToken}`)
       .send({ userId: participant._id.toString() });
-    const firstToken = res1.body[0]?.invitationToken;
+    expect(first.status).toBe(201);
+    const token1 = first.body[0].invitationToken;
 
-    const res2 = await request(app)
+    const second = await request(app)
       .post(`/api/funds/${fund._id}/invitations`)
       .set('Authorization', `Bearer ${orgToken}`)
       .send({ userId: participant._id.toString() });
 
-    expect(res2.status).toBe(201);
-    expect(res2.body[0].invitationToken).toBeDefined();
-    expect(res2.body[0].invitationToken).not.toBe(firstToken);
+    expect(second.status).toBe(200);
+    expect(second.body).toHaveLength(1);
+    expect(second.body[0].invitationToken).toBeDefined();
+    expect(second.body[0].invitationToken).not.toBe(token1);
   });
 
-  it('returns 409 si el usuario ya es participante aceptado', async () => {
-    const invRes = await request(app)
+  it('returns 409 if user already accepted participant', async () => {
+    const inv = await request(app)
       .post(`/api/funds/${fund._id}/invitations`)
       .set('Authorization', `Bearer ${orgToken}`)
       .send({ userId: participant._id.toString() });
-    const token = invRes.body[0].invitationToken;
-    await request(app).post(`/api/invitations/${token}/accept`);
+    await request(app).post(`/api/invitations/${inv.body[0].invitationToken}/accept`);
 
     const res = await request(app)
       .post(`/api/funds/${fund._id}/invitations`)
       .set('Authorization', `Bearer ${orgToken}`)
       .send({ userId: participant._id.toString() });
     expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/already a participant/i);
   });
 
   it('returns 422 if fund not active', async () => {
@@ -146,6 +148,80 @@ describe('POST /api/invitations/:token/accept and reject', () => {
     await request(app).post(`/api/invitations/${token}/accept`);
     const res = await request(app).post(`/api/invitations/${token}/accept`);
     expect(res.status).toBe(404);
+  });
+
+  it('returns 404 when accepting the same invitation token twice', async () => {
+    const first = await request(app).post(`/api/invitations/${token}/accept`);
+    expect(first.status).toBe(200);
+    const again = await request(app).post(`/api/invitations/${token}/accept`);
+    expect(again.status).toBe(404);
+  });
+
+  it('returns 404 when rejecting the same invitation token twice', async () => {
+    const first = await request(app).post(`/api/invitations/${token}/reject`);
+    expect(first.status).toBe(200);
+    const again = await request(app).post(`/api/invitations/${token}/reject`);
+    expect(again.status).toBe(404);
+  });
+});
+
+// ── Cancel invitation ─────────────────────────────────────────────────────────
+
+describe('DELETE /api/funds/:id/invitations/:userId', () => {
+  let invToken;
+
+  beforeEach(async () => {
+    const res = await request(app)
+      .post(`/api/funds/${fund._id}/invitations`)
+      .set('Authorization', `Bearer ${orgToken}`)
+      .send({ userId: participant._id.toString() });
+    invToken = res.body[0].invitationToken;
+  });
+
+  it('cancels a pending invitation (removes participant entry)', async () => {
+    const res = await request(app)
+      .delete(`/api/funds/${fund._id}/invitations/${participant._id}`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.find(p => p.user._id?.toString() === participant._id.toString())).toBeUndefined();
+  });
+
+  it('invalidates the invitation token after cancellation', async () => {
+    await request(app)
+      .delete(`/api/funds/${fund._id}/invitations/${participant._id}`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    const accept = await request(app).post(`/api/invitations/${invToken}/accept`);
+    expect(accept.status).toBe(404);
+  });
+
+  it('returns 403 if caller is not organizer', async () => {
+    const res = await request(app)
+      .delete(`/api/funds/${fund._id}/invitations/${participant._id}`)
+      .set('Authorization', `Bearer ${partToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 404 if invitation does not exist', async () => {
+    const { createUser: cu } = require('../../helpers/factories');
+    const other = await cu({ email: 'otro@prueba.cl', passwordHash: 'Password1!' });
+    const res = await request(app)
+      .delete(`/api/funds/${fund._id}/invitations/${other._id}`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 422 if invitation is not pending (already accepted)', async () => {
+    await request(app).post(`/api/invitations/${invToken}/accept`);
+
+    const res = await request(app)
+      .delete(`/api/funds/${fund._id}/invitations/${participant._id}`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    expect(res.status).toBe(422);
   });
 });
 

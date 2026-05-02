@@ -1,6 +1,7 @@
 import api from './axios';
 
 export const inviteUser       = (fundId, userId) => api.post(`/funds/${fundId}/invitations`, { userId });
+export const cancelInvitation = (fundId, userId) => api.delete(`/funds/${fundId}/invitations/${userId}`);
 export const getParticipants  = (fundId)          => api.get(`/funds/${fundId}/participants`);
 export const removeParticipant = (fundId, userId) => api.delete(`/funds/${fundId}/participants/${userId}`);
 export const searchUsers      = (q)               => api.get('/users/search', { params: { q } });
@@ -13,3 +14,6 @@ export const requestJoin        = (fundId) => api.post(`/funds/${fundId}/join-re
 export const acceptJoinRequest  = (token)  => api.post(`/join-requests/${token}/accept`);
 export const rejectJoinRequest  = (token)  => api.post(`/join-requests/${token}/reject`);
 export const acceptMyInvitation = (fundId) => api.post(`/funds/${fundId}/accept-my-invitation`);
+export const requestFundAccess = (fundId)         => api.post(`/funds/${fundId}/access-requests`);
+export const acceptAccessRequest = (token)       => api.post(`/fund-access/${token}/accept`);
+export const rejectAccessRequest = (token)        => api.post(`/fund-access/${token}/reject`);

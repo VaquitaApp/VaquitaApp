@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getFund, closeFund, deleteFund, sendReminders, pauseFund, resumeFund } from '../api/funds';
-import { getParticipants, requestJoin, acceptMyInvitation } from '../api/participants';
+import { getParticipants, removeParticipant, requestFundAccess, acceptMyInvitation } from '../api/participants';
 import { getContributions } from '../api/contributions';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge } from '../components/ui/Badge';
@@ -36,10 +36,10 @@ export default function FundDetailPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [reminderMsg, setReminderMsg] = useState('');
   const [confirmAction, setConfirmAction] = useState(null); // null | 'close' | 'delete'
-  const [joinRequested, setJoinRequested] = useState(false);
-  const [joinLoading, setJoinLoading] = useState(false);
-  const [joinError, setJoinError] = useState('');
   const [acceptingInvite, setAcceptingInvite] = useState(false);
+  const [removingId, setRemovingId] = useState('');
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [accessMsg, setAccessMsg] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -69,19 +69,6 @@ export default function FundDetailPage() {
   const hasOverdue = participants.some(p => p.contributionStatus === 'overdue');
   const myParticipant = participants.find(p => p.user?._id?.toString() === user?._id?.toString());
   const isPendingInvitee = myParticipant?.status === 'pending' && myParticipant?.hasInvitation;
-
-  async function handleJoinRequest() {
-    setJoinLoading(true);
-    setJoinError('');
-    try {
-      await requestJoin(id);
-      setJoinRequested(true);
-    } catch (err) {
-      setJoinError(err.response?.data?.error ?? 'Error al enviar la solicitud');
-    } finally {
-      setJoinLoading(false);
-    }
-  }
 
   async function handleAcceptInvitation() {
     setAcceptingInvite(true);
@@ -149,6 +136,42 @@ export default function FundDetailPage() {
     } catch (err) {
       window.alert(err.response?.data?.error ?? 'Error al eliminar');
       setActionLoading(false);
+    }
+  }
+
+  const canRequestPublicAccess =
+    user &&
+    !isMember &&
+    !isPendingInvitee &&
+    fund?.visibility === 'public' &&
+    fund?.status === 'active' &&
+    new Date(fund.deadline) > new Date();
+
+  async function handleRequestAccess() {
+    if (!canRequestPublicAccess) return;
+    setAccessLoading(true);
+    setAccessMsg('');
+    try {
+      await requestFundAccess(id);
+      setAccessMsg('Te enviamos la solicitud al organizador por correo.');
+    } catch (err) {
+      setAccessMsg(err.response?.data?.error ?? 'No se pudo enviar la solicitud');
+    } finally {
+      setAccessLoading(false);
+    }
+  }
+
+  async function handleRemoveParticipant(userId) {
+    if (!isOrganizer) return;
+    if (!window.confirm('¿Eliminar participante? Solo se puede si no ha realizado aportes.')) return;
+    setRemovingId(userId);
+    try {
+      await removeParticipant(id, userId);
+      setParticipants(prev => prev.filter(p => p.user?._id?.toString() !== userId));
+    } catch (err) {
+      window.alert(err.response?.data?.error ?? 'Error al eliminar participante');
+    } finally {
+      setRemovingId('');
     }
   }
 
@@ -273,6 +296,10 @@ export default function FundDetailPage() {
           organizer={fund.organizer}
           participants={participants}
           contributions={contributions}
+          isOrganizer={isOrganizer}
+          onRemove={handleRemoveParticipant}
+          removingId={removingId}
+          emptyMessage="No hay participantes aún."
         />
       </div>
 
@@ -344,14 +371,13 @@ export default function FundDetailPage() {
         )}
       </div>
 
-      <CommentSection 
-        fundId={id} 
-        messages={fund.messages || []} 
-        isMember={isMember} 
-        onMessageAdded={(newMessages) => setFund(prev => ({ ...prev, messages: newMessages }))} 
+      <CommentSection
+        fundId={id}
+        messages={fund.messages || []}
+        isMember={isMember}
+        onMessageAdded={(newMessages) => setFund(prev => ({ ...prev, messages: newMessages }))}
       />
 
-      {/* Banner de invitación pendiente */}
       {isPendingInvitee && fund.status === 'active' && (
         <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm rounded-lg px-4 py-3 mb-4">
           <p className="mb-2 font-medium">Tienes una invitación pendiente para unirte a este fondo.</p>
@@ -365,27 +391,30 @@ export default function FundDetailPage() {
         </div>
       )}
 
-      {/* Aviso para visitantes — solicitar acceso */}
-      {!isMember && !isPendingInvitee && fund.visibility === 'public' && fund.status === 'active' && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-lg px-4 py-3 mb-4">
-          {joinRequested ? (
-            <p>Tu solicitud fue enviada al organizador. Te avisaremos por correo cuando sea aceptada.</p>
-          ) : (
+      {!isMember && fund.visibility === 'public' && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-lg px-4 py-3 mb-4 space-y-2">
+          {canRequestPublicAccess ? (
             <>
-              <p className="mb-2">Estás visitando este fondo público. Puedes solicitar unirte al organizador.</p>
+              <p>¿Quieres participar en este fondo público? El organizador recibirá un correo para aceptar o rechazar tu solicitud.</p>
               <button
-                onClick={handleJoinRequest}
-                disabled={joinLoading}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                type="button"
+                onClick={handleRequestAccess}
+                disabled={accessLoading}
+                className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md disabled:opacity-50"
               >
-                {joinLoading ? 'Enviando…' : 'Solicitar unirse'}
+                {accessLoading ? 'Enviando…' : 'Solicitar acceso'}
               </button>
-              {joinError && <p className="text-red-500 text-xs mt-1">{joinError}</p>}
+              {accessMsg && <p className="text-xs text-blue-800">{accessMsg}</p>}
             </>
+          ) : (
+            <p>
+              {fund.status !== 'active' || new Date(fund.deadline) <= new Date()
+                ? 'Este fondo público ya no admite nuevas solicitudes de acceso.'
+                : 'Estás visitando este fondo público.'}
+            </p>
           )}
         </div>
       )}
-
       {/* Acciones del organizador */}
       {(fund.status === 'active' || fund.status === 'paused') && (
         <div className="flex flex-wrap gap-3">
@@ -494,6 +523,7 @@ export default function FundDetailPage() {
             setParticipants(updated);
             setShowInvite(false);
           }}
+          onUpdateParticipants={updated => setParticipants(updated)}
         />
       )}
 

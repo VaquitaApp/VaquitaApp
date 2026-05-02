@@ -159,8 +159,14 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ error: 'El monto mínimo no puede ser mayor al total del fondo.' });
     }
 
+    const desc = typeof description === 'string' ? description.trim() : '';
+    const goalStr = typeof goal === 'string' ? goal.trim() : '';
+    if (!desc || !goalStr) {
+      return res.status(400).json({ error: 'La descripción y el objetivo son obligatorios.' });
+    }
+
     const fund = new Fund({
-      name, description, goal, type, targetAmount, quotaAmount,
+      name, description: desc, goal: goalStr, type, targetAmount, quotaAmount,
       frequency, deadline, recipientAccount, visibility, coverImage,
       minAmount, expectedParticipants,
       organizer: req.user._id,
@@ -254,7 +260,20 @@ router.patch('/:id', auth, async (req, res) => {
     }
 
     const allowed = ['name', 'description', 'goal', 'coverImage', 'visibility', 'expectedParticipants', ...(!hasContribs ? LOCKED_FIELDS : [])];
-    allowed.forEach(f => { if (body[f] !== undefined) fund[f] = body[f]; });
+    for (const f of allowed) {
+      if (body[f] === undefined) continue;
+      if (f === 'description' || f === 'goal') {
+        const t = String(body[f]).trim();
+        if (!t) {
+          return res.status(400).json({
+            error: f === 'description' ? 'La descripción no puede estar vacía.' : 'El objetivo no puede estar vacío.',
+          });
+        }
+        fund[f] = t;
+        continue;
+      }
+      fund[f] = body[f];
+    }
 
     await fund.save();
 

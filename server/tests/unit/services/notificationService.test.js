@@ -11,10 +11,12 @@ function makeParticipant(user, overrides = {}) {
 }
 
 function makeFund(fund, daysLeft, type = 'free') {
+  // Medio día extra para que Math.floor(daysUntil) no cruce a 3 o 1 por unos ms de diferencia entre Date.now() y el deadline.
+  const slack = 43200000;
   return {
     _id: fund._id,
     type,
-    deadline: new Date(Date.now() + daysLeft * 86400000),
+    deadline: new Date(Date.now() + daysLeft * 86400000 + slack),
   };
 }
 
