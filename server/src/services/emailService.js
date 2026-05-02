@@ -98,4 +98,37 @@ async function sendFundDeletedEmail({ fund, participants }) {
   }
 }
 
-module.exports = { sendEmail, sendVerificationEmail, sendStatusChangeEmail, sendDeleteConfirmationEmail, sendDeadlineExtendedEmail, sendFundDeletedEmail };
+async function sendJoinRequestEmail({ to, organizerName, requesterName, fundName, token }) {
+  const base = process.env.APP_BASE_URL || 'http://localhost:5173';
+  const acceptUrl = `${base}/solicitudes-acceso/${token}?action=accept`;
+  const rejectUrl = `${base}/solicitudes-acceso/${token}?action=reject`;
+  await sendEmail({
+    to,
+    subject: `Nueva solicitud de acceso al fondo "${fundName}"`,
+    html: `
+      <p>Hola ${organizerName},</p>
+      <p><strong>${requesterName}</strong> ha solicitado unirse al fondo <strong>${fundName}</strong>.</p>
+      <p>
+        <a href="${acceptUrl}" style="background:#4f46e5;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;">Aceptar</a>
+        &nbsp;
+        <a href="${rejectUrl}" style="background:#6b7280;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;">Rechazar</a>
+      </p>
+    `,
+  });
+}
+
+async function sendJoinRequestAcceptedEmail({ to, name, fundName, fundId }) {
+  const base = process.env.APP_BASE_URL || 'http://localhost:5173';
+  await sendEmail({
+    to,
+    subject: `Tu solicitud al fondo "${fundName}" fue aceptada`,
+    html: `
+      <p>Hola ${name},</p>
+      <p>El organizador ha aceptado tu solicitud para unirte al fondo <strong>${fundName}</strong>.</p>
+      <p>Ya puedes participar y realizar aportes.</p>
+      <p><a href="${base}/fondos/${fundId}">Ver el fondo</a></p>
+    `,
+  });
+}
+
+module.exports = { sendEmail, sendVerificationEmail, sendStatusChangeEmail, sendDeleteConfirmationEmail, sendDeadlineExtendedEmail, sendFundDeletedEmail, sendJoinRequestEmail, sendJoinRequestAcceptedEmail };

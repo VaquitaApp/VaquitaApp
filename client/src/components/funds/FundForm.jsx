@@ -1,9 +1,22 @@
 import { useState } from 'react';
 import './FundForm.css';
 
+const FREQ_MIN_DAYS = { weekly: 7, biweekly: 14, monthly: 30 };
+const FREQ_LABELS   = { weekly: 'semanal', biweekly: 'quincenal', monthly: 'mensual' };
+
 function toDateInput(d) {
   if (!d) return '';
   return new Date(d).toISOString().slice(0, 10);
+}
+
+function totalPeriods(frequency, start, end) {
+  if (frequency === 'once') return 1;
+  const s = new Date(start);
+  const e = new Date(end);
+  if (frequency === 'weekly')   return Math.max(1, Math.ceil((e - s) / (7  * 24 * 60 * 60 * 1000)));
+  if (frequency === 'biweekly') return Math.max(1, Math.ceil((e - s) / (14 * 24 * 60 * 60 * 1000)));
+  const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+  return Math.max(1, months);
 }
 
 function Field({ label, required, children }) {
@@ -45,7 +58,7 @@ const ACCOUNT_TYPES = [
   { value: 'chequera_electronica', label: 'Chequera Electrónica' },
 ];
 
-export default function FundForm({ initial = {}, lockedFields = [], onSubmit, loading }) {
+export default function FundForm({ initial = {}, lockedFields = [], onSubmit, loading, submitLabel = 'Crear Fondo Colectivo' }) {
   const [validationError, setValidationError] = useState('');
   const [form, setForm] = useState({
     name: initial.name ?? '',
@@ -64,6 +77,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     visibility: initial.visibility ?? 'public',
     frequency: initial.frequency ?? 'monthly',
     quotaAmount: initial.quotaAmount ?? '',
+    expectedParticipants: initial.expectedParticipants ?? '',
   });
 
   function set(key, val) {
@@ -77,6 +91,21 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
   function locked(key) {
     return lockedFields.includes(key);
   }
+
+  // Fecha de inicio para el cálculo de períodos:
+  // en modo edición usa la fecha de creación del fondo; en creación usa hoy
+  const startDate = initial.createdAt ? new Date(initial.createdAt) : new Date();
+
+  const periods =
+    form.type === 'quota' && form.targetAmount && form.deadline && form.frequency
+      ? totalPeriods(form.frequency, startDate, form.deadline)
+      : null;
+
+  const expectedP = Number(form.expectedParticipants);
+  const suggestedQuota =
+    periods && expectedP > 0
+      ? Math.ceil(Number(form.targetAmount) / (periods * expectedP))
+      : null;
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -97,17 +126,36 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     } else {
       delete data.minAmount;
       data.quotaAmount = Number(data.quotaAmount);
-      if (data.quotaAmount > data.targetAmount) {
-        setValidationError('El valor de la cuota no puede ser mayor al total del fondo.');
+      if (form.expectedParticipants) {
+        data.expectedParticipants = Number(form.expectedParticipants);
+      } else {
+        delete data.expectedParticipants;
+      }
+      if (form.deadline && form.frequency) {
+        const minDays  = FREQ_MIN_DAYS[form.frequency] ?? 0;
+        const todayStr = new Date().toLocaleDateString('en-CA');
+        const diffDays = (new Date(form.deadline) - new Date(todayStr)) / 86400000;
+        if (diffDays < minDays) {
+          setValidationError(`Un fondo con frecuencia ${FREQ_LABELS[form.frequency]} requiere al menos ${minDays} días hasta la fecha límite.`);
+          return;
+        }
+      }
+      if (suggestedQuota !== null && data.quotaAmount < suggestedQuota) {
+        setValidationError(
+          `La cuota mínima es $${suggestedQuota.toLocaleString('es-CL')} para alcanzar la meta en ${periods} cuota${periods !== 1 ? 's' : ''} con ${expectedP} participante${expectedP !== 1 ? 's' : ''}.`
+        );
         return;
       }
     }
     onSubmit(data);
   }
 
-  // Calculate min and max dates
+  // Fechas mínima y máxima para el campo de fecha límite.
+  // Para fondos de cuota, el mínimo es la duración de un período completo.
   const today = new Date();
+  const deadlineMinDays = form.type === 'quota' ? (FREQ_MIN_DAYS[form.frequency] ?? 1) : 1;
   const minDate = new Date(today);
+  minDate.setDate(minDate.getDate() + deadlineMinDays);
   const maxDate = new Date(today);
   maxDate.setFullYear(maxDate.getFullYear() + 1);
 
@@ -219,7 +267,16 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
             <Field label="Frecuencia de aporte">
               <select
                 value={form.frequency}
-                onChange={e => set('frequency', e.target.value)}
+                onChange={e => {
+                  const freq = e.target.value;
+                  set('frequency', freq);
+                  if (form.deadline) {
+                    const minDays  = FREQ_MIN_DAYS[freq] ?? 1;
+                    const todayStr = new Date().toLocaleDateString('en-CA');
+                    const minStr   = new Date(new Date(todayStr).getTime() + minDays * 86400000).toLocaleDateString('en-CA');
+                    if (form.deadline < minStr) set('deadline', '');
+                  }
+                }}
                 disabled={locked('frequency')}
                 className="fund-form-input fund-form-select"
               >
@@ -232,7 +289,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
             <Field label="Monto por cuota (CLP)" required>
               <input
                 type="number"
-                min="1"
+                min={suggestedQuota || 1}
                 value={form.quotaAmount}
                 onChange={e => set('quotaAmount', e.target.value)}
                 disabled={locked('quotaAmount')}
@@ -240,8 +297,28 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
                 placeholder="Monto fijo"
                 required
               />
+              {suggestedQuota && !locked('quotaAmount') && (
+                <p className="fund-form-hint">
+                  Mínimo sugerido: ${suggestedQuota.toLocaleString('es-CL')} / cuota ({periods} cuota{periods !== 1 ? 's' : ''}, {expectedP} participante{expectedP !== 1 ? 's' : ''}).{' '}
+                  <button type="button" onClick={() => set('quotaAmount', suggestedQuota)}>Usar este valor</button>
+                </p>
+              )}
             </Field>
           </div>
+        )}
+
+        {form.type === 'quota' && !locked('expectedParticipants') && (
+          <Field label="Participantes esperados (para estimar cuota)">
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={form.expectedParticipants}
+              onChange={e => set('expectedParticipants', e.target.value)}
+              className="fund-form-input"
+              placeholder="Ej: 5"
+            />
+          </Field>
         )}
 
         {form.type === 'free' && (
@@ -305,7 +382,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
           disabled={loading}
           className="fund-form-submit"
         >
-          {loading ? 'Procesando...' : 'Crear Fondo Colectivo'}
+          {loading ? 'Procesando...' : submitLabel}
         </button>
       </form>
     </div>

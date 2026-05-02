@@ -38,6 +38,13 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
+    if (fund.type === 'free' && fund.minAmount && Number(amount) < fund.minAmount) {
+      return res.status(400).json({
+        error: `El monto mínimo de aporte es ${fund.minAmount.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}`,
+        minAmount: fund.minAmount,
+      });
+    }
+
     const contribution = await Contribution.create({
       fund: fund._id,
       user: userId,

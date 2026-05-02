@@ -1,12 +1,13 @@
 const { Schema, model } = require('mongoose');
 
 const participantSchema = new Schema({
-  user:            { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  status:          { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
-  invitationToken: { type: String },
-  invitedAt:       { type: Date, default: Date.now },
-  respondedAt:     { type: Date },
-  lastReminder:    { type: Date },
+  user:             { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  status:           { type: String, enum: ['pending', 'accepted'], default: 'pending' },
+  invitationToken:  { type: String },
+  joinRequestToken: { type: String },
+  invitedAt:        { type: Date, default: Date.now },
+  respondedAt:      { type: Date },
+  lastReminder:     { type: Date },
 }, { _id: false });
 
 const fundSchema = new Schema({
@@ -17,8 +18,9 @@ const fundSchema = new Schema({
   type:             { type: String, enum: ['quota', 'free'], required: true },
   targetAmount:     { type: Number, required: true, min: 1 },
   minAmount:        { type: Number },
-  quotaAmount:      { type: Number },
-  frequency:        { type: String, enum: ['once', 'weekly', 'monthly'] },
+  quotaAmount:         { type: Number },
+  expectedParticipants: { type: Number, min: 1 },
+  frequency:           { type: String, enum: ['once', 'weekly', 'biweekly', 'monthly'] },
   deadline:         { type: Date, required: true },
   recipientAccount: {
     bank:          { type: String, required: true },

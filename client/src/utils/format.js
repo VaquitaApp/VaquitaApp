@@ -6,6 +6,7 @@ const clpFormatter = new Intl.NumberFormat('es-CL', {
 
 const dateFormatter = new Intl.DateTimeFormat('es-CL', {
   day: '2-digit', month: 'long', year: 'numeric',
+  timeZone: 'UTC',
 });
 
 function capMonths(s) {

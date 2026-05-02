@@ -4,7 +4,8 @@ const Fund = require('../models/Fund');
 const Contribution = require('../models/Contribution');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
-const { sendEmail } = require('../services/emailService');
+const { pendingQuotas } = require('../services/quotaService');
+const { sendEmail, sendJoinRequestEmail } = require('../services/emailService');
 
 const router = express.Router({ mergeParams: true });
 
@@ -15,7 +16,9 @@ router.post('/invitations', auth, async (req, res) => {
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
     if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
-    if (new Date(fund.deadline) <= new Date()) return res.status(422).json({ error: 'Fund deadline has passed' });
+    if (new Date(fund.deadline).toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
+      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+    }
 
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: 'userId is required' });
@@ -26,15 +29,26 @@ router.post('/invitations', auth, async (req, res) => {
     if (fund.organizer.equals(userId)) return res.status(422).json({ error: 'Cannot invite the organizer' });
 
     const existing = fund.participants.find(p => p.user.equals(userId));
-    if (existing) return res.status(409).json({ error: 'User already invited', status: existing.status });
-
-    const token = uuidv4();
-    fund.participants.push({ user: userId, status: 'pending', invitationToken: token, invitedAt: new Date() });
+    if (existing) {
+      if (existing.status === 'accepted') {
+        return res.status(409).json({ error: 'User already a participant' });
+      }
+      // Re-invitation: invalidate previous token(s) and issue a new one
+      existing.invitationToken  = uuidv4();
+      existing.joinRequestToken = undefined;
+      existing.status           = 'pending';
+      existing.invitedAt        = new Date();
+      existing.respondedAt      = undefined;
+    } else {
+      fund.participants.push({ user: userId, status: 'pending', invitationToken: uuidv4(), invitedAt: new Date() });
+    }
     await fund.save();
 
+    const participant = fund.participants.find(p => p.user.equals(userId));
+    const invToken = participant.invitationToken;
     const baseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
-    const acceptUrl = `${baseUrl}/invitaciones/${token}?action=accept`;
-    const rejectUrl = `${baseUrl}/invitaciones/${token}?action=reject`;
+    const acceptUrl = `${baseUrl}/invitaciones/${invToken}?action=accept`;
+    const rejectUrl = `${baseUrl}/invitaciones/${invToken}?action=reject`;
 
     sendEmail({
       to: target.email,
@@ -52,6 +66,56 @@ router.post('/invitations', auth, async (req, res) => {
 
     await fund.populate('participants.user', 'name email');
     res.status(201).json(fund.participants);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/funds/:id/join-request
+router.post('/join-request', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id).populate('organizer', 'name email');
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    if (fund.visibility !== 'public') return res.status(403).json({ error: 'El fondo no es público' });
+    if (fund.status !== 'active') return res.status(422).json({ error: 'El fondo no está activo' });
+    if (new Date(fund.deadline).toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
+      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+    }
+    if (fund.organizer._id.equals(req.user._id)) {
+      return res.status(422).json({ error: 'El organizador no puede solicitar unirse a su propio fondo' });
+    }
+
+    const requester = await User.findById(req.user._id).select('name email').lean();
+    const existing = fund.participants.find(p => p.user.equals(req.user._id));
+
+    if (existing) {
+      if (existing.status === 'accepted') {
+        return res.status(409).json({ error: 'Ya eres participante de este fondo' });
+      }
+      if (existing.invitationToken && existing.status === 'pending') {
+        return res.status(409).json({ error: 'Ya tienes una invitación pendiente del organizador, revisa tu correo' });
+      }
+      // Re-request: invalidate previous join request token and issue a new one
+      existing.joinRequestToken = uuidv4();
+      existing.status           = 'pending';
+      existing.invitedAt        = new Date();
+      existing.respondedAt      = undefined;
+    } else {
+      fund.participants.push({ user: req.user._id, status: 'pending', joinRequestToken: uuidv4(), invitedAt: new Date() });
+    }
+
+    await fund.save();
+
+    const participant = fund.participants.find(p => p.user.equals(req.user._id));
+    sendJoinRequestEmail({
+      to: fund.organizer.email,
+      organizerName: fund.organizer.name,
+      requesterName: requester.name,
+      fundName: fund.name,
+      token: participant.joinRequestToken,
+    }).catch(() => {});
+
+    res.status(201).json({ message: 'Solicitud enviada al organizador' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -84,7 +148,8 @@ router.get('/participants', auth, async (req, res) => {
     const userId = req.user._id;
     const isOrganizer = fund.organizer.equals(userId);
     const isParticipant = fund.participants.some(p => p.user._id.equals(userId) && p.status === 'accepted');
-    if (!isOrganizer && !isParticipant) return res.status(403).json({ error: 'Access denied' });
+    const isPendingInvitee = fund.participants.some(p => p.user._id.equals(userId) && p.invitationToken);
+    if (!isOrganizer && !isParticipant && !isPendingInvitee) return res.status(403).json({ error: 'Access denied' });
 
     const contributions = await Contribution.find({ fund: fund._id, status: 'succeeded' }).lean();
 
@@ -92,15 +157,11 @@ router.get('/participants', auth, async (req, res) => {
       let contributionStatus = null;
       if (p.status === 'accepted') {
         const userContribs = contributions.filter(c => c.user.equals(p.user._id));
-        if (userContribs.length > 0) {
-          const latest = userContribs.sort((a, b) => b.date - a.date)[0];
-          const daysSince = (Date.now() - latest.date) / 86400000;
-          const windowMap = { monthly: 30, biweekly: 14, weekly: 7 };
-          const window = windowMap[fund.frequency];
-          contributionStatus = (fund.type === 'free' || daysSince <= window) ? 'onTime' : 'overdue';
+        if (fund.type === 'quota') {
+          const pending = pendingQuotas(fund, userContribs);
+          contributionStatus = pending > 0 ? 'overdue' : 'onTime';
         } else {
-          const daysUntilDeadline = (new Date(fund.deadline) - Date.now()) / 86400000;
-          contributionStatus = daysUntilDeadline < 0 ? 'overdue' : 'pending';
+          contributionStatus = userContribs.length > 0 ? 'onTime' : 'overdue';
         }
       }
 
@@ -109,12 +170,37 @@ router.get('/participants', auth, async (req, res) => {
         user: p.user,
         status: p.status,
         contributionStatus,
+        hasInvitation: !!p.invitationToken,
         invitedAt: p.invitedAt,
         respondedAt: p.respondedAt,
       };
     });
 
     res.json(participants);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/funds/:id/accept-my-invitation — el participante invitado acepta la invitación sin usar el token
+router.post('/accept-my-invitation', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id);
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+    if (new Date(fund.deadline).toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
+      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+    }
+
+    const idx = fund.participants.findIndex(p => p.user.equals(req.user._id) && p.invitationToken);
+    if (idx === -1) return res.status(404).json({ error: 'No pending invitation found' });
+
+    fund.participants[idx].status = 'accepted';
+    fund.participants[idx].respondedAt = new Date();
+    fund.participants[idx].invitationToken = undefined;
+
+    await fund.save();
+    res.json({ message: 'Invitación aceptada' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

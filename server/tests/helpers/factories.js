@@ -4,8 +4,8 @@ const Contribution = require('../../src/models/Contribution');
 
 async function createUser(overrides = {}) {
   const defaults = {
-    name: 'Test User',
-    email: 'test@example.com',
+    name: 'Usuario Prueba',
+    email: 'usuario@prueba.cl',
     passwordHash: 'password123',
     isEmailVerified: true,
   };
@@ -14,9 +14,9 @@ async function createUser(overrides = {}) {
 
 async function createFund(overrides = {}) {
   const defaults = {
-    name: 'Test Fund',
-    description: 'Test description',
-    goal: 'Test goal',
+    name: 'Fondo de Prueba',
+    description: 'Descripción del fondo de prueba',
+    goal: 'Objetivo del fondo de prueba',
     type: 'free',
     targetAmount: 100000,
     deadline: new Date(Date.now() + 86400000 * 30),

@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { acceptInvitation, rejectInvitation } from '../api/participants';
-import { fmtDateLong } from '../utils/format';
+import { acceptJoinRequest, rejectJoinRequest } from '../api/participants';
 
-export default function InvitationResponsePage() {
+export default function JoinRequestResponsePage() {
   const { token } = useParams();
   const [searchParams] = useSearchParams();
   const action = searchParams.get('action');
@@ -17,14 +16,14 @@ export default function InvitationResponsePage() {
       setError('Acción no válida');
       return;
     }
-    const fn = action === 'accept' ? acceptInvitation : rejectInvitation;
+    const fn = action === 'accept' ? acceptJoinRequest : rejectJoinRequest;
     fn(token)
       .then(res => {
         setFund(res.data.fund);
         setStatus(action);
       })
       .catch(err => {
-        setError(err.response?.data?.error ?? 'Error al procesar la invitación');
+        setError(err.response?.data?.error ?? 'Error al procesar la solicitud');
         setStatus('error');
       });
   }, [token, action]);
@@ -33,16 +32,16 @@ export default function InvitationResponsePage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-md w-full text-center">
         {status === 'loading' && (
-          <p className="text-gray-500 text-sm">Procesando invitación…</p>
+          <p className="text-gray-500 text-sm">Procesando solicitud…</p>
         )}
 
         {status === 'accept' && fund && (
           <>
-            <div className="text-4xl mb-3">🎉</div>
-            <h1 className="text-xl font-bold text-gray-800 mb-2">Invitación aceptada</h1>
+            <div className="text-4xl mb-3">✅</div>
+            <h1 className="text-xl font-bold text-gray-800 mb-2">Solicitud aceptada</h1>
             <p className="text-sm text-gray-500">
-              Ahora eres participante del fondo <strong>{fund.name}</strong>.<br />
-              Fecha límite: {fmtDateLong(fund.deadline)}.
+              El usuario ya es participante del fondo <strong>{fund.name}</strong>.<br />
+              Se le ha notificado por correo.
             </p>
             <Link to="/fondos" className="mt-5 inline-block text-indigo-600 hover:underline text-sm">
               Ir a mis fondos →
@@ -53,8 +52,13 @@ export default function InvitationResponsePage() {
         {status === 'reject' && (
           <>
             <div className="text-4xl mb-3">👋</div>
-            <h1 className="text-xl font-bold text-gray-800 mb-2">Invitación cancelada</h1>
-            <p className="text-sm text-gray-500">Has cancelado la invitación al fondo {fund?.name}.</p>
+            <h1 className="text-xl font-bold text-gray-800 mb-2">Solicitud cancelada</h1>
+            <p className="text-sm text-gray-500">
+              Has cancelado la solicitud de acceso al fondo {fund?.name}.
+            </p>
+            <Link to="/fondos" className="mt-5 inline-block text-indigo-600 hover:underline text-sm">
+              Ir a mis fondos →
+            </Link>
           </>
         )}
 

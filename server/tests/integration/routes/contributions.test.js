@@ -25,10 +25,10 @@ beforeAll(async () => { await connect(); });
 afterAll(async () => { await disconnect(); });
 beforeEach(async () => {
   await clear();
-  organizer  = await createUser({ email: 'org@test.com',      passwordHash: 'Password1!' });
-  participant= await createUser({ email: 'part@test.com',     passwordHash: 'Password1!', name: 'Part' });
-  stranger   = await createUser({ email: 'stranger@test.com', passwordHash: 'Password1!' });
-  pending    = await createUser({ email: 'pending@test.com',  passwordHash: 'Password1!' });
+  organizer  = await createUser({ email: 'organizador@prueba.cl',  passwordHash: 'Password1!' });
+  participant= await createUser({ email: 'participante@prueba.cl', passwordHash: 'Password1!', name: 'Participante' });
+  stranger   = await createUser({ email: 'desconocido@prueba.cl',  passwordHash: 'Password1!' });
+  pending    = await createUser({ email: 'pendiente@prueba.cl',    passwordHash: 'Password1!' });
 
   orgToken      = await login(organizer);
   partToken     = await login(participant);
@@ -160,7 +160,7 @@ describe('POST /api/funds/:id/payment', () => {
   });
 });
 
-describe('POST /api/funds/:id/contributions — quota fund', () => {
+describe('POST /api/funds/:id/contributions — fondo por cuotas', () => {
   const quotaAmount = 10000;
   let quotaFund;
 
@@ -208,15 +208,14 @@ describe('POST /api/funds/:id/contributions — quota fund', () => {
   });
 
   it('400 if amount covers only partial catch-up when multiple quotas are overdue', async () => {
-    // bypass Mongoose timestamps protection to backdate the fund 1 month
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    await Fund.collection.updateOne({ _id: quotaFund._id }, { $set: { createdAt: oneMonthAgo } });
+    const unMesAtras = new Date();
+    unMesAtras.setMonth(unMesAtras.getMonth() - 1);
+    await Fund.collection.updateOne({ _id: quotaFund._id }, { $set: { createdAt: unMesAtras } });
 
     const res = await request(app)
       .post(`/api/funds/${quotaFund._id}/contributions`)
       .set('Authorization', `Bearer ${partToken}`)
-      .send({ amount: quotaAmount, method: 'transfer' }); // only 1 when 2 are owed
+      .send({ amount: quotaAmount, method: 'transfer' }); // solo 1 cuando se deben 2
 
     expect(res.status).toBe(400);
     expect(res.body.pendingQuotas).toBe(2);
@@ -224,9 +223,9 @@ describe('POST /api/funds/:id/contributions — quota fund', () => {
   });
 
   it('201 with catch-up amount when multiple quotas are overdue', async () => {
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    await Fund.collection.updateOne({ _id: quotaFund._id }, { $set: { createdAt: oneMonthAgo } });
+    const unMesAtras = new Date();
+    unMesAtras.setMonth(unMesAtras.getMonth() - 1);
+    await Fund.collection.updateOne({ _id: quotaFund._id }, { $set: { createdAt: unMesAtras } });
 
     const res = await request(app)
       .post(`/api/funds/${quotaFund._id}/contributions`)
@@ -245,5 +244,59 @@ describe('POST /api/funds/:id/contributions — quota fund', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.amount).toBe(1234);
+  });
+});
+
+describe('POST /api/funds/:id/contributions — fondo quincenal', () => {
+  const quotaAmount = 5000;
+  let biweeklyFund;
+
+  beforeEach(async () => {
+    biweeklyFund = await createFund({
+      organizer: organizer._id,
+      type: 'quota',
+      quotaAmount,
+      frequency: 'biweekly',
+      status: 'active',
+      deadline: new Date(Date.now() + 86400000 * 60),
+      targetAmount: 30000,
+    });
+    const invToken = await invite(orgToken, participant._id, biweeklyFund._id);
+    await request(app).post(`/api/invitations/${invToken}/accept`);
+  });
+
+  it('201 con monto exacto para 1 cuota quincenal (fondo recien creado)', async () => {
+    const res = await request(app)
+      .post(`/api/funds/${biweeklyFund._id}/contributions`)
+      .set('Authorization', `Bearer ${partToken}`)
+      .send({ amount: quotaAmount, method: 'transfer' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.amount).toBe(quotaAmount);
+  });
+
+  it('400 si el monto no coincide con la cuota quincenal requerida', async () => {
+    const res = await request(app)
+      .post(`/api/funds/${biweeklyFund._id}/contributions`)
+      .set('Authorization', `Bearer ${partToken}`)
+      .send({ amount: quotaAmount - 1, method: 'transfer' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.requiredAmount).toBe(quotaAmount);
+  });
+
+  it('400 con monto de 1 cuota cuando hay 2 cuotas quincenales atrasadas', async () => {
+    const quinceDiasAtras = new Date();
+    quinceDiasAtras.setDate(quinceDiasAtras.getDate() - 15);
+    await Fund.collection.updateOne({ _id: biweeklyFund._id }, { $set: { createdAt: quinceDiasAtras } });
+
+    const res = await request(app)
+      .post(`/api/funds/${biweeklyFund._id}/contributions`)
+      .set('Authorization', `Bearer ${partToken}`)
+      .send({ amount: quotaAmount, method: 'transfer' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.pendingQuotas).toBe(2);
+    expect(res.body.requiredAmount).toBe(quotaAmount * 2);
   });
 });
