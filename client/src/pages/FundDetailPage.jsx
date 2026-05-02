@@ -425,27 +425,11 @@ export default function FundDetailPage() {
           )}
           {isOrganizer && (
             <>
-              {fund.status === 'active' && accepted.length > 0 && (
-                <button
-                  onClick={async () => {
-                    try {
-                      const res = await sendReminders(id);
-                      setReminderMsg(`Recordatorio enviado a ${res.data.sent} participante${res.data.sent !== 1 ? 's' : ''}.`);
-                      setTimeout(() => setReminderMsg(''), 4000);
-                    } catch {
-                      setReminderMsg('Error al enviar recordatorios');
-                    }
-                  }}
-                  className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                >
-                  Enviar recordatorio
-                </button>
-              )}
               {fund.status === 'active' && hasOverdue && (
                 <button
                   onClick={async () => {
                     try {
-                      const res = await sendReminders(id, 'overdue');
+                      const res = await sendReminders(id);
                       setReminderMsg(`Alerta enviada a ${res.data.sent} participante${res.data.sent !== 1 ? 's' : ''} en mora.`);
                       setTimeout(() => setReminderMsg(''), 4000);
                     } catch {
@@ -454,7 +438,7 @@ export default function FundDetailPage() {
                   }}
                   className="bg-white border border-red-200 hover:border-red-400 text-red-600 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                 >
-                  Alertar en mora
+                  Alertar morosos
                 </button>
               )}
               {fund.status === 'active' && (

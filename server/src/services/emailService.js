@@ -117,6 +117,44 @@ async function sendDeadlineExtendedEmail({ fund, organizer, participants, newDat
   }
 }
 
+async function sendMoraReminderEmail({ fund, user, pendingCount }) {
+  let detail;
+  if (fund.type === 'quota') {
+    const total = pendingCount * fund.quotaAmount;
+    detail = `Tienes <b>${pendingCount} cuota${pendingCount !== 1 ? 's' : ''} pendiente${pendingCount !== 1 ? 's' : ''}</b> (${total.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })} en total).`;
+  } else {
+    detail = 'No has realizado ningún aporte al fondo.';
+    if (fund.minAmount) {
+      detail += ` El monto mínimo de aporte es ${fund.minAmount.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}.`;
+    }
+  }
+  const fechaCierre = new Date(fund.deadline).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+  await sendEmail({
+    to: user.email,
+    subject: `Alerta de mora: fondo "${fund.name}"`,
+    html: `<p>Hola ${user.name},</p>
+           <p>Estás en mora en el fondo <b>${fund.name}</b>.</p>
+           <p>${detail}</p>
+           <p>Fecha de cierre del fondo: <b>${fechaCierre}</b>.</p>`,
+  });
+}
+
+async function sendFundEditedEmail({ fund, organizer, participants }) {
+  const recipients = [
+    organizer,
+    ...participants.filter(p => p.status === 'accepted' && p.user?.email).map(p => p.user),
+  ].filter(Boolean);
+
+  for (const r of recipients) {
+    await sendEmail({
+      to: r.email,
+      subject: `Fondo "${fund.name}" actualizado`,
+      html: `<p>Hola ${r.name},</p>
+             <p>El organizador ha realizado cambios en el fondo <b>${fund.name}</b>. Por favor revisa la información actualizada.</p>`,
+    }).catch(() => {});
+  }
+}
+
 async function sendFundDeletedEmail({ fund, participants }) {
   const recipients = participants.filter(p => p.status === 'accepted' && p.user?.email).map(p => p.user);
   for (const r of recipients) {
@@ -169,6 +207,8 @@ module.exports = {
   sendAccessRequestToOrganizer,
   sendAccessRequestDecisionToUser,
   sendDeadlineExtendedEmail,
+  sendMoraReminderEmail,
+  sendFundEditedEmail,
   sendFundDeletedEmail,
   sendJoinRequestEmail,
   sendJoinRequestAcceptedEmail,

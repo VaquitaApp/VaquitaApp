@@ -421,7 +421,7 @@ describe('POST /api/join-requests/:token/accept y reject', () => {
 
 // ── Mora reminders ────────────────────────────────────────────────────────────
 
-describe('POST /api/funds/:id/reminders?filter=overdue', () => {
+describe('POST /api/funds/:id/reminders', () => {
   let quotaFund, onTimePart, overduePart, onTimeToken, overdueToken;
 
   beforeEach(async () => {
@@ -484,15 +484,6 @@ describe('POST /api/funds/:id/reminders?filter=overdue', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.sent).toBe(1);
-  });
-
-  it('sin filter envia a todos los participantes aceptados', async () => {
-    const res = await request(app)
-      .post(`/api/funds/${quotaFund._id}/reminders`)
-      .set('Authorization', `Bearer ${orgToken}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.sent).toBe(2);
   });
 
   it('403 si el llamante no es organizador', async () => {

@@ -35,4 +35,18 @@ function pendingQuotas(fund, userContributions) {
   return Math.max(0, due - paid);
 }
 
-module.exports = { totalPeriods, periodsElapsed, pendingQuotas };
+// Deadline del período actual según la frecuencia del fondo
+function currentPeriodDeadline(fund) {
+  if (!fund.frequency || fund.frequency === 'once') return new Date(fund.deadline);
+  const start = new Date(fund.createdAt);
+  const elapsed = periodsElapsed(fund);
+  if (fund.frequency === 'monthly') {
+    const d = new Date(start);
+    d.setMonth(d.getMonth() + elapsed);
+    return d;
+  }
+  const periodDays = { weekly: 7, biweekly: 14 };
+  return new Date(start.getTime() + elapsed * periodDays[fund.frequency] * 86400000);
+}
+
+module.exports = { totalPeriods, periodsElapsed, pendingQuotas, currentPeriodDeadline };

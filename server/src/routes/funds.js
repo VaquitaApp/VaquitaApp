@@ -5,7 +5,7 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { processPayment } = require('../services/paymentService');
 const { totalPeriods, pendingQuotas } = require('../services/quotaService');
-const { sendEmail, sendStatusChangeEmail, sendDeadlineExtendedEmail, sendFundDeletedEmail } = require('../services/emailService');
+const { sendStatusChangeEmail, sendFundEditedEmail, sendMoraReminderEmail, sendFundDeletedEmail } = require('../services/emailService');
 
 const router = express.Router();
 
@@ -242,21 +242,13 @@ router.patch('/:id', auth, async (req, res) => {
     }
 
     const hasInvited = fund.participants.length > 0;
-    const oldDeadline = fund.deadline ? new Date(fund.deadline) : null;
-    let deadlineExtended = false;
+    let wasEdited = false;
 
     if (hasInvited && body.description && body.description !== fund.description) {
       fund.updateLogs.push({ message: 'El organizador actualizó la descripción' });
     }
     if (hasInvited && body.goal && body.goal !== fund.goal) {
       fund.updateLogs.push({ message: 'El organizador actualizó el objetivo' });
-    }
-
-    if (body.deadline && oldDeadline) {
-      const newDeadline = new Date(body.deadline);
-      if (newDeadline.getTime() > oldDeadline.getTime()) {
-        deadlineExtended = true;
-      }
     }
 
     const allowed = ['name', 'description', 'goal', 'coverImage', 'visibility', 'expectedParticipants', ...(!hasContribs ? LOCKED_FIELDS : [])];
@@ -269,17 +261,19 @@ router.patch('/:id', auth, async (req, res) => {
             error: f === 'description' ? 'La descripción no puede estar vacía.' : 'El objetivo no puede estar vacío.',
           });
         }
+        if (JSON.stringify(fund[f]) !== JSON.stringify(t)) wasEdited = true;
         fund[f] = t;
         continue;
       }
+      if (JSON.stringify(fund[f]) !== JSON.stringify(body[f])) wasEdited = true;
       fund[f] = body[f];
     }
 
     await fund.save();
 
-    if (deadlineExtended) {
-      sendDeadlineExtendedEmail({ fund, organizer: fund.organizer, participants: fund.participants, newDate: fund.deadline })
-        .catch(err => console.error('Deadline email failed:', err.message));
+    if (wasEdited && hasInvited) {
+      sendFundEditedEmail({ fund, organizer: fund.organizer, participants: fund.participants })
+        .catch(err => console.error('Edit email failed:', err.message));
     }
 
     res.json(fund);
@@ -345,8 +339,7 @@ router.post('/:id/payment', auth, async (req, res) => {
   }
 });
 
-// POST /api/funds/:id/reminders — recordatorio manual a todos los participantes aceptados
-// ?filter=overdue  → solo los participantes en mora (quota: cuotas pendientes; free: sin ningún aporte)
+// POST /api/funds/:id/reminders — alerta manual de mora a participantes en mora
 router.post('/:id/reminders', auth, async (req, res) => {
   try {
     const fund = await Fund.findById(req.params.id).populate('participants.user', 'name email');
@@ -354,27 +347,20 @@ router.post('/:id/reminders', auth, async (req, res) => {
     if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
 
-    const { filter } = req.query;
-    let recipients = fund.participants.filter(p => p.status === 'accepted' && p.user?.email);
-
-    if (filter === 'overdue') {
-      const contributions = await Contribution.find({ fund: fund._id, status: 'succeeded' }).lean();
-      recipients = recipients.filter(p => {
-        const userContribs = contributions.filter(c => c.user.equals(p.user._id));
-        if (fund.type === 'quota') {
-          return pendingQuotas(fund, userContribs) > 0;
-        }
-        return userContribs.length === 0;
-      });
-    }
+    const contributions = await Contribution.find({ fund: fund._id, status: 'succeeded' }).lean();
+    const accepted = fund.participants.filter(p => p.status === 'accepted' && p.user?.email);
 
     let sent = 0;
-    for (const p of recipients) {
-      await sendEmail({
-        to: p.user.email,
-        subject: `Recordatorio: fondo "${fund.name}"`,
-        html: `<p>Hola ${p.user.name}, recuerda registrar tu aporte al fondo <b>${fund.name}</b>. Fecha límite: ${new Date(fund.deadline).toLocaleDateString('es-CL')}.</p>`,
-      }).catch(() => {});
+    for (const p of accepted) {
+      const userContribs = contributions.filter(c => c.user.equals(p.user._id));
+      const inMora = fund.type === 'quota'
+        ? pendingQuotas(fund, userContribs) > 0
+        : userContribs.length === 0;
+
+      if (!inMora) continue;
+
+      const pendingCount = fund.type === 'quota' ? pendingQuotas(fund, userContribs) : 0;
+      await sendMoraReminderEmail({ fund, user: p.user, pendingCount }).catch(() => {});
       p.lastReminder = new Date();
       sent++;
     }
