@@ -7,5 +7,9 @@ export const searchUsers      = (q)               => api.get('/users/search', { 
 export const updateProfile    = (data)            => api.patch('/users/profile', data);
 export const requestDeleteAccount = ()            => api.post('/users/request-delete');
 export const confirmDeleteAccount = (token)       => api.get(`/users/confirm-delete/${token}`);
-export const acceptInvitation = (token)           => api.post(`/invitations/${token}/accept`);
-export const rejectInvitation = (token)           => api.post(`/invitations/${token}/reject`);
+export const acceptInvitation   = (token)  => api.post(`/invitations/${token}/accept`);
+export const rejectInvitation   = (token)  => api.post(`/invitations/${token}/reject`);
+export const requestJoin        = (fundId) => api.post(`/funds/${fundId}/join-request`);
+export const acceptJoinRequest  = (token)  => api.post(`/join-requests/${token}/accept`);
+export const rejectJoinRequest  = (token)  => api.post(`/join-requests/${token}/reject`);
+export const acceptMyInvitation = (fundId) => api.post(`/funds/${fundId}/accept-my-invitation`);

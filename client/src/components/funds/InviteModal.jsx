@@ -26,8 +26,10 @@ export default function InviteModal({ fundId, existingParticipants = [], onClose
     }, 300);
   }, [query]);
 
-  function isAlreadyInvited(userId) {
-    return existingParticipants.some(p => p.user?._id === userId || p.user === userId);
+  function isAlreadyAccepted(userId) {
+    return existingParticipants.some(p =>
+      (p.user?._id === userId || p.user === userId) && p.status === 'accepted'
+    );
   }
 
   async function handleInvite(userId) {
@@ -65,15 +67,15 @@ export default function InviteModal({ fundId, existingParticipants = [], onClose
 
         <ul className="space-y-1 max-h-60 overflow-y-auto">
           {results.map(u => {
-            const invited = isAlreadyInvited(u._id);
+            const accepted = isAlreadyAccepted(u._id);
             return (
               <li key={u._id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50">
                 <div>
                   <p className="text-sm font-medium text-gray-800">{fmtName(u.name)}</p>
                   <p className="text-xs text-gray-400">{u.email}</p>
                 </div>
-                {invited ? (
-                  <span className="text-xs text-gray-400 italic">Ya invitado</span>
+                {accepted ? (
+                  <span className="text-xs text-gray-400 italic">Ya participante</span>
                 ) : (
                   <button
                     onClick={() => handleInvite(u._id)}

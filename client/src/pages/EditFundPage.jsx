@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getFund, updateFund } from '../api/funds';
 import FundForm from '../components/funds/FundForm';
 
-const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'type'];
+const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'type', 'expectedParticipants'];
 
 export default function EditFundPage() {
   const { id } = useParams();
@@ -21,10 +21,27 @@ export default function EditFundPage() {
   }, [id]);
 
   async function handleSubmit(data) {
+    const payload = { ...data };
+    for (const f of locked) delete payload[f];
+
+    const hasChanges = Object.keys(payload).some(key => {
+      const oldVal = fund[key];
+      const newVal = payload[key];
+      if (typeof newVal === 'object' && newVal !== null) {
+        return JSON.stringify(newVal) !== JSON.stringify(oldVal);
+      }
+      return String(newVal ?? '') !== String(oldVal ?? '');
+    });
+
+    if (!hasChanges) {
+      navigate(`/fondos/${id}`);
+      return;
+    }
+
     setSaving(true);
     setError('');
     try {
-      await updateFund(id, data);
+      await updateFund(id, payload);
       navigate(`/fondos/${id}`);
     } catch (err) {
       setError(err.response?.data?.error ?? 'Error al guardar');
@@ -49,7 +66,7 @@ export default function EditFundPage() {
         </p>
       )}
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-      <FundForm initial={fund} lockedFields={locked} onSubmit={handleSubmit} loading={saving} />
+      <FundForm initial={fund} lockedFields={locked} onSubmit={handleSubmit} loading={saving} submitLabel="Guardar cambios" />
     </div>
   );
 }

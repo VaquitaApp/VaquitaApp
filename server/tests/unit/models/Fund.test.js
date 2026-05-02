@@ -5,9 +5,14 @@ const mongoose = require('mongoose');
 const ORG_ID = new mongoose.Types.ObjectId();
 
 const base = {
-  name: 'Test Fund', type: 'free', targetAmount: 100000,
+  name: 'Test Fund',
+  description: 'Descripción del fondo de prueba',
+  goal: 'Objetivo del fondo',
+  type: 'free',
+  targetAmount: 100000,
   deadline: new Date(Date.now() + 86400000 * 30),
-  recipientAccount: { bank: 'Banco Estado', accountType: 'vista', accountNumber: '12345678' }, organizer: ORG_ID,
+  recipientAccount: { bank: 'Banco Estado', accountType: 'vista', accountNumber: '12345678' },
+  organizer: ORG_ID,
 };
 
 beforeAll(() => db.connect());
@@ -40,5 +45,25 @@ describe('Fund model', () => {
 
   test('rejects invalid type', async () => {
     await expect(Fund.create({ ...base, type: 'invalid' })).rejects.toThrow();
+  });
+
+  test('rejects fund without description', async () => {
+    const { description, ...noDesc } = base;
+    await expect(Fund.create(noDesc)).rejects.toThrow();
+  });
+
+  test('rejects fund without goal', async () => {
+    const { goal, ...noGoal } = base;
+    await expect(Fund.create(noGoal)).rejects.toThrow();
+  });
+
+  test('rejects invalid visibility', async () => {
+    await expect(Fund.create({ ...base, visibility: 'restricted' })).rejects.toThrow();
+  });
+
+  test('saves description and goal correctly', async () => {
+    const fund = await Fund.create(base);
+    expect(fund.description).toBe('Descripción del fondo de prueba');
+    expect(fund.goal).toBe('Objetivo del fondo');
   });
 });

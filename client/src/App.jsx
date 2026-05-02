@@ -13,6 +13,7 @@ import InvitationResponsePage from './pages/InvitationResponsePage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import ProfilePage from './pages/ProfilePage';
 import ConfirmDeletePage from './pages/ConfirmDeletePage';
+import JoinRequestResponsePage from './pages/JoinRequestResponsePage';
 
 function Layout({ children }) {
   return (
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/invitaciones/:token"    element={<InvitationResponsePage />} />
           <Route path="/verificar-email/:token"      element={<VerifyEmailPage />} />
           <Route path="/confirmar-eliminacion/:token" element={<ConfirmDeletePage />} />
+          <Route path="/solicitudes-acceso/:token"    element={<JoinRequestResponsePage />} />
           <Route path="*"                  element={<Navigate to="/fondos" replace />} />
         </Routes>
       </AuthProvider>

@@ -39,7 +39,7 @@ export default function FundCard({ fund }) {
         <span className="text-xs text-gray-400">Cierre: {fmtDate(fund.deadline)}</span>
       </div>
       <div className="text-xs text-gray-400 mt-auto pt-2 border-t border-gray-50">
-        {fund.participantCount ? `${fund.participantCount} participantes` : 'Sin participantes'}
+        {fund.participantCount ? `${fund.participantCount} participante${fund.participantCount !== 1 ? 's' : ''}` : 'Sin participantes'}
       </div>
     </Link>
   );

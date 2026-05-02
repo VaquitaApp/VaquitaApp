@@ -84,6 +84,24 @@ textarea.fund-form-input {
   gap: 12px;
 }
 
+.fund-form-hint {
+  font-size: 0.78rem;
+  color: #667eea;
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+.fund-form-hint button {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+}
+
 .fund-form-error-text {
   color: #e53e3e;
   font-size: 0.875rem;

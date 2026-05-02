@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getFund, closeFund, deleteFund, sendReminders, pauseFund, resumeFund } from '../api/funds';
-import { getParticipants } from '../api/participants';
+import { getParticipants, requestJoin, acceptMyInvitation } from '../api/participants';
 import { getContributions } from '../api/contributions';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge } from '../components/ui/Badge';
@@ -16,6 +16,9 @@ import CommentSection from '../components/funds/CommentSection';
 import ConfirmModal from '../components/ui/ConfirmModal';
 
 import { fmtDate, fmtName } from '../utils/format';
+
+const FREQ_LABELS = { monthly: 'Mensual', biweekly: 'Quincenal', weekly: 'Semanal', once: 'Única vez' };
+const ACCOUNT_TYPE_LABELS = { corriente: 'Cta. Corriente', vista: 'Cta. Vista / RUT', ahorro: 'Cta. de Ahorro', chequera_electronica: 'Chequera Electrónica' };
 
 export default function FundDetailPage() {
   const { id } = useParams();
@@ -32,8 +35,11 @@ export default function FundDetailPage() {
   const [showContribForm, setShowContribForm] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [reminderMsg, setReminderMsg] = useState('');
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
-  const [confirmActionType, setConfirmActionType] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null); // null | 'close' | 'delete'
+  const [joinRequested, setJoinRequested] = useState(false);
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [joinError, setJoinError] = useState('');
+  const [acceptingInvite, setAcceptingInvite] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -59,6 +65,36 @@ export default function FundDetailPage() {
   const accepted = participants.filter(p => p.status === 'accepted');
   const isMember = isOrganizer || accepted.some(p => p.user?._id?.toString() === user?._id?.toString());
   const collectedAmount = contributions.reduce((sum, c) => sum + c.amount, 0);
+  const onTimeCount = participants.filter(p => p.contributionStatus === 'onTime').length;
+  const hasOverdue = participants.some(p => p.contributionStatus === 'overdue');
+  const myParticipant = participants.find(p => p.user?._id?.toString() === user?._id?.toString());
+  const isPendingInvitee = myParticipant?.status === 'pending' && myParticipant?.hasInvitation;
+
+  async function handleJoinRequest() {
+    setJoinLoading(true);
+    setJoinError('');
+    try {
+      await requestJoin(id);
+      setJoinRequested(true);
+    } catch (err) {
+      setJoinError(err.response?.data?.error ?? 'Error al enviar la solicitud');
+    } finally {
+      setJoinLoading(false);
+    }
+  }
+
+  async function handleAcceptInvitation() {
+    setAcceptingInvite(true);
+    try {
+      await acceptMyInvitation(id);
+      const { data } = await getParticipants(id);
+      setParticipants(data);
+    } catch (err) {
+      window.alert(err.response?.data?.error ?? 'Error al aceptar la invitación');
+    } finally {
+      setAcceptingInvite(false);
+    }
+  }
 
   function handleCopyLink() {
     navigator.clipboard.writeText(window.location.href);
@@ -83,7 +119,7 @@ export default function FundDetailPage() {
       csv += `"${p.user?.name || ''}","${p.user?.email || ''}","${statusStr}"\n`;
     });
 
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); // \uFEFF for Excel UTF-8 BOM
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); // \uFEFF: BOM UTF-8 para compatibilidad con Excel
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -93,13 +129,13 @@ export default function FundDetailPage() {
     document.body.removeChild(link);
   }
 
-  async function executeClose() {
+  async function runFundAction(apiFn, errorMsg) {
     setActionLoading(true);
     try {
-      const res = await closeFund(id);
+      const res = await apiFn();
       setFund(prev => ({ ...prev, status: res.data.status }));
     } catch (err) {
-      window.alert(err.response?.data?.error ?? 'Error al cerrar');
+      window.alert(err.response?.data?.error ?? errorMsg);
     } finally {
       setActionLoading(false);
     }
@@ -116,47 +152,13 @@ export default function FundDetailPage() {
     }
   }
 
-  function handleClose() {
-    setConfirmActionType('close');
-    setConfirmModalOpen(true);
-  }
-
-  function handleDelete() {
-    setConfirmActionType('delete');
-    setConfirmModalOpen(true);
-  }
-
-  async function handlePause() {
-    setActionLoading(true);
-    try {
-      const res = await pauseFund(id);
-      setFund(prev => ({ ...prev, status: res.data.status }));
-    } catch (err) {
-      window.alert(err.response?.data?.error ?? 'Error al pausar');
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function handleResume() {
-    setActionLoading(true);
-    try {
-      const res = await resumeFund(id);
-      setFund(prev => ({ ...prev, status: res.data.status }));
-    } catch (err) {
-      window.alert(err.response?.data?.error ?? 'Error al reanudar');
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
         <Link to="/fondos" className="text-gray-400 hover:text-gray-600 text-sm">← Mis fondos</Link>
       </div>
 
-      {/* Status banners */}
+      {/* Banners de estado */}
       {fund.status === 'completed' && (
         <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm rounded-lg px-4 py-3 mb-4">
           Este fondo ha sido completado. Los fondos fueron transferidos al destinatario.
@@ -173,7 +175,7 @@ export default function FundDetailPage() {
         </div>
       )}
 
-      {/* Fund overview */}
+      {/* Resumen del fondo */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -204,23 +206,29 @@ export default function FundDetailPage() {
           <div>
             <span className="text-xs text-gray-400 block mb-0.5">Tipo</span>
             {fund.type === 'quota'
-              ? `Por cuotas (${fund.quotaAmount?.toLocaleString('es-CL')} CLP, ${fund.frequency === 'monthly' ? 'Mensual' : fund.frequency === 'biweekly' ? 'Quincenal' : fund.frequency === 'weekly' ? 'Semanal' : 'Única vez'})`
+              ? `Por cuotas (${fund.quotaAmount?.toLocaleString('es-CL')} CLP, ${FREQ_LABELS[fund.frequency] ?? 'Única vez'})`
               : 'Libre'}
           </div>
           <div>
             <span className="text-xs text-gray-400 block mb-0.5">Participantes</span>
-            {accepted.length}
+            {accepted.length + 1}
           </div>
           <div>
             <span className="text-xs text-gray-400 block mb-0.5">Visibilidad</span>
             {fund.visibility === 'public' ? 'Público' : 'Privado'}
           </div>
+          {fund.type === 'free' && fund.minAmount > 0 && (
+            <div>
+              <span className="text-xs text-gray-400 block mb-0.5">Monto mínimo</span>
+              {fund.minAmount.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}
+            </div>
+          )}
           {isOrganizer && fund.recipientAccount && (
             <div className="col-span-2">
               <span className="text-xs text-gray-400 block mb-0.5">Cuenta destinataria</span>
               <p className="text-sm text-gray-800 font-medium">{fund.recipientAccount.bank}</p>
               <p className="text-xs text-gray-500">
-                {{ corriente: 'Cta. Corriente', vista: 'Cta. Vista / RUT', ahorro: 'Cta. de Ahorro', chequera_electronica: 'Chequera Electrónica' }[fund.recipientAccount.accountType]}
+                {ACCOUNT_TYPE_LABELS[fund.recipientAccount.accountType]}
               </p>
               <p className="text-xs text-gray-500">{fund.recipientAccount.accountNumber}</p>
             </div>
@@ -228,7 +236,7 @@ export default function FundDetailPage() {
         </div>
       </div>
 
-      {/* Update Logs */}
+      {/* Registro de actualizaciones */}
       {fund.updateLogs && fund.updateLogs.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
           <h3 className="text-xs font-semibold text-amber-800 mb-2 uppercase tracking-wide">Registro de Actualizaciones</h3>
@@ -248,7 +256,7 @@ export default function FundDetailPage() {
         </div>
       )}
 
-      {/* Participants */}
+      {/* Participantes */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-800 text-sm">Participantes</h2>
@@ -264,20 +272,18 @@ export default function FundDetailPage() {
         <ParticipantList
           organizer={fund.organizer}
           participants={participants}
+          contributions={contributions}
         />
       </div>
 
-      {/* Participant status summary */}
+      {/* Resumen de estado de participantes */}
       {accepted.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-6 py-3 mb-4 text-sm text-gray-600">
-          {(() => {
-            const onTime = participants.filter(p => p.contributionStatus === 'onTime').length;
-            return `${onTime} de ${accepted.length} participante${accepted.length !== 1 ? 's' : ''} al día`;
-          })()}
+          {`${onTimeCount} de ${accepted.length + 1} participante${accepted.length + 1 !== 1 ? 's' : ''} al día`}
         </div>
       )}
 
-      {/* Contributions */}
+      {/* Historial de aportes */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-800 text-sm">Historial de aportes</h2>
@@ -320,7 +326,7 @@ export default function FundDetailPage() {
         )}
       </div>
 
-      {/* Utility Actions */}
+      {/* Acciones utilitarias */}
       <div className="flex flex-wrap gap-3 mb-4">
         <button
           onClick={handleCopyLink}
@@ -345,14 +351,42 @@ export default function FundDetailPage() {
         onMessageAdded={(newMessages) => setFund(prev => ({ ...prev, messages: newMessages }))} 
       />
 
-      {/* Visitor notice */}
-      {!isMember && fund.visibility === 'public' && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-lg px-4 py-3 mb-4">
-          Estás visitando este fondo público. Para participar, contacta al organizador.
+      {/* Banner de invitación pendiente */}
+      {isPendingInvitee && fund.status === 'active' && (
+        <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm rounded-lg px-4 py-3 mb-4">
+          <p className="mb-2 font-medium">Tienes una invitación pendiente para unirte a este fondo.</p>
+          <button
+            onClick={handleAcceptInvitation}
+            disabled={acceptingInvite}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-1.5 rounded-md transition-colors disabled:opacity-50"
+          >
+            {acceptingInvite ? 'Aceptando…' : 'Aceptar invitación'}
+          </button>
         </div>
       )}
 
-      {/* Actions */}
+      {/* Aviso para visitantes — solicitar acceso */}
+      {!isMember && !isPendingInvitee && fund.visibility === 'public' && fund.status === 'active' && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-lg px-4 py-3 mb-4">
+          {joinRequested ? (
+            <p>Tu solicitud fue enviada al organizador. Te avisaremos por correo cuando sea aceptada.</p>
+          ) : (
+            <>
+              <p className="mb-2">Estás visitando este fondo público. Puedes solicitar unirte al organizador.</p>
+              <button
+                onClick={handleJoinRequest}
+                disabled={joinLoading}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-1.5 rounded-md transition-colors disabled:opacity-50"
+              >
+                {joinLoading ? 'Enviando…' : 'Solicitar unirse'}
+              </button>
+              {joinError && <p className="text-red-500 text-xs mt-1">{joinError}</p>}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Acciones del organizador */}
       {(fund.status === 'active' || fund.status === 'paused') && (
         <div className="flex flex-wrap gap-3">
           {reminderMsg && (
@@ -378,6 +412,22 @@ export default function FundDetailPage() {
                   Enviar recordatorio
                 </button>
               )}
+              {fund.status === 'active' && hasOverdue && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await sendReminders(id, 'overdue');
+                      setReminderMsg(`Alerta enviada a ${res.data.sent} participante${res.data.sent !== 1 ? 's' : ''} en mora.`);
+                      setTimeout(() => setReminderMsg(''), 4000);
+                    } catch {
+                      setReminderMsg('Error al enviar alertas');
+                    }
+                  }}
+                  className="bg-white border border-red-200 hover:border-red-400 text-red-600 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  Alertar en mora
+                </button>
+              )}
               {fund.status === 'active' && (
                 <Link
                   to={`/fondos/${id}/editar`}
@@ -396,7 +446,7 @@ export default function FundDetailPage() {
               )}
               {fund.status === 'active' && collectedAmount === 0 && (
                 <button
-                  onClick={handleClose}
+                  onClick={() => setConfirmAction('close')}
                   disabled={actionLoading}
                   className="bg-white border border-amber-300 hover:border-amber-400 text-amber-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
                 >
@@ -405,7 +455,7 @@ export default function FundDetailPage() {
               )}
               {fund.status === 'active' && collectedAmount === 0 && (
                 <button
-                  onClick={handleDelete}
+                  onClick={() => setConfirmAction('delete')}
                   disabled={actionLoading}
                   className="bg-white border border-red-200 hover:border-red-400 text-red-600 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
                 >
@@ -414,7 +464,7 @@ export default function FundDetailPage() {
               )}
               {fund.status === 'active' && (
                 <button
-                  onClick={handlePause}
+                  onClick={() => runFundAction(() => pauseFund(id), 'Error al pausar')}
                   disabled={actionLoading}
                   className="bg-white border border-yellow-300 hover:border-yellow-400 text-yellow-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
                 >
@@ -423,7 +473,7 @@ export default function FundDetailPage() {
               )}
               {fund.status === 'paused' && (
                 <button
-                  onClick={handleResume}
+                  onClick={() => runFundAction(() => resumeFund(id), 'Error al reanudar')}
                   disabled={actionLoading}
                   className="bg-white border border-green-300 hover:border-green-400 text-green-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
                 >
@@ -461,21 +511,22 @@ export default function FundDetailPage() {
       )}
 
       <ConfirmModal
-        isOpen={confirmModalOpen}
-        onClose={() => setConfirmModalOpen(false)}
+        isOpen={confirmAction !== null}
+        onClose={() => setConfirmAction(null)}
         onConfirm={() => {
-          setConfirmModalOpen(false);
-          if (confirmActionType === 'close') executeClose();
-          if (confirmActionType === 'delete') executeDelete();
+          const action = confirmAction;
+          setConfirmAction(null);
+          if (action === 'close') runFundAction(() => closeFund(id), 'Error al cerrar');
+          if (action === 'delete') executeDelete();
         }}
-        title={confirmActionType === 'delete' ? 'Eliminar fondo' : 'Cerrar fondo'}
+        title={confirmAction === 'delete' ? 'Eliminar fondo' : 'Cerrar fondo'}
         message={
-          confirmActionType === 'delete' 
-            ? '¿Estás seguro de que deseas eliminar este fondo? Esta acción no se puede deshacer y se borrarán todos los datos asociados.' 
+          confirmAction === 'delete'
+            ? '¿Estás seguro de que deseas eliminar este fondo? Esta acción no se puede deshacer y se borrarán todos los datos asociados.'
             : '¿Estás seguro de que deseas cerrar este fondo? Ya no se podrán recibir aportes nuevos.'
         }
         requireKeyword={true}
-        keyword={confirmActionType === 'delete' ? 'ELIMINAR' : 'CERRAR'}
+        keyword={confirmAction === 'delete' ? 'ELIMINAR' : 'CERRAR'}
       />
     </div>
   );

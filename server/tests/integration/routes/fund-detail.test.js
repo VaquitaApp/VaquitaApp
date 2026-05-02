@@ -22,8 +22,8 @@ async function authHeader(user) {
 
 describe('CA1 — Acceder al detalle del fondo', () => {
   test('participante aceptado puede acceder al detalle del fondo', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const part = await createUser({ email: 'part@test.com' });
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const part = await createUser({ email: 'participante@prueba.cl' });
     const fund = await createFund({
       organizer: org._id,
       participants: [{ user: part._id, status: 'accepted' }],
@@ -38,8 +38,8 @@ describe('CA1 — Acceder al detalle del fondo', () => {
   });
 
   test('fondo público aparece en el listado /api/funds/public', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const visitor = await createUser({ email: 'visitor@test.com' });
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const visitor = await createUser({ email: 'visitante@prueba.cl' });
     await createFund({ organizer: org._id, visibility: 'public', status: 'active' });
 
     const res = await request(app)
@@ -147,8 +147,8 @@ describe('CA3 — Información del fondo en detalle', () => {
 
 describe('CA4 — Lista de participantes', () => {
   test('GET /api/funds/:id/participants retorna participantes con nombre y email', async () => {
-    const org = await createUser({ email: 'org@test.com', name: 'Organizador' });
-    const part = await createUser({ email: 'part@test.com', name: 'Participante' });
+    const org = await createUser({ email: 'organizador@prueba.cl', name: 'Organizador' });
+    const part = await createUser({ email: 'participante@prueba.cl', name: 'Participante' });
     const fund = await createFund({
       organizer: org._id,
       participants: [{ user: part._id, status: 'accepted' }],
@@ -161,12 +161,12 @@ describe('CA4 — Lista de participantes', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].user.name).toBe('Participante');
-    expect(res.body[0].user.email).toBe('part@test.com');
+    expect(res.body[0].user.email).toBe('participante@prueba.cl');
   });
 
   test('GET /api/funds/:id/participants retorna campo status de cada participante', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const part = await createUser({ email: 'part@test.com' });
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const part = await createUser({ email: 'participante@prueba.cl' });
     const fund = await createFund({
       organizer: org._id,
       participants: [{ user: part._id, status: 'accepted' }],
@@ -181,8 +181,8 @@ describe('CA4 — Lista de participantes', () => {
   });
 
   test('GET /api/funds/:id/participants retorna 403 para usuario no miembro', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const stranger = await createUser({ email: 'stranger@test.com' });
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const stranger = await createUser({ email: 'desconocido@prueba.cl' });
     const fund = await createFund({ organizer: org._id, visibility: 'private' });
 
     const res = await request(app)
@@ -224,8 +224,8 @@ describe('CA5 — Historial de aportes', () => {
   });
 
   test('GET /api/funds/:id/contributions retorna 403 para no-miembro en fondo privado', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const stranger = await createUser({ email: 'stranger@test.com' });
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const stranger = await createUser({ email: 'desconocido@prueba.cl' });
     const fund = await createFund({ organizer: org._id, visibility: 'private' });
     await createContribution({ fund: fund._id, user: org._id, amount: 5000 });
 
@@ -267,8 +267,8 @@ describe('CA6 — Progreso del fondo (collectedAmount)', () => {
   });
 
   test('collectedAmount refleja múltiples aportes de distintos usuarios', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const part = await createUser({ email: 'part@test.com' });
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const part = await createUser({ email: 'participante@prueba.cl' });
     const fund = await createFund({
       organizer: org._id,
       participants: [{ user: part._id, status: 'accepted' }],
@@ -289,8 +289,8 @@ describe('CA6 — Progreso del fondo (collectedAmount)', () => {
 
 describe('CA7 — Acceso a fondos privados', () => {
   test('participante pendiente no puede acceder al detalle de un fondo privado', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const pending = await createUser({ email: 'pending@test.com' });
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const pending = await createUser({ email: 'pendiente@prueba.cl' });
     const fund = await createFund({
       organizer: org._id,
       participants: [{ user: pending._id, status: 'pending' }],
@@ -303,24 +303,24 @@ describe('CA7 — Acceso a fondos privados', () => {
     expect(res.status).toBe(403);
   });
 
-  test('participante rechazado no puede acceder al detalle de un fondo privado', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const rejected = await createUser({ email: 'rejected@test.com' });
+  test('participante con invitación pendiente puede acceder al detalle de un fondo privado', async () => {
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const invitado = await createUser({ email: 'invitado@prueba.cl' });
     const fund = await createFund({
       organizer: org._id,
-      participants: [{ user: rejected._id, status: 'rejected' }],
+      participants: [{ user: invitado._id, status: 'pending', invitationToken: 'token-prueba-uuid' }],
       visibility: 'private',
     });
 
     const res = await request(app)
       .get(`/api/funds/${fund._id}`)
-      .set(await authHeader(rejected));
-    expect(res.status).toBe(403);
+      .set(await authHeader(invitado));
+    expect(res.status).toBe(200);
   });
 
   test('participante aceptado puede acceder al detalle de un fondo privado', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const part = await createUser({ email: 'part@test.com' });
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const part = await createUser({ email: 'participante@prueba.cl' });
     const fund = await createFund({
       organizer: org._id,
       participants: [{ user: part._id, status: 'accepted' }],
@@ -338,8 +338,8 @@ describe('CA7 — Acceso a fondos privados', () => {
 
 describe('CA8 — Acceso a fondos públicos', () => {
   test('usuario sin relación al fondo puede ver detalle de fondo público', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const visitor = await createUser({ email: 'visitor@test.com' });
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const visitor = await createUser({ email: 'visitante@prueba.cl' });
     const fund = await createFund({ organizer: org._id, visibility: 'public' });
 
     const res = await request(app)
@@ -357,8 +357,8 @@ describe('CA8 — Acceso a fondos públicos', () => {
   });
 
   test('no-miembro puede ver contribuciones de fondo público', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const visitor = await createUser({ email: 'visitor@test.com' });
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const visitor = await createUser({ email: 'visitante@prueba.cl' });
     const fund = await createFund({ organizer: org._id, visibility: 'public' });
     await createContribution({ fund: fund._id, user: org._id, amount: 10000 });
 
@@ -405,8 +405,8 @@ describe('CA9 — Datos actualizados en tiempo real', () => {
   });
 
   test('nuevo participante aparece en la lista tras ser invitado y aceptar', async () => {
-    const org = await createUser({ email: 'org@test.com' });
-    const part = await createUser({ email: 'part@test.com' });
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const part = await createUser({ email: 'participante@prueba.cl' });
     const fund = await createFund({
       organizer: org._id,
       participants: [{ user: part._id, status: 'accepted' }],
@@ -453,5 +453,106 @@ describe('CA10 — Manejo de errores al cargar', () => {
       .set(await authHeader(user));
     expect(res.status).toBe(404);
     expect(res.body.error).toBeDefined();
+  });
+});
+
+// ─── CA3 (ext.) — Monto mínimo de aporte ─────────────────────────────────────
+
+describe('CA3 (ext.) — Monto minimo en informacion del fondo', () => {
+  test('GET /api/funds/:id incluye minAmount para fondos libres con monto minimo configurado', async () => {
+    const user = await createUser();
+    const fund = await createFund({
+      organizer: user._id,
+      type: 'free',
+      minAmount: 20000,
+    });
+
+    const res = await request(app)
+      .get(`/api/funds/${fund._id}`)
+      .set(await authHeader(user));
+
+    expect(res.status).toBe(200);
+    expect(res.body.minAmount).toBe(20000);
+  });
+
+  test('GET /api/funds/:id no incluye minAmount cuando el fondo no lo tiene definido', async () => {
+    const user = await createUser();
+    const fund = await createFund({ organizer: user._id, type: 'free' });
+
+    const res = await request(app)
+      .get(`/api/funds/${fund._id}`)
+      .set(await authHeader(user));
+
+    expect(res.status).toBe(200);
+    expect(res.body.minAmount == null || res.body.minAmount === 0).toBe(true);
+  });
+
+  test('GET /api/funds/public incluye minAmount en fondos publicos con monto minimo', async () => {
+    const user = await createUser();
+    await createFund({
+      organizer: user._id,
+      type: 'free',
+      minAmount: 15000,
+      visibility: 'public',
+      status: 'active',
+    });
+
+    const res = await request(app)
+      .get('/api/funds/public')
+      .set(await authHeader(user));
+
+    expect(res.status).toBe(200);
+    const fund = res.body.find(f => f.minAmount === 15000);
+    expect(fund).toBeDefined();
+  });
+});
+
+// ─── CA4 (ext.) — Conteo de participantes incluye al organizador ─────────────
+
+describe('CA4 (ext.) — Conteo de participantes incluye al organizador', () => {
+  test('GET /api/funds retorna participantCount = 1 cuando solo existe el organizador', async () => {
+    const user = await createUser();
+    await createFund({ organizer: user._id });
+
+    const res = await request(app)
+      .get('/api/funds')
+      .set(await authHeader(user));
+
+    expect(res.status).toBe(200);
+    expect(res.body[0].participantCount).toBe(1);
+  });
+
+  test('GET /api/funds retorna participantCount = participantes aceptados + 1 (organizador)', async () => {
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const part = await createUser({ email: 'participante@prueba.cl' });
+    await createFund({
+      organizer: org._id,
+      participants: [{ user: part._id, status: 'accepted' }],
+    });
+
+    const res = await request(app)
+      .get('/api/funds')
+      .set(await authHeader(org));
+
+    expect(res.status).toBe(200);
+    expect(res.body[0].participantCount).toBe(2);
+  });
+
+  test('GET /api/funds/public retorna participantCount incluyendo al organizador', async () => {
+    const org = await createUser({ email: 'organizador@prueba.cl' });
+    const part = await createUser({ email: 'participante@prueba.cl' });
+    await createFund({
+      organizer: org._id,
+      participants: [{ user: part._id, status: 'accepted' }],
+      visibility: 'public',
+      status: 'active',
+    });
+
+    const res = await request(app)
+      .get('/api/funds/public')
+      .set(await authHeader(org));
+
+    expect(res.status).toBe(200);
+    expect(res.body[0].participantCount).toBe(2);
   });
 });

@@ -262,14 +262,21 @@ export default function ContributionForm({ fundId, fund, userContributions = [],
             </p>
           </>
         ) : (
-          <input
-            type="number"
-            min="1"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            required
-          />
+          <>
+            <input
+              type="number"
+              min={fund.minAmount || 1}
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              required
+            />
+            {fund.minAmount > 0 && (
+              <p className="text-xs text-indigo-600 mt-1">
+                Monto mínimo: {fmtCLP(fund.minAmount)}
+              </p>
+            )}
+          </>
         )}
       </div>
 
