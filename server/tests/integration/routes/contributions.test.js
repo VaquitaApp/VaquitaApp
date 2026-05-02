@@ -158,6 +158,66 @@ describe('POST /api/funds/:id/payment', () => {
 
     expect(res.status).toBe(403);
   });
+
+  it('returns 422 if collected amount is zero', async () => {
+    const emptyFund = await createFund({ organizer: organizer._id, status: 'active', deadline: new Date(Date.now() + 86400000 * 30) });
+    const res = await request(app)
+      .post(`/api/funds/${emptyFund._id}/payment`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/saldo/i);
+  });
+
+  it('registra el pago en updateLogs del fondo', async () => {
+    const Fund = require('../../../src/models/Fund');
+    await request(app)
+      .post(`/api/funds/${fund._id}/payment`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    const updated = await Fund.findById(fund._id).lean();
+    expect(updated.updateLogs.some(l => /pago/i.test(l.message))).toBe(true);
+  });
+
+  it('persiste la transacción del egreso en el fondo, no como aporte', async () => {
+    const Fund        = require('../../../src/models/Fund');
+    const Contribution = require('../../../src/models/Contribution');
+
+    await request(app)
+      .post(`/api/funds/${fund._id}/payment`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    const updatedFund  = await Fund.findById(fund._id).lean();
+    const contributions = await Contribution.find({ fund: fund._id }).lean();
+
+    expect(updatedFund.paymentTransaction.transactionId).toMatch(/^sim_/);
+    expect(updatedFund.paymentTransaction.amount).toBe(50000);
+    expect(contributions).toHaveLength(1); // solo el aporte original, no el egreso
+  });
+
+  it('el monto recaudado no se duplica después del pago', async () => {
+    await request(app)
+      .post(`/api/funds/${fund._id}/payment`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    const res = await request(app)
+      .get(`/api/funds/${fund._id}`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    expect(res.body.collectedAmount).toBe(50000);
+  });
+
+  it('un segundo intento de pago sobre un fondo completado devuelve 422', async () => {
+    await request(app)
+      .post(`/api/funds/${fund._id}/payment`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    const res = await request(app)
+      .post(`/api/funds/${fund._id}/payment`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    expect(res.status).toBe(422);
+  });
 });
 
 describe('POST /api/funds/:id/contributions — fondo por cuotas', () => {
