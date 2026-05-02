@@ -165,6 +165,66 @@ describe('POST /api/invitations/:token/accept and reject', () => {
   });
 });
 
+// ── Cancel invitation ─────────────────────────────────────────────────────────
+
+describe('DELETE /api/funds/:id/invitations/:userId', () => {
+  let invToken;
+
+  beforeEach(async () => {
+    const res = await request(app)
+      .post(`/api/funds/${fund._id}/invitations`)
+      .set('Authorization', `Bearer ${orgToken}`)
+      .send({ userId: participant._id.toString() });
+    invToken = res.body[0].invitationToken;
+  });
+
+  it('cancels a pending invitation (removes participant entry)', async () => {
+    const res = await request(app)
+      .delete(`/api/funds/${fund._id}/invitations/${participant._id}`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.find(p => p.user._id?.toString() === participant._id.toString())).toBeUndefined();
+  });
+
+  it('invalidates the invitation token after cancellation', async () => {
+    await request(app)
+      .delete(`/api/funds/${fund._id}/invitations/${participant._id}`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    const accept = await request(app).post(`/api/invitations/${invToken}/accept`);
+    expect(accept.status).toBe(404);
+  });
+
+  it('returns 403 if caller is not organizer', async () => {
+    const res = await request(app)
+      .delete(`/api/funds/${fund._id}/invitations/${participant._id}`)
+      .set('Authorization', `Bearer ${partToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 404 if invitation does not exist', async () => {
+    const { createUser: cu } = require('../../helpers/factories');
+    const other = await cu({ email: 'otro@prueba.cl', passwordHash: 'Password1!' });
+    const res = await request(app)
+      .delete(`/api/funds/${fund._id}/invitations/${other._id}`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 422 if invitation is not pending (already accepted)', async () => {
+    await request(app).post(`/api/invitations/${invToken}/accept`);
+
+    const res = await request(app)
+      .delete(`/api/funds/${fund._id}/invitations/${participant._id}`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    expect(res.status).toBe(422);
+  });
+});
+
 // ── Participants management ───────────────────────────────────────────────────
 
 describe('DELETE /api/funds/:id/participants/:userId', () => {

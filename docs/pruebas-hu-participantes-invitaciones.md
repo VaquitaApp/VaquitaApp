@@ -39,7 +39,7 @@ Los identificadores **TC-HU-PART-xxx** coinciden con el texto del `it(...)` en e
 | TC-HU-PART-007 | Aceptar invitación; luego `GET /participants` como organizador | Participante con `status: accepted` | **accepted** en listado | Sí | 2026-05-02 15:01 -04:00 | |
 | TC-HU-PART-008 | Rechazar invitación; `GET /participants` | Sin fila **accepted** para ese usuario; estado **rejected** | **rejected**; 0 accepted para ese email | Sí | 2026-05-02 15:01 -04:00 | La UI de detalle solo lista aceptados; la API conserva la fila rechazada. |
 | TC-HU-PART-009 | Dos invitaciones seguidas en estado **pending** | **200** en 2.ª; token distinto; token antiguo **404** al aceptar | Comportamiento esperado | Sí | 2026-05-02 15:01 -04:00 | Reemisión invalida el token anterior. |
-| TC-HU-PART-010 | Reinvitar tras **rejected** con fondo activo | **200**, `pending` y nuevo token | **200** | Sí | 2026-05-02 15:01 -04:00 | |
+| TC-HU-PART-010 | Reinvitar tras **rejected** con fondo activo | **201**, `pending` y nuevo token | **201** | Sí | 2026-05-02 15:01 -04:00 | Al rechazar, la fila se elimina del array; reinvitar crea entrada nueva → 201. |
 | TC-HU-PART-011 | Aceptar con fondo **cerrado** | **422**, mensaje informativo (cerrado/completado) | **422** | Sí | 2026-05-02 15:01 -04:00 | |
 | TC-HU-PART-012 | Aceptar con **deadline** vencida | **422**, mensaje sobre fecha límite | **422** | Sí | 2026-05-02 15:01 -04:00 | |
 | TC-HU-PART-013 | Aceptar con fondo **completed** | **422** | **422** | Sí | 2026-05-02 15:01 -04:00 | |

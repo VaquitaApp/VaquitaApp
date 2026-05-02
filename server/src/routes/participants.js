@@ -20,7 +20,7 @@ router.post('/invitations', auth, async (req, res) => {
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
     if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
-    if (new Date(fund.deadline).toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
+    if (new Date(fund.deadline) <= new Date()) {
       return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
     }
 
@@ -85,7 +85,7 @@ router.post('/join-request', auth, async (req, res) => {
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
     if (fund.visibility !== 'public') return res.status(403).json({ error: 'El fondo no es público' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'El fondo no está activo' });
-    if (new Date(fund.deadline).toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
+    if (new Date(fund.deadline) <= new Date()) {
       return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
     }
     if (fund.organizer._id.equals(req.user._id)) {
@@ -135,9 +135,9 @@ router.delete('/invitations/:userId', auth, async (req, res) => {
     if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
 
     const participant = fund.participants.find(p => p.user?._id?.equals(req.params.userId));
-    if (!participant) return res.status(404).json({ error: 'Invitation not found' });
+    if (!participant) return res.status(404).json({ error: 'Invitación no encontrada' });
     if (participant.status !== 'pending') {
-      return res.status(422).json({ error: 'Only pending invitations can be canceled' });
+      return res.status(422).json({ error: 'Solo se pueden cancelar invitaciones pendientes' });
     }
 
     fund.participants = fund.participants.filter(p => !p.user?._id?.equals(req.params.userId));
@@ -224,7 +224,7 @@ router.post('/accept-my-invitation', auth, async (req, res) => {
     const fund = await Fund.findById(req.params.id);
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
-    if (new Date(fund.deadline).toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
+    if (new Date(fund.deadline) <= new Date()) {
       return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
     }
 
@@ -253,8 +253,8 @@ router.post('/access-requests', auth, async (req, res) => {
     if (fund.status !== 'active') {
       return res.status(422).json({ error: 'Fund is not active' });
     }
-    if (new Date(fund.deadline).toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
-      return res.status(422).json({ error: 'Fund deadline has passed' });
+    if (new Date(fund.deadline) <= new Date()) {
+      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
     }
 
     const userId = req.user._id;
@@ -270,7 +270,7 @@ router.post('/access-requests', auth, async (req, res) => {
 
     const pendingInvite = fund.participants.some(p => p.user.equals(userId) && p.status === 'pending');
     if (pendingInvite) {
-      return res.status(409).json({ error: 'Ya tienes una invitacion pendiente para este fondo' });
+      return res.status(409).json({ error: 'Ya tienes una invitación pendiente para este fondo' });
     }
 
     const requester = await User.findById(userId).select('name email').lean();
