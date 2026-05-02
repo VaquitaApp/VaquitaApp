@@ -158,6 +158,26 @@ describe('POST /api/funds/:id/payment', () => {
 
     expect(res.status).toBe(403);
   });
+
+  it('returns 422 if collected amount is zero', async () => {
+    const emptyFund = await createFund({ organizer: organizer._id, status: 'active', deadline: new Date(Date.now() + 86400000 * 30) });
+    const res = await request(app)
+      .post(`/api/funds/${emptyFund._id}/payment`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/saldo/i);
+  });
+
+  it('registra el pago en updateLogs del fondo', async () => {
+    const Fund = require('../../../src/models/Fund');
+    await request(app)
+      .post(`/api/funds/${fund._id}/payment`)
+      .set('Authorization', `Bearer ${orgToken}`);
+
+    const updated = await Fund.findById(fund._id).lean();
+    expect(updated.updateLogs.some(l => /pago/i.test(l.message))).toBe(true);
+  });
 });
 
 describe('POST /api/funds/:id/contributions — fondo por cuotas', () => {
