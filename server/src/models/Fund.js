@@ -47,6 +47,12 @@ const fundSchema = new Schema({
     createdAt: { type: Date, default: Date.now },
   }],
   updateLogs:       [{ message: { type: String, required: true }, date: { type: Date, default: Date.now } }],
+  paymentTransaction: {
+    transactionId: { type: String },
+    amount:        { type: Number },
+    provider:      { type: String },
+    paidAt:        { type: Date },
+  },
 }, { timestamps: true });
 
 fundSchema.pre('validate', function (next) {

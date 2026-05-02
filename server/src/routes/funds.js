@@ -321,17 +321,13 @@ router.post('/:id/payment', auth, async (req, res) => {
 
     const transaction = await processPayment({ amount: collectedAmount, recipientAccount: fund.recipientAccount });
 
-    await Contribution.create({
-      fund: fund._id,
-      user: req.user._id,
-      amount: collectedAmount,
-      method: 'simulation',
-      transactionId: transaction.transactionId,
-      provider: transaction.provider,
-      status: 'succeeded',
-    });
-
     fund.status = 'completed';
+    fund.paymentTransaction = {
+      transactionId: transaction.transactionId,
+      amount:        collectedAmount,
+      provider:      transaction.provider,
+      paidAt:        new Date(),
+    };
     fund.updateLogs.push({ message: `Pago de ${collectedAmount} al destinatario registrado` });
     await fund.save();
 

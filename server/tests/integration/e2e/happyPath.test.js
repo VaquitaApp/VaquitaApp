@@ -176,5 +176,5 @@ test('ciclo de vida completo de un fondo — camino feliz', async () => {
   // estado final
   const finalDetail = await authGet(org.token, `/api/funds/${fundId}`);
   expect(finalDetail.body.status).toBe('completed');
-  expect(finalDetail.body.collectedAmount).toBeGreaterThan(45000);
+  expect(finalDetail.body.collectedAmount).toBe(45000);
 });
