@@ -10,6 +10,7 @@ import EditFundPage from './pages/EditFundPage';
 import FundDetailPage from './pages/FundDetailPage';
 import PublicDirectoryPage from './pages/PublicDirectoryPage';
 import InvitationResponsePage from './pages/InvitationResponsePage';
+import FundAccessResponsePage from './pages/FundAccessResponsePage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import ProfilePage from './pages/ProfilePage';
 import ConfirmDeletePage from './pages/ConfirmDeletePage';
@@ -41,10 +42,11 @@ export default function App() {
           <Route path="/fondos/:id/editar" element={<Protected><EditFundPage /></Protected>} />
           <Route path="/directorio"        element={<Protected><PublicDirectoryPage /></Protected>} />
           <Route path="/perfil"                element={<Protected><ProfilePage /></Protected>} />
-          <Route path="/invitaciones/:token"    element={<InvitationResponsePage />} />
+          <Route path="/invitaciones/:token"     element={<InvitationResponsePage />} />
+          <Route path="/solicitudes-acceso/:token" element={<FundAccessResponsePage />} />
           <Route path="/verificar-email/:token"      element={<VerifyEmailPage />} />
           <Route path="/confirmar-eliminacion/:token" element={<ConfirmDeletePage />} />
-          <Route path="/solicitudes-acceso/:token"    element={<JoinRequestResponsePage />} />
+          <Route path="/solicitudes-union/:token"    element={<JoinRequestResponsePage />} />
           <Route path="*"                  element={<Navigate to="/fondos" replace />} />
         </Routes>
       </AuthProvider>

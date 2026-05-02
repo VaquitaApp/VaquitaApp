@@ -5,7 +5,11 @@ const Contribution = require('../models/Contribution');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { pendingQuotas } = require('../services/quotaService');
-const { sendEmail, sendJoinRequestEmail } = require('../services/emailService');
+const {
+  sendEmail,
+  sendJoinRequestEmail,
+  sendAccessRequestToOrganizer,
+} = require('../services/emailService');
 
 const router = express.Router({ mergeParams: true });
 
@@ -98,7 +102,6 @@ router.post('/join-request', auth, async (req, res) => {
       if (existing.invitationToken && existing.status === 'pending') {
         return res.status(409).json({ error: 'Ya tienes una invitación pendiente del organizador, revisa tu correo' });
       }
-      // Re-request: invalidate previous join request token and issue a new one
       existing.joinRequestToken = uuidv4();
       existing.status = 'pending';
       existing.invitedAt = new Date();
@@ -234,6 +237,69 @@ router.post('/accept-my-invitation', auth, async (req, res) => {
 
     await fund.save();
     res.json({ message: 'Invitación aceptada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/funds/:id/access-requests — solicitud de acceso a fondo público (subdocumento accessRequests)
+router.post('/access-requests', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id).populate('organizer', 'name email');
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    if (fund.visibility !== 'public') {
+      return res.status(403).json({ error: 'Este fondo no es público' });
+    }
+    if (fund.status !== 'active') {
+      return res.status(422).json({ error: 'Fund is not active' });
+    }
+    if (new Date(fund.deadline).toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
+      return res.status(422).json({ error: 'Fund deadline has passed' });
+    }
+
+    const userId = req.user._id;
+    const orgId = fund.organizer._id ?? fund.organizer;
+    if (orgId.equals(userId)) {
+      return res.status(422).json({ error: 'El organizador no puede solicitar acceso' });
+    }
+
+    const accepted = fund.participants.some(p => p.user.equals(userId) && p.status === 'accepted');
+    if (accepted) {
+      return res.status(409).json({ error: 'Ya eres participante de este fondo' });
+    }
+
+    const pendingInvite = fund.participants.some(p => p.user.equals(userId) && p.status === 'pending');
+    if (pendingInvite) {
+      return res.status(409).json({ error: 'Ya tienes una invitacion pendiente para este fondo' });
+    }
+
+    const requester = await User.findById(userId).select('name email').lean();
+    if (!requester) return res.status(404).json({ error: 'User not found' });
+
+    const token = uuidv4();
+    const reqs = fund.accessRequests || [];
+    fund.accessRequests = reqs.filter(
+      ar => !(ar.user.equals(userId) && ar.status === 'pending'),
+    );
+    fund.accessRequests.push({
+      user: userId,
+      token,
+      status: 'pending',
+      requestedAt: new Date(),
+    });
+
+    await fund.save();
+
+    const organizer = fund.organizer;
+    sendAccessRequestToOrganizer({
+      to: organizer.email,
+      organizerName: organizer.name,
+      requesterName: requester.name,
+      fundName: fund.name,
+      token,
+    }).catch(() => {});
+
+    res.status(201).json({ message: 'Solicitud enviada al organizador' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

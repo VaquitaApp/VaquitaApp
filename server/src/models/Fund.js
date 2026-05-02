@@ -10,6 +10,14 @@ const participantSchema = new Schema({
   lastReminder:     { type: Date },
 }, { _id: false });
 
+const accessRequestSchema = new Schema({
+  user:        { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  token:       { type: String },
+  status:      { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+  requestedAt: { type: Date, default: Date.now },
+  respondedAt: { type: Date },
+}, { _id: true });
+
 const fundSchema = new Schema({
   name:             { type: String, required: true, trim: true },
   description:      { type: String, required: true, trim: true },
@@ -31,10 +39,11 @@ const fundSchema = new Schema({
   status:           { type: String, enum: ['active', 'completed', 'closed', 'paused'], default: 'active' },
   organizer:        { type: Schema.Types.ObjectId, ref: 'User', required: true },
   participants:     [participantSchema],
+  accessRequests:   { type: [accessRequestSchema], default: [] },
   messages:         [{
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     text: { type: String, required: true, trim: true },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
   }],
   updateLogs:       [{ message: { type: String, required: true }, date: { type: Date, default: Date.now } }],
 }, { timestamps: true });

@@ -108,7 +108,11 @@ export default function InviteModal({
                   >
                     {inviting === u._id ? '…' : 'Invitar'}
                   </button>
-                ) : existing.status === 'rejected' ? (
+                ) : existing.status === 'accepted' ? (
+                  <span className="text-xs text-gray-400 italic">Ya participa</span>
+                ) : existing.status === 'pending' ? (
+                  <span className="text-xs text-gray-400 italic">Invitación pendiente</span>
+                ) : (
                   <button
                     onClick={() => handleInvite(u._id)}
                     disabled={inviting === u._id}
@@ -116,10 +120,6 @@ export default function InviteModal({
                   >
                     {inviting === u._id ? '…' : 'Reinvitar'}
                   </button>
-                ) : (
-                  <span className="text-xs text-gray-400 italic">
-                    {existing.status === 'accepted' ? 'Ya participa' : 'Invitación pendiente'}
-                  </span>
                 )}
               </li>
             );
@@ -144,14 +144,24 @@ export default function InviteModal({
                   <div className="flex items-center gap-2">
                     <InvitationBadge status={p.status} />
                     {p.status === 'pending' && (
-                      <button
-                        type="button"
-                        onClick={() => handleCancelInvitation(p.user?._id?.toString())}
-                        disabled={canceling === p.user?._id?.toString()}
-                        className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                      >
-                        {canceling === p.user?._id?.toString() ? 'Cancelando…' : 'Cancelar'}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleInvite(p.user?._id?.toString())}
+                          disabled={inviting === p.user?._id?.toString()}
+                          className="text-xs text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                        >
+                          {inviting === p.user?._id?.toString() ? 'Reenviando…' : 'Reenviar invitación'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCancelInvitation(p.user?._id?.toString())}
+                          disabled={canceling === p.user?._id?.toString()}
+                          className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                        >
+                          {canceling === p.user?._id?.toString() ? 'Cancelando…' : 'Cancelar'}
+                        </button>
+                      </>
                     )}
                     {p.status === 'rejected' && (
                       <button

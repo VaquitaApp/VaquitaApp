@@ -55,6 +55,36 @@ async function sendStatusChangeEmail({ fund, organizer, participants }) {
   }
 }
 
+async function sendAccessRequestToOrganizer({ to, organizerName, requesterName, fundName, token }) {
+  const baseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
+  const acceptUrl = `${baseUrl}/solicitudes-acceso/${token}?action=accept`;
+  const rejectUrl = `${baseUrl}/solicitudes-acceso/${token}?action=reject`;
+  await sendEmail({
+    to,
+    subject: `Solicitud de acceso al fondo "${fundName}"`,
+    html: `
+      <p>Hola ${organizerName},</p>
+      <p><strong>${requesterName}</strong> solicita unirse al fondo público <strong>${fundName}</strong>.</p>
+      <p>
+        <a href="${acceptUrl}" style="background:#4f46e5;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;">Aceptar</a>
+        &nbsp;
+        <a href="${rejectUrl}" style="background:#6b7280;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;">Rechazar</a>
+      </p>`,
+  });
+}
+
+async function sendAccessRequestDecisionToUser({ to, name, fundName, accepted }) {
+  await sendEmail({
+    to,
+    subject: accepted
+      ? `Te aceptaron en el fondo "${fundName}"`
+      : `Solicitud rechazada: "${fundName}"`,
+    html: accepted
+      ? `<p>Hola ${name},</p><p>El organizador aceptó tu solicitud para unirte al fondo <strong>${fundName}</strong>.</p>`
+      : `<p>Hola ${name},</p><p>El organizador rechazó tu solicitud de acceso al fondo <strong>${fundName}</strong>.</p>`,
+  });
+}
+
 async function sendDeleteConfirmationEmail({ to, name, token }) {
   const base = process.env.APP_BASE_URL || 'http://localhost:5173';
   const url  = `${base}/confirmar-eliminacion/${token}`;
@@ -100,8 +130,8 @@ async function sendFundDeletedEmail({ fund, participants }) {
 
 async function sendJoinRequestEmail({ to, organizerName, requesterName, fundName, token }) {
   const base = process.env.APP_BASE_URL || 'http://localhost:5173';
-  const acceptUrl = `${base}/solicitudes-acceso/${token}?action=accept`;
-  const rejectUrl = `${base}/solicitudes-acceso/${token}?action=reject`;
+  const acceptUrl = `${base}/solicitudes-union/${token}?action=accept`;
+  const rejectUrl = `${base}/solicitudes-union/${token}?action=reject`;
   await sendEmail({
     to,
     subject: `Nueva solicitud de acceso al fondo "${fundName}"`,
@@ -131,4 +161,15 @@ async function sendJoinRequestAcceptedEmail({ to, name, fundName, fundId }) {
   });
 }
 
-module.exports = { sendEmail, sendVerificationEmail, sendStatusChangeEmail, sendDeleteConfirmationEmail, sendDeadlineExtendedEmail, sendFundDeletedEmail, sendJoinRequestEmail, sendJoinRequestAcceptedEmail };
+module.exports = {
+  sendEmail,
+  sendVerificationEmail,
+  sendStatusChangeEmail,
+  sendDeleteConfirmationEmail,
+  sendAccessRequestToOrganizer,
+  sendAccessRequestDecisionToUser,
+  sendDeadlineExtendedEmail,
+  sendFundDeletedEmail,
+  sendJoinRequestEmail,
+  sendJoinRequestAcceptedEmail,
+};
