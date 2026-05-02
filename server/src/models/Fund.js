@@ -7,7 +7,8 @@ const participantSchema = new Schema({
   joinRequestToken: { type: String },
   invitedAt:        { type: Date, default: Date.now },
   respondedAt:      { type: Date },
-  lastReminder:     { type: Date },
+  lastReminder:        { type: Date },
+  moraReminderActive:  { type: Boolean, default: false },
 }, { _id: false });
 
 const accessRequestSchema = new Schema({
