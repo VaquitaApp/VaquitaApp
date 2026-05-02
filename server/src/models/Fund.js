@@ -49,6 +49,17 @@ const fundSchema = new Schema({
 }, { timestamps: true });
 
 fundSchema.pre('validate', function (next) {
+  // Fondos ya persistidos con estos campos ausentes o vacíos (datos viejos o incompletos).
+  if (!this.isNew) {
+    const d = this.description;
+    if (d == null || (typeof d === 'string' && d.trim() === '')) {
+      this.description = 'Sin descripción';
+    }
+    const g = this.goal;
+    if (g == null || (typeof g === 'string' && g.trim() === '')) {
+      this.goal = 'Sin objetivo';
+    }
+  }
   if (this.type === 'quota') {
     if (!this.quotaAmount) this.invalidate('quotaAmount', 'required for quota fund');
     if (!this.frequency)   this.invalidate('frequency',   'required for quota fund');

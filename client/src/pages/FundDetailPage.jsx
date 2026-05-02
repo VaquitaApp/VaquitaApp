@@ -294,13 +294,12 @@ export default function FundDetailPage() {
         </div>
         <ParticipantList
           organizer={fund.organizer}
-          participants={participants.filter(p => p.status !== 'rejected')}
+          participants={participants}
           contributions={contributions}
           isOrganizer={isOrganizer}
           onRemove={handleRemoveParticipant}
           removingId={removingId}
           emptyMessage="No hay participantes aún."
-          showStatus
         />
       </div>
 

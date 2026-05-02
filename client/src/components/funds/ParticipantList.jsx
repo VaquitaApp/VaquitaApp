@@ -1,4 +1,4 @@
-import { ContributionBadge, InvitationBadge } from '../ui/Badge';
+import { ContributionBadge } from '../ui/Badge';
 import { fmtName, fmtCLP } from '../../utils/format';
 
 export default function ParticipantList({
@@ -9,9 +9,8 @@ export default function ParticipantList({
   onRemove,
   removingId,
   emptyMessage = 'No hay participantes aún.',
-  showStatus = true,
 }) {
-  const visible = participants.filter(p => p.status !== 'rejected');
+  const visible = participants.filter(p => p.status === 'accepted');
   const hasRows = organizer || visible.length > 0;
   if (!hasRows) {
     return <p className="text-sm text-gray-400">{emptyMessage}</p>;
@@ -31,7 +30,6 @@ export default function ParticipantList({
         <thead>
           <tr className="text-xs text-gray-400 border-b border-gray-100">
             <th className="text-left py-2 pr-4 font-medium">Nombre</th>
-            {showStatus && <th className="text-left py-2 pr-4 font-medium">Estado</th>}
             <th className="text-left py-2 pr-4 font-medium">Aportes</th>
             <th className="text-left py-2 pr-4 font-medium">Acciones</th>
           </tr>
@@ -46,11 +44,6 @@ export default function ParticipantList({
                   Organizador
                 </span>
               </td>
-              {showStatus && (
-                <td className="py-2 pr-4">
-                  <span className="text-xs text-gray-300">—</span>
-                </td>
-              )}
               <td className="py-2 pr-4">
                 {orgTotal > 0 ? (
                   <p className="font-medium text-gray-700">{fmtCLP(orgTotal)}</p>
@@ -65,7 +58,6 @@ export default function ParticipantList({
           )}
           {visible.map(p => {
             const total = totalFor(p.user?._id);
-            const isPendingInviteFlow = p.status === 'pending';
 
             return (
               <tr key={p._id} className="border-b border-gray-50 hover:bg-gray-50">
@@ -73,33 +65,20 @@ export default function ParticipantList({
                   <p className="font-medium text-gray-800">{fmtName(p.user?.name)}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{p.user?.email}</p>
                 </td>
-                {showStatus && (
-                  <td className="py-2 pr-4">
-                    <InvitationBadge status={p.status} />
-                  </td>
-                )}
                 <td className="py-2 pr-4">
-                  {isPendingInviteFlow ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                      Invitación pendiente
-                    </span>
+                  {total > 0 && (
+                    <p className="font-medium text-gray-700">{fmtCLP(total)}</p>
+                  )}
+                  {p.contributionStatus ? (
+                    <ContributionBadge status={p.contributionStatus} />
+                  ) : (p.contributionCount ?? 0) > 0 ? (
+                    <span className="text-xs text-gray-500">{p.contributionCount}</span>
                   ) : (
-                    <>
-                      {total > 0 && (
-                        <p className="font-medium text-gray-700">{fmtCLP(total)}</p>
-                      )}
-                      {p.contributionStatus ? (
-                        <ContributionBadge status={p.contributionStatus} />
-                      ) : (p.contributionCount ?? 0) > 0 ? (
-                        <span className="text-xs text-gray-500">{p.contributionCount}</span>
-                      ) : (
-                        <span className="text-xs text-gray-300">—</span>
-                      )}
-                    </>
+                    <span className="text-xs text-gray-300">—</span>
                   )}
                 </td>
                 <td className="py-2 pr-4">
-                  {isOrganizer && p.status === 'accepted' ? (
+                  {isOrganizer ? (
                     <button
                       type="button"
                       onClick={() => onRemove?.(p.user?._id?.toString())}
