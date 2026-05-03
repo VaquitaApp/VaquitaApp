@@ -139,9 +139,11 @@ export default function RegisterPage() {
     <AuthShell>
       <div className={cardClass}>
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--vaq-badge-bg)] text-xl font-bold text-[var(--vaq-badge-fg)] shadow-md ring-2 ring-[var(--vaq-badge-bg)]/25">
-            V
-          </div>
+          <img
+            src="/logo.png"
+            alt="Logo VaquitaApp"
+            className="h-12 w-12 rounded-2xl object-contain shadow-md ring-2 ring-[var(--vaq-badge-bg)]/25 bg-[var(--vaq-bg-page)]"
+          />
           <h1
             className="text-2xl font-semibold tracking-tight text-[var(--vaq-forest)]"
             style={{ fontFamily: 'var(--font-nav-display)' }}

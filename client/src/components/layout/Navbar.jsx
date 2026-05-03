@@ -43,12 +43,11 @@ function brandLink(className) {
       to="/fondos"
       className={`vaq-nav-brand group flex items-center gap-2.5 rounded-lg py-1 pr-2 ${linkFocus} ${className}`}
     >
-      <span
-        className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--vaq-badge-bg)] text-lg font-bold text-[var(--vaq-badge-fg)] shadow-md ring-2 ring-[var(--vaq-badge-bg)]/30 transition-transform duration-200 group-hover:scale-[1.03]"
-        aria-hidden
-      >
-        V
-      </span>
+      <img
+        src="/logo.png"
+        alt="Logo VaquitaApp"
+        className="h-9 w-9 rounded-xl object-contain shadow-md ring-2 ring-[var(--vaq-badge-bg)]/30 transition-transform duration-200 group-hover:scale-[1.03]"
+      />
       <span
         className="font-semibold text-[length:1.15rem] leading-tight tracking-tight text-[var(--vaq-forest)]"
         style={{ fontFamily: 'var(--font-nav-display)' }}
