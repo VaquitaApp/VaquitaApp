@@ -13,7 +13,7 @@ export default function PasswordInput({ className, ...props }) {
       <button
         type="button"
         onClick={() => setVisible(v => !v)}
-        className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600"
+        className="absolute inset-y-0 right-0 flex items-center px-3 text-[var(--vaq-muted)] hover:text-[var(--vaq-ink)]"
         tabIndex={-1}
         aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
       >

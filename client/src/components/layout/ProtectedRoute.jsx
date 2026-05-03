@@ -6,7 +6,7 @@ export default function ProtectedRoute({ children }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-400 text-sm">Cargando...</p>
+        <p className="text-[var(--vaq-muted)] text-sm">Cargando...</p>
       </div>
     );
   }

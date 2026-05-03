@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 export default function ConfirmModal({ isOpen, onClose, onConfirm, title, message, requireKeyword, keyword }) {
   const [input, setInput] = useState('');
-  
+
   if (!isOpen) return null;
 
   const handleConfirm = () => {
@@ -19,43 +19,49 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
   const isValid = !requireKeyword || input === keyword;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-xl shadow-lg max-w-md w-full overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'var(--vaq-modal-backdrop)' }}
+    >
+      <div className="vaq-card max-h-[90vh] w-full max-w-md overflow-hidden shadow-xl">
+        <div className="border-b border-[var(--vaq-card-border)] px-6 py-4">
+          <h3 className="text-lg font-bold text-[var(--vaq-ink)]">{title}</h3>
         </div>
-        
+
         <div className="p-6">
-          <p className="text-sm text-gray-600 mb-4">{message}</p>
-          
+          <p className="mb-4 text-sm text-[var(--vaq-muted)]">{message}</p>
+
           {requireKeyword && (
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Para confirmar, escribe <span className="font-bold select-all bg-gray-100 px-1 rounded">{keyword}</span>
+              <label className="mb-1 block text-sm font-medium text-[var(--vaq-ink)]">
+                Para confirmar, escribe{' '}
+                <span className="rounded bg-[var(--vaq-well-bg)] px-1 font-bold select-all">{keyword}</span>
               </label>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                className="vaq-input mt-1 border-[var(--vaq-danger)]/40 focus:ring-[var(--vaq-danger)]"
                 placeholder={keyword}
                 autoFocus
               />
             </div>
           )}
         </div>
-        
-        <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3 rounded-b-xl border-t border-gray-100">
+
+        <div className="flex justify-end gap-3 rounded-b-xl border-t border-[var(--vaq-card-border)] bg-[var(--vaq-well-bg)] px-6 py-4">
           <button
+            type="button"
             onClick={handleClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="vaq-btn-secondary text-sm"
           >
             Cancelar
           </button>
           <button
+            type="button"
             onClick={handleConfirm}
             disabled={!isValid}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-[var(--vaq-danger)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Confirmar
           </button>

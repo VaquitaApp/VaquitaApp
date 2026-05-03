@@ -10,15 +10,15 @@ export default function ParticipantList({
   removingId,
   emptyMessage = 'No hay participantes aún.',
 }) {
-  const visible = participants.filter(p => p.status === 'accepted');
+  const visible = participants.filter((p) => p.status === 'accepted');
   const hasRows = organizer || visible.length > 0;
   if (!hasRows) {
-    return <p className="text-sm text-gray-400">{emptyMessage}</p>;
+    return <p className="text-sm text-[var(--vaq-muted)]">{emptyMessage}</p>;
   }
 
   function totalFor(userId) {
     return contributions
-      .filter(c => c.user?._id?.toString() === userId?.toString())
+      .filter((c) => c.user?._id?.toString() === userId?.toString())
       .reduce((sum, c) => sum + c.amount, 0);
   }
 
@@ -28,53 +28,51 @@ export default function ParticipantList({
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs text-gray-400 border-b border-gray-100">
-            <th className="text-left py-2 pr-4 font-medium">Nombre</th>
-            <th className="text-left py-2 pr-4 font-medium">Aportes</th>
-            <th className="text-left py-2 pr-4 font-medium">Acciones</th>
+          <tr className="border-b border-[var(--vaq-card-border)] text-xs text-[var(--vaq-muted)]">
+            <th className="py-2 pr-4 text-left font-medium">Nombre</th>
+            <th className="py-2 pr-4 text-left font-medium">Aportes</th>
+            <th className="py-2 pr-4 text-left font-medium">Acciones</th>
           </tr>
         </thead>
         <tbody>
           {organizer && (
-            <tr className="border-b border-gray-50 bg-indigo-50/40">
+            <tr className="border-b border-[var(--vaq-card-border)] bg-[var(--vaq-callout-info-bg)]/60">
               <td className="py-2 pr-4">
-                <p className="font-medium text-gray-800">{fmtName(organizer.name)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{organizer.email}</p>
-                <span className="text-xs font-semibold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full mt-1 inline-block">
+                <p className="font-medium text-[var(--vaq-ink)]">{fmtName(organizer.name)}</p>
+                <p className="mt-0.5 text-xs text-[var(--vaq-muted)]">{organizer.email}</p>
+                <span className="mt-1 inline-block rounded-full bg-[var(--vaq-tone-completed-bg)] px-2 py-0.5 text-xs font-semibold text-[var(--vaq-tone-completed-text)]">
                   Organizador
                 </span>
               </td>
               <td className="py-2 pr-4">
                 {orgTotal > 0 ? (
-                  <p className="font-medium text-gray-700">{fmtCLP(orgTotal)}</p>
+                  <p className="font-medium text-[var(--vaq-ink)]">{fmtCLP(orgTotal)}</p>
                 ) : (
-                  <span className="text-xs text-gray-300">—</span>
+                  <span className="text-xs text-[var(--vaq-muted)]">—</span>
                 )}
               </td>
               <td className="py-2 pr-4">
-                <span className="text-xs text-gray-300">—</span>
+                <span className="text-xs text-[var(--vaq-muted)]">—</span>
               </td>
             </tr>
           )}
-          {visible.map(p => {
+          {visible.map((p) => {
             const total = totalFor(p.user?._id);
 
             return (
-              <tr key={p._id} className="border-b border-gray-50 hover:bg-gray-50">
+              <tr key={p._id} className="border-b border-[var(--vaq-card-border)] hover:bg-[var(--vaq-well-bg)]">
                 <td className="py-2 pr-4">
-                  <p className="font-medium text-gray-800">{fmtName(p.user?.name)}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{p.user?.email}</p>
+                  <p className="font-medium text-[var(--vaq-ink)]">{fmtName(p.user?.name)}</p>
+                  <p className="mt-0.5 text-xs text-[var(--vaq-muted)]">{p.user?.email}</p>
                 </td>
                 <td className="py-2 pr-4">
-                  {total > 0 && (
-                    <p className="font-medium text-gray-700">{fmtCLP(total)}</p>
-                  )}
+                  {total > 0 && <p className="font-medium text-[var(--vaq-ink)]">{fmtCLP(total)}</p>}
                   {p.contributionStatus ? (
                     <ContributionBadge status={p.contributionStatus} />
                   ) : (p.contributionCount ?? 0) > 0 ? (
-                    <span className="text-xs text-gray-500">{p.contributionCount}</span>
+                    <span className="text-xs text-[var(--vaq-muted)]">{p.contributionCount}</span>
                   ) : (
-                    <span className="text-xs text-gray-300">—</span>
+                    <span className="text-xs text-[var(--vaq-muted)]">—</span>
                   )}
                 </td>
                 <td className="py-2 pr-4">
@@ -83,12 +81,12 @@ export default function ParticipantList({
                       type="button"
                       onClick={() => onRemove?.(p.user?._id?.toString())}
                       disabled={removingId === p.user?._id?.toString()}
-                      className="text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
+                      className="text-xs text-[var(--vaq-danger)] underline opacity-90 hover:opacity-100 disabled:opacity-50"
                     >
                       {removingId === p.user?._id?.toString() ? 'Eliminando…' : 'Eliminar participante'}
                     </button>
                   ) : (
-                    <span className="text-xs text-gray-300">—</span>
+                    <span className="text-xs text-[var(--vaq-muted)]">—</span>
                   )}
                 </td>
               </tr>

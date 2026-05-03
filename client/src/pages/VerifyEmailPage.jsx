@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { verifyEmail } from '../api/auth';
+import AuthShell from '../components/layout/AuthShell';
 
 export default function VerifyEmailPage() {
   const { token } = useParams();
-  const [status, setStatus]   = useState('loading');
-  const [errMsg, setErrMsg]   = useState('');
+  const [status, setStatus] = useState('loading');
+  const [errMsg, setErrMsg] = useState('');
   const called = useRef(false);
 
   useEffect(() => {
@@ -13,28 +14,28 @@ export default function VerifyEmailPage() {
     called.current = true;
     verifyEmail(token)
       .then(() => setStatus('success'))
-      .catch(err => {
+      .catch((err) => {
         setErrMsg(err.response?.data?.error || 'Enlace inválido o ya utilizado');
         setStatus('error');
       });
   }, [token]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white rounded-2xl shadow-md p-8 w-full max-w-sm text-center">
-        {status === 'loading' && (
-          <p className="text-gray-500">Verificando...</p>
-        )}
+    <AuthShell>
+      <div className="vaq-card w-full max-w-sm p-8 text-center">
+        {status === 'loading' && <p className="text-[var(--vaq-muted)]">Verificando...</p>}
 
         {status === 'success' && (
           <>
-            <div className="text-4xl mb-4">✅</div>
-            <h1 className="text-2xl font-bold text-green-600 mb-2">¡Cuenta verificada!</h1>
-            <p className="text-gray-600 mb-6">Ya puedes iniciar sesión en VaquitaApp.</p>
-            <Link
-              to="/login"
-              className="bg-indigo-600 text-white rounded-lg px-6 py-2 text-sm font-medium hover:bg-indigo-700 transition-colors"
+            <div className="mb-4 text-4xl">✅</div>
+            <h1
+              className="mb-2 text-2xl font-bold text-[var(--vaq-tone-success-text)]"
+              style={{ fontFamily: 'var(--font-nav-display)' }}
             >
+              ¡Cuenta verificada!
+            </h1>
+            <p className="mb-6 text-[var(--vaq-muted)]">Ya puedes iniciar sesión en VaquitaApp.</p>
+            <Link to="/login" className="vaq-btn-primary inline-block rounded-lg px-6 py-2 text-sm">
               Iniciar sesión
             </Link>
           </>
@@ -42,12 +43,12 @@ export default function VerifyEmailPage() {
 
         {status === 'error' && (
           <>
-            <div className="text-4xl mb-4">❌</div>
-            <h1 className="text-2xl font-bold text-red-500 mb-2">Enlace inválido</h1>
-            <p className="text-gray-600 text-sm">{errMsg}</p>
+            <div className="mb-4 text-4xl">❌</div>
+            <h1 className="mb-2 text-2xl font-bold text-[var(--vaq-danger)]">Enlace inválido</h1>
+            <p className="text-sm text-[var(--vaq-muted)]">{errMsg}</p>
           </>
         )}
       </div>
-    </div>
+    </AuthShell>
   );
 }
