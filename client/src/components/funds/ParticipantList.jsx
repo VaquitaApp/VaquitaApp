@@ -28,10 +28,12 @@ export default function ParticipantList({
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-[var(--vaq-card-border)] text-xs text-[var(--vaq-muted)]">
-            <th className="py-2 pr-4 text-left font-medium">Nombre</th>
-            <th className="py-2 pr-4 text-left font-medium">Aportes</th>
-            <th className="py-2 pr-4 text-left font-medium">Acciones</th>
+          <tr className="text-xs text-gray-400 border-b border-gray-100">
+            <th className="text-left py-2 pr-4 font-medium">Nombre</th>
+            <th className="text-left py-2 pr-4 font-medium">Aportes</th>
+            {isOrganizer && (
+              <th className="text-left py-2 pr-4 font-medium">Acciones</th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -45,15 +47,13 @@ export default function ParticipantList({
                 </span>
               </td>
               <td className="py-2 pr-4">
-                {orgTotal > 0 ? (
-                  <p className="font-medium text-[var(--vaq-ink)]">{fmtCLP(orgTotal)}</p>
-                ) : (
-                  <span className="text-xs text-[var(--vaq-muted)]">—</span>
-                )}
+                <p className="font-medium text-gray-700">{fmtCLP(orgTotal)}</p>
               </td>
-              <td className="py-2 pr-4">
-                <span className="text-xs text-[var(--vaq-muted)]">—</span>
-              </td>
+              {isOrganizer && (
+                <td className="py-2 pr-4">
+                  <span className="text-xs text-gray-300">—</span>
+                </td>
+              )}
             </tr>
           )}
           {visible.map((p) => {
@@ -62,21 +62,21 @@ export default function ParticipantList({
             return (
               <tr key={p._id} className="border-b border-[var(--vaq-card-border)] hover:bg-[var(--vaq-well-bg)]">
                 <td className="py-2 pr-4">
-                  <p className="font-medium text-[var(--vaq-ink)]">{fmtName(p.user?.name)}</p>
-                  <p className="mt-0.5 text-xs text-[var(--vaq-muted)]">{p.user?.email}</p>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-gray-800">{fmtName(p.user?.name)}</p>
+                      {p.contributionStatus && p.contributionStatus !== 'overdue' ? (
+                        <ContributionBadge status={p.contributionStatus} />
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5">{p.user?.email}</p>
+                  </div>
                 </td>
                 <td className="py-2 pr-4">
-                  {total > 0 && <p className="font-medium text-[var(--vaq-ink)]">{fmtCLP(total)}</p>}
-                  {p.contributionStatus ? (
-                    <ContributionBadge status={p.contributionStatus} />
-                  ) : (p.contributionCount ?? 0) > 0 ? (
-                    <span className="text-xs text-[var(--vaq-muted)]">{p.contributionCount}</span>
-                  ) : (
-                    <span className="text-xs text-[var(--vaq-muted)]">—</span>
-                  )}
+                  <p className="font-medium text-gray-700">{fmtCLP(total)}</p>
                 </td>
-                <td className="py-2 pr-4">
-                  {isOrganizer ? (
+                {isOrganizer && (
+                  <td className="py-2 pr-4">
                     <button
                       type="button"
                       onClick={() => onRemove?.(p.user?._id?.toString())}
@@ -85,10 +85,8 @@ export default function ParticipantList({
                     >
                       {removingId === p.user?._id?.toString() ? 'Eliminando…' : 'Eliminar participante'}
                     </button>
-                  ) : (
-                    <span className="text-xs text-[var(--vaq-muted)]">—</span>
-                  )}
-                </td>
+                  </td>
+                )}
               </tr>
             );
           })}
