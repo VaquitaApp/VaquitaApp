@@ -47,8 +47,9 @@
   --vaq-tone-danger-text: #b91c1c;
   --vaq-tone-closed-bg: rgb(30 63 50 / 0.08);
   --vaq-tone-closed-text: #5c6b63;
-  --vaq-tone-completed-bg: rgb(45 90 71 / 0.15);
-  --vaq-tone-completed-text: #1e3f32;
+  /* Completado: chip verde claro legible (no lavado al 15% del bosque) */
+  --vaq-tone-completed-bg: #a7f3d0;
+  --vaq-tone-completed-text: #065f46;
   --vaq-tone-type-quota-bg: rgb(45 90 71 / 0.12);
   --vaq-tone-type-quota-text: #1e3f32;
   --vaq-tone-type-free-bg: rgb(14 116 144 / 0.12);
@@ -103,8 +104,8 @@
   --vaq-tone-danger-text: #fecaca;
   --vaq-tone-closed-bg: rgb(255 255 255 / 0.08);
   --vaq-tone-closed-text: #9cb0a6;
-  --vaq-tone-completed-bg: rgb(143 188 159 / 0.22);
-  --vaq-tone-completed-text: #d4ebe0;
+  --vaq-tone-completed-bg: rgb(52 211 153 / 0.38);
+  --vaq-tone-completed-text: #d1fae5;
   --vaq-tone-type-quota-bg: rgb(143 188 159 / 0.18);
   --vaq-tone-type-quota-text: #c5e5d0;
   --vaq-tone-type-free-bg: rgb(34 211 238 / 0.15);
