@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import Navbar from './components/layout/Navbar';
 import LoginPage from './pages/LoginPage';
@@ -18,9 +19,9 @@ import JoinRequestResponsePage from './pages/JoinRequestResponsePage';
 
 function Layout({ children }) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--vaq-bg-page)] text-[var(--vaq-ink)]">
       <Navbar />
-      <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
     </div>
   );
 }
@@ -31,9 +32,10 @@ function Protected({ children }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
           <Route path="/login"             element={<LoginPage />} />
           <Route path="/register"          element={<RegisterPage />} />
           <Route path="/fondos"            element={<Protected><FundsPage /></Protected>} />
@@ -48,8 +50,9 @@ export default function App() {
           <Route path="/confirmar-eliminacion/:token" element={<ConfirmDeletePage />} />
           <Route path="/solicitudes-union/:token"    element={<JoinRequestResponsePage />} />
           <Route path="*"                  element={<Navigate to="/fondos" replace />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }

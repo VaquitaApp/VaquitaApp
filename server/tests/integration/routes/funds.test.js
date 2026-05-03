@@ -230,22 +230,7 @@ describe('GET /api/funds', () => {
   });
 });
 
-describe('GET /api/funds/public', () => {
-  test('returns only public active funds', async () => {
-    const u1 = await createUser({ email: 'usuario1@prueba.cl' });
-    const u2 = await createUser({ email: 'usuario2@prueba.cl' });
-    await createFund({ organizer: u1._id, visibility: 'public',  status: 'active'    });
-    await createFund({ organizer: u1._id, visibility: 'private', status: 'active'    });
-    await createFund({ organizer: u1._id, visibility: 'public',  status: 'closed'    });
-
-    const res = await request(app)
-      .get('/api/funds/public')
-      .set(await authHeader(u2));
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].visibility).toBe('public');
-  });
-});
+// GET /api/funds/public — suite dedicada HU13: tests/integration/HU13/hu13-directorio-publico.test.js
 
 describe('GET /api/funds/:id', () => {
   test('200 for organizer', async () => {

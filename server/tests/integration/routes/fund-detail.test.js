@@ -488,9 +488,10 @@ describe('CA3 (ext.) — Monto minimo en informacion del fondo', () => {
   });
 
   test('GET /api/funds/public incluye minAmount en fondos publicos con monto minimo', async () => {
-    const user = await createUser();
+    const org = await createUser({ email: 'ca3-min-org@prueba.cl' });
+    const viewer = await createUser({ email: 'ca3-min-view@prueba.cl' });
     await createFund({
-      organizer: user._id,
+      organizer: org._id,
       type: 'free',
       minAmount: 15000,
       visibility: 'public',
@@ -499,7 +500,7 @@ describe('CA3 (ext.) — Monto minimo en informacion del fondo', () => {
 
     const res = await request(app)
       .get('/api/funds/public')
-      .set(await authHeader(user));
+      .set(await authHeader(viewer));
 
     expect(res.status).toBe(200);
     const fund = res.body.find(f => f.minAmount === 15000);
@@ -539,8 +540,9 @@ describe('CA4 (ext.) — Conteo de participantes incluye al organizador', () => 
   });
 
   test('GET /api/funds/public retorna participantCount incluyendo al organizador', async () => {
-    const org = await createUser({ email: 'organizador@prueba.cl' });
-    const part = await createUser({ email: 'participante@prueba.cl' });
+    const org = await createUser({ email: 'ca4-pc-org@prueba.cl' });
+    const part = await createUser({ email: 'ca4-pc-part@prueba.cl' });
+    const viewer = await createUser({ email: 'ca4-pc-view@prueba.cl' });
     await createFund({
       organizer: org._id,
       participants: [{ user: part._id, status: 'accepted' }],
@@ -550,7 +552,7 @@ describe('CA4 (ext.) — Conteo de participantes incluye al organizador', () => 
 
     const res = await request(app)
       .get('/api/funds/public')
-      .set(await authHeader(org));
+      .set(await authHeader(viewer));
 
     expect(res.status).toBe(200);
     expect(res.body[0].participantCount).toBe(2);

@@ -56,7 +56,7 @@ export default function FundDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <p className="text-sm text-gray-400">Cargando…</p>;
+  if (loading) return <p className="text-sm text-[var(--vaq-muted)]">Cargando…</p>;
   if (error) return <p className="text-sm text-red-500">{error}</p>;
   if (!fund) return null;
 
@@ -153,7 +153,7 @@ export default function FundDetailPage() {
     setAccessMsg('');
     try {
       await requestFundAccess(id);
-      setAccessMsg('Te enviamos la solicitud al organizador por correo.');
+      setAccessMsg('Hemos enviado la solicitud al organizador via correo.');
     } catch (err) {
       setAccessMsg(err.response?.data?.error ?? 'No se pudo enviar la solicitud');
     } finally {
@@ -178,17 +178,19 @@ export default function FundDetailPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
-        <Link to="/fondos" className="text-gray-400 hover:text-gray-600 text-sm">← Mis fondos</Link>
+        <Link to="/fondos" className="text-sm text-[var(--vaq-muted)] transition-colors hover:text-[var(--vaq-ink)]">
+          ← Mis fondos
+        </Link>
       </div>
 
       {/* Banners de estado */}
       {fund.status === 'completed' && (
-        <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm rounded-lg px-4 py-3 mb-4">
+        <div className="mb-4 rounded-lg border border-[var(--vaq-callout-info-border)] bg-[var(--vaq-callout-info-bg)] px-4 py-3 text-sm text-[var(--vaq-callout-info-text)]">
           Este fondo ha sido completado. Los fondos fueron transferidos al destinatario.
         </div>
       )}
       {fund.status === 'closed' && (
-        <div className="bg-gray-50 border border-gray-200 text-gray-600 text-sm rounded-lg px-4 py-3 mb-4">
+        <div className="mb-4 rounded-lg border border-[var(--vaq-callout-neutral-border)] bg-[var(--vaq-callout-neutral-bg)] px-4 py-3 text-sm text-[var(--vaq-callout-neutral-text)]">
           Este fondo fue cerrado por el organizador.
         </div>
       )}
@@ -199,21 +201,21 @@ export default function FundDetailPage() {
       )}
 
       {/* Resumen del fondo */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
+      <div className="vaq-card p-6 mb-4">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">{fund.name}</h1>
-            <p className="text-sm text-gray-400 mt-0.5">Organizado por {fmtName(fund.organizer?.name)}</p>
+            <h1 className="text-xl font-bold text-[var(--vaq-ink)]">{fund.name}</h1>
+            <p className="mt-0.5 text-sm text-[var(--vaq-muted)]">Organizado por {fmtName(fund.organizer?.name)}</p>
           </div>
           <StatusBadge status={fund.status} />
         </div>
 
         {fund.description && (
-          <p className="text-sm text-gray-600 mt-2">{fund.description}</p>
+          <p className="mt-2 text-sm text-[var(--vaq-muted)]">{fund.description}</p>
         )}
         {fund.goal && (
-          <p className="text-xs text-gray-400 mt-1">
-            <span className="font-medium text-gray-500">Objetivo: </span>{fund.goal}
+          <p className="mt-1 text-xs text-[var(--vaq-muted)]">
+            <span className="font-medium text-[var(--vaq-ink)]">Objetivo: </span>{fund.goal}
           </p>
         )}
 
@@ -221,39 +223,39 @@ export default function FundDetailPage() {
           <ProgressBar value={collectedAmount} max={fund.targetAmount} />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mt-5 text-sm text-gray-600">
+        <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-[var(--vaq-muted)]">
           <div>
-            <span className="text-xs text-gray-400 block mb-0.5">Fecha límite</span>
+            <span className="mb-0.5 block text-xs text-[var(--vaq-muted)]">Fecha límite</span>
             {fmtDate(fund.deadline)}
           </div>
           <div>
-            <span className="text-xs text-gray-400 block mb-0.5">Tipo</span>
+            <span className="text-xs text-[var(--vaq-muted)] block mb-0.5">Tipo</span>
             {fund.type === 'quota'
               ? `Por cuotas (${fund.quotaAmount?.toLocaleString('es-CL')} CLP, ${FREQ_LABELS[fund.frequency] ?? 'Única vez'})`
               : 'Libre'}
           </div>
           <div>
-            <span className="text-xs text-gray-400 block mb-0.5">Participantes</span>
+            <span className="text-xs text-[var(--vaq-muted)] block mb-0.5">Participantes</span>
             {accepted.length + 1}
           </div>
           <div>
-            <span className="text-xs text-gray-400 block mb-0.5">Visibilidad</span>
+            <span className="text-xs text-[var(--vaq-muted)] block mb-0.5">Visibilidad</span>
             {fund.visibility === 'public' ? 'Público' : 'Privado'}
           </div>
           {fund.type === 'free' && fund.minAmount > 0 && (
             <div>
-              <span className="text-xs text-gray-400 block mb-0.5">Monto mínimo</span>
+              <span className="text-xs text-[var(--vaq-muted)] block mb-0.5">Monto mínimo</span>
               {fund.minAmount.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}
             </div>
           )}
           {isOrganizer && fund.recipientAccount && (
             <div className="col-span-2">
-              <span className="text-xs text-gray-400 block mb-0.5">Cuenta destinataria</span>
-              <p className="text-sm text-gray-800 font-medium">{fund.recipientAccount.bank}</p>
-              <p className="text-xs text-gray-500">
+              <span className="text-xs text-[var(--vaq-muted)] block mb-0.5">Cuenta destinataria</span>
+              <p className="text-sm font-medium text-[var(--vaq-ink)]">{fund.recipientAccount.bank}</p>
+              <p className="text-xs text-[var(--vaq-muted)]">
                 {ACCOUNT_TYPE_LABELS[fund.recipientAccount.accountType]}
               </p>
-              <p className="text-xs text-gray-500">{fund.recipientAccount.accountNumber}</p>
+              <p className="text-xs text-[var(--vaq-muted)]">{fund.recipientAccount.accountNumber}</p>
             </div>
           )}
         </div>
@@ -280,13 +282,13 @@ export default function FundDetailPage() {
       )}
 
       {/* Participantes */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
+      <div className="vaq-card p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-gray-800 text-sm">Participantes</h2>
+          <h2 className="text-sm font-semibold text-[var(--vaq-ink)]">Participantes</h2>
           {isOrganizer && fund.status === 'active' && (
             <button
               onClick={() => setShowInvite(true)}
-              className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md transition-colors"
+              className="vaq-btn-primary rounded-md px-3 py-1.5 text-xs transition-opacity hover:opacity-95"
             >
               + Invitar
             </button>
@@ -305,26 +307,26 @@ export default function FundDetailPage() {
 
       {/* Resumen de estado de participantes */}
       {accepted.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-6 py-3 mb-4 text-sm text-gray-600">
+        <div className="vaq-card px-6 py-3 mb-4 text-sm text-[var(--vaq-muted)]">
           {`${onTimeCount} de ${accepted.length + 1} participante${accepted.length + 1 !== 1 ? 's' : ''} al día`}
         </div>
       )}
 
       {/* Historial de aportes */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
+      <div className="vaq-card p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-gray-800 text-sm">Historial de aportes</h2>
+          <h2 className="text-sm font-semibold text-[var(--vaq-ink)]">Historial de aportes</h2>
           {isMember && fund.status === 'active' && !showContribForm && (
             <button
               onClick={() => setShowContribForm(true)}
-              className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md transition-colors"
+              className="vaq-btn-primary rounded-md px-3 py-1.5 text-xs transition-opacity hover:opacity-95"
             >
               + Realizar aporte
             </button>
           )}
         </div>
         {showContribForm && (
-          <div className="mb-4 p-4 border border-gray-200 rounded-lg">
+          <div className="mb-4 rounded-lg border border-[var(--vaq-card-border)] p-4">
             <ContributionForm
               fundId={id}
               fund={fund}
@@ -347,7 +349,7 @@ export default function FundDetailPage() {
         <ContributionList contributions={contributions} />
         {contributions.length > 0 && (
           <div className="mt-5">
-            <p className="text-xs text-gray-400 mb-2">Aportes en el tiempo</p>
+            <p className="mb-2 text-xs text-[var(--vaq-muted)]">Aportes en el tiempo</p>
             <FundChart contributions={contributions} deadline={fund.deadline} />
           </div>
         )}
@@ -357,14 +359,14 @@ export default function FundDetailPage() {
       <div className="flex flex-wrap gap-3 mb-4">
         <button
           onClick={handleCopyLink}
-          className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          className="vaq-btn-secondary rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--vaq-ring)]"
         >
           Copiar enlace
         </button>
         {(isOrganizer || isMember) && (
           <button
             onClick={handleDownloadCSV}
-            className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="vaq-btn-secondary rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--vaq-ring)]"
           >
             Descargar CSV
           </button>
@@ -379,12 +381,12 @@ export default function FundDetailPage() {
       />
 
       {isPendingInvitee && fund.status === 'active' && (
-        <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm rounded-lg px-4 py-3 mb-4">
+        <div className="mb-4 rounded-lg border border-[var(--vaq-callout-info-border)] bg-[var(--vaq-callout-info-bg)] px-4 py-3 text-sm text-[var(--vaq-callout-info-text)]">
           <p className="mb-2 font-medium">Tienes una invitación pendiente para unirte a este fondo.</p>
           <button
             onClick={handleAcceptInvitation}
             disabled={acceptingInvite}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-1.5 rounded-md transition-colors disabled:opacity-50"
+            className="vaq-btn-primary rounded-md px-4 py-1.5 text-sm transition-opacity disabled:opacity-50"
           >
             {acceptingInvite ? 'Aceptando…' : 'Aceptar invitación'}
           </button>
@@ -392,7 +394,7 @@ export default function FundDetailPage() {
       )}
 
       {!isMember && fund.visibility === 'public' && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-lg px-4 py-3 mb-4 space-y-2">
+        <div className="mb-4 space-y-2 rounded-lg border border-[var(--vaq-callout-info-border)] bg-[var(--vaq-callout-info-bg)] px-4 py-3 text-sm text-[var(--vaq-callout-info-text)]">
           {canRequestPublicAccess ? (
             <>
               <p>¿Quieres participar en este fondo público? El organizador recibirá un correo para aceptar o rechazar tu solicitud.</p>
@@ -400,11 +402,11 @@ export default function FundDetailPage() {
                 type="button"
                 onClick={handleRequestAccess}
                 disabled={accessLoading}
-                className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md disabled:opacity-50"
+                className="vaq-btn-primary rounded-md px-3 py-1.5 text-xs transition-opacity disabled:opacity-50"
               >
                 {accessLoading ? 'Enviando…' : 'Solicitar acceso'}
               </button>
-              {accessMsg && <p className="text-xs text-blue-800">{accessMsg}</p>}
+              {accessMsg && <p className="text-xs text-[var(--vaq-callout-info-text)] opacity-90">{accessMsg}</p>}
             </>
           ) : (
             <p>
@@ -419,7 +421,7 @@ export default function FundDetailPage() {
       {(fund.status === 'active' || fund.status === 'paused') && (
         <div className="flex flex-wrap gap-3">
           {reminderMsg && (
-            <p className="w-full text-xs text-green-700 bg-green-50 border border-green-200 rounded px-3 py-1.5 mb-1">
+            <p className="mb-1 w-full rounded border border-[var(--vaq-tone-success-text)]/25 bg-[var(--vaq-tone-success-bg)] px-3 py-1.5 text-xs text-[var(--vaq-tone-success-text)]">
               {reminderMsg}
             </p>
           )}
@@ -436,7 +438,7 @@ export default function FundDetailPage() {
                       setReminderMsg('Error al enviar alertas');
                     }
                   }}
-                  className="bg-white border border-red-200 hover:border-red-400 text-red-600 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  className="vaq-btn-secondary rounded-lg border-[var(--vaq-danger)]/35 px-4 py-2 text-sm font-medium text-[var(--vaq-danger)] transition-colors hover:border-[var(--vaq-danger)]"
                 >
                   Alertar morosos
                 </button>
@@ -444,7 +446,7 @@ export default function FundDetailPage() {
               {fund.status === 'active' && (
                 <Link
                   to={`/fondos/${id}/editar`}
-                  className="bg-white border border-gray-300 hover:border-indigo-400 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  className="vaq-btn-secondary inline-flex rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--vaq-ring)]"
                 >
                   Editar fondo
                 </Link>
@@ -452,7 +454,7 @@ export default function FundDetailPage() {
               {fund.status === 'active' && collectedAmount > 0 && (
                 <button
                   onClick={() => setShowPayment(true)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  className="vaq-btn-primary rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-95"
                 >
                   Pagar al destinatario
                 </button>
@@ -461,7 +463,7 @@ export default function FundDetailPage() {
                 <button
                   onClick={() => setConfirmAction('close')}
                   disabled={actionLoading}
-                  className="bg-white border border-amber-300 hover:border-amber-400 text-amber-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                  className="vaq-btn-secondary rounded-lg border-[var(--vaq-amber)]/50 px-4 py-2 text-sm font-medium text-[var(--vaq-amber)] transition-colors hover:border-[var(--vaq-amber)] disabled:opacity-50"
                 >
                   Cerrar fondo
                 </button>
@@ -470,7 +472,7 @@ export default function FundDetailPage() {
                 <button
                   onClick={() => setConfirmAction('delete')}
                   disabled={actionLoading}
-                  className="bg-white border border-red-200 hover:border-red-400 text-red-600 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                  className="vaq-btn-secondary rounded-lg border-[var(--vaq-danger)]/35 px-4 py-2 text-sm font-medium text-[var(--vaq-danger)] transition-colors hover:border-[var(--vaq-danger)] disabled:opacity-50"
                 >
                   Eliminar fondo
                 </button>
@@ -479,7 +481,7 @@ export default function FundDetailPage() {
                 <button
                   onClick={() => runFundAction(() => pauseFund(id), 'Error al pausar')}
                   disabled={actionLoading}
-                  className="bg-white border border-yellow-300 hover:border-yellow-400 text-yellow-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                  className="vaq-btn-secondary rounded-lg border-[var(--vaq-tone-warning-text)]/40 px-4 py-2 text-sm font-medium text-[var(--vaq-tone-warning-text)] transition-colors hover:border-[var(--vaq-tone-warning-text)] disabled:opacity-50"
                 >
                   Pausar fondo
                 </button>
@@ -488,7 +490,7 @@ export default function FundDetailPage() {
                 <button
                   onClick={() => runFundAction(() => resumeFund(id), 'Error al reanudar')}
                   disabled={actionLoading}
-                  className="bg-white border border-green-300 hover:border-green-400 text-green-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                  className="vaq-btn-secondary rounded-lg border-[var(--vaq-tone-success-text)]/40 px-4 py-2 text-sm font-medium text-[var(--vaq-tone-success-text)] transition-colors hover:border-[var(--vaq-tone-success-text)] disabled:opacity-50"
                 >
                   Reanudar fondo
                 </button>

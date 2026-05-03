@@ -1,9 +1,39 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Fund = require('../models/Fund');
 const User = require('../models/User');
 const { sendAccessRequestDecisionToUser } = require('../services/emailService');
 
 const router = express.Router();
+
+function sendDecisionEmailOnce(requester, fundName, accepted) {
+  sendAccessRequestDecisionToUser({
+    to: requester.email,
+    name: requester.name,
+    fundName,
+    accepted,
+  }).catch(() => {});
+}
+
+/** Respuesta idempotente si otro request ya persistió la misma acción (p. ej. doble POST concurrente). */
+async function respondIdempotentAfterVersionError(fundId, accessRequestSubId, accepted) {
+  const fresh = await Fund.findById(fundId);
+  if (!fresh) return null;
+  const arFresh = accessRequestSubId ? fresh.accessRequests.id(accessRequestSubId) : null;
+  if (accepted && arFresh?.status === 'accepted') {
+    return {
+      message: 'Solicitud aceptada',
+      fund: { name: fresh.name },
+    };
+  }
+  if (!accepted && arFresh?.status === 'rejected') {
+    return {
+      message: 'Solicitud rechazada',
+      fund: { name: fresh.name },
+    };
+  }
+  return null;
+}
 
 async function respond(req, res, accepted) {
   try {
@@ -24,6 +54,7 @@ async function respond(req, res, accepted) {
       return res.status(404).json({ error: 'La solicitud es inválida o ya no está disponible.' });
     }
 
+    const accessRequestSubId = reqDoc._id;
     const requester = await User.findById(reqDoc.user).select('name email').lean();
     if (!requester) {
       return res.status(404).json({ error: 'La solicitud es inválida o ya no está disponible.' });
@@ -56,14 +87,23 @@ async function respond(req, res, accepted) {
       reqDoc.token = undefined;
     }
 
-    await fund.save();
+    try {
+      await fund.save();
+    } catch (saveErr) {
+      if (saveErr instanceof mongoose.Error.VersionError) {
+        const recovered = await respondIdempotentAfterVersionError(
+          fund._id,
+          accessRequestSubId,
+          accepted,
+        );
+        if (recovered) {
+          return res.json(recovered);
+        }
+      }
+      throw saveErr;
+    }
 
-    sendAccessRequestDecisionToUser({
-      to: requester.email,
-      name: requester.name,
-      fundName: fund.name,
-      accepted,
-    }).catch(() => {});
+    sendDecisionEmailOnce(requester, fund.name, accepted);
 
     res.json({
       message: accepted ? 'Solicitud aceptada' : 'Solicitud rechazada',
