@@ -33,6 +33,14 @@ router.patch('/profile', auth, async (req, res) => {
     const { name, preferredAccount } = req.body;
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    // Validación para el CA7: Número de cuenta solo acepta dígitos
+    if (preferredAccount && preferredAccount.accountNumber) {
+      if (!/^\d+$/.test(preferredAccount.accountNumber)) {
+        return res.status(400).json({ error: 'El número de cuenta solo debe contener dígitos' });
+      }
+    }
+
     if (name)             user.name             = name.trim();
     if (preferredAccount) user.preferredAccount = preferredAccount;
     await user.save();
