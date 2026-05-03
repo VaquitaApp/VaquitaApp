@@ -26,6 +26,19 @@ export default function FundCard({ fund }) {
         </div>
         <StatusBadge status={fund.status} />
       </div>
+      {fund.goal ? (
+        <p className="text-xs text-gray-600 line-clamp-2 mb-2" title={fund.goal}>
+          <span className="font-medium text-gray-500">Objetivo: </span>
+          {fund.goal}
+        </p>
+      ) : null}
+      <p className="text-xs text-gray-600 mb-2">
+        <span className="text-gray-500">Recaudado: </span>
+        {fmtCLP(fund.collectedAmount ?? 0)}
+        <span className="text-gray-400 mx-1">·</span>
+        <span className="text-gray-500">Meta: </span>
+        {fmtCLP(fund.targetAmount)}
+      </p>
       <ProgressBar value={fund.collectedAmount ?? 0} max={fund.targetAmount} />
       <div className="flex items-center justify-between mt-3">
         <div className="flex items-center gap-2">

@@ -72,9 +72,19 @@ function isMember(fund, userId) {
 // GET /api/funds/public — debe definirse antes de /:id
 router.get('/public', auth, async (req, res) => {
   try {
-    const { q, sort } = req.query;
-    const query = { visibility: 'public', status: 'active' };
+    const { q, sort, type: fundType, status: statusParam } = req.query;
+    const userId = req.user._id;
+
+    const statusFilter = statusParam === 'paused' ? 'paused' : 'active';
+
+    const query = {
+      visibility: 'public',
+      status: statusFilter,
+      organizer: { $ne: userId },
+      participants: { $not: { $elemMatch: { user: userId, status: 'accepted' } } },
+    };
     if (q) query.name = { $regex: q, $options: 'i' };
+    if (fundType === 'quota' || fundType === 'free') query.type = fundType;
 
     const sortObj = sort === 'deadline_desc' ? { deadline: -1 } : { deadline: 1 };
     const funds = await Fund.find(query)

@@ -245,6 +245,78 @@ describe('GET /api/funds/public', () => {
     expect(res.body).toHaveLength(1);
     expect(res.body[0].visibility).toBe('public');
   });
+
+  test('excludes funds where the user is the organizer', async () => {
+    const org = await createUser({ email: 'org@prueba.cl' });
+    await createFund({ organizer: org._id, visibility: 'public', status: 'active', name: 'Mi fondo público' });
+
+    const res = await request(app)
+      .get('/api/funds/public')
+      .set(await authHeader(org));
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(0);
+  });
+
+  test('excludes funds where the user is an accepted participant', async () => {
+    const org = await createUser({ email: 'org2@prueba.cl' });
+    const member = await createUser({ email: 'member@prueba.cl' });
+    await createFund({
+      organizer: org._id,
+      visibility: 'public',
+      status: 'active',
+      name: 'Fondo común',
+      participants: [{ user: member._id, status: 'accepted' }],
+    });
+
+    const res = await request(app)
+      .get('/api/funds/public')
+      .set(await authHeader(member));
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(0);
+  });
+
+  test('filters by type=quota', async () => {
+    const org = await createUser({ email: 'org3@prueba.cl' });
+    const viewer = await createUser({ email: 'viewer@prueba.cl' });
+    const deadline = new Date(Date.now() + 86400000 * 30);
+    await createFund({
+      organizer: org._id,
+      visibility: 'public',
+      status: 'active',
+      name: 'Libre',
+      type: 'free',
+    });
+    await createFund({
+      organizer: org._id,
+      visibility: 'public',
+      status: 'active',
+      name: 'Cuotas',
+      type: 'quota',
+      quotaAmount: 10000,
+      frequency: 'monthly',
+      deadline,
+    });
+
+    const res = await request(app)
+      .get('/api/funds/public?type=quota')
+      .set(await authHeader(viewer));
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].type).toBe('quota');
+  });
+
+  test('returns public paused funds when status=paused', async () => {
+    const org = await createUser({ email: 'org4@prueba.cl' });
+    const viewer = await createUser({ email: 'viewer2@prueba.cl' });
+    await createFund({ organizer: org._id, visibility: 'public', status: 'paused', name: 'En pausa' });
+
+    const res = await request(app)
+      .get('/api/funds/public?status=paused')
+      .set(await authHeader(viewer));
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].status).toBe('paused');
+  });
 });
 
 describe('GET /api/funds/:id', () => {

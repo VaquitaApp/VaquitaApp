@@ -60,6 +60,20 @@ describe('POST /api/fund-access/:token/accept and reject', () => {
     expect(again.status).toBe(404);
   });
 
+  it('concurrent accept returns 200 for both (idempotent; no VersionError to client)', async () => {
+    const [a, b] = await Promise.all([
+      request(app).post(`/api/fund-access/${reqToken}/accept`),
+      request(app).post(`/api/fund-access/${reqToken}/accept`),
+    ]);
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    const f = await Fund.findById(fund._id).lean();
+    const accepted = f.participants.filter(
+      p => p.status === 'accepted' && p.user.toString() === requester._id.toString(),
+    );
+    expect(accepted).toHaveLength(1);
+  });
+
   it('reject does not add participant', async () => {
     const res = await request(app).post(`/api/fund-access/${reqToken}/reject`);
     expect(res.status).toBe(200);

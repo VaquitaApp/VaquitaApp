@@ -14,26 +14,22 @@ export default function FundAccessResponsePage() {
     if (action !== 'accept' && action !== 'reject') {
       setStatus('error');
       setError('Acción no válida');
-      return;
+      return undefined;
     }
-    let ignore = false;
+
     const fn = action === 'accept' ? acceptAccessRequest : rejectAccessRequest;
     fn(token)
       .then(res => {
-        if (!ignore) {
-          setFund(res.data.fund);
-          setStatus(action);
-        }
+        setFund(res.data.fund);
+        setStatus(action);
       })
       .catch(err => {
-        if (!ignore) {
-          setError(err.response?.data?.error ?? 'Error al procesar la solicitud');
-          setStatus('error');
-        }
+        setError(err.response?.data?.error ?? 'Error al procesar la solicitud');
+        setStatus('error');
       });
-    return () => {
-      ignore = true;
-    };
+
+    // Sin cleanup que ignore la promesa: en React StrictMode el efecto corre dos veces y ambas
+    // peticiones deben poder actualizar el estado; el servidor trata VersionError de forma idempotente.
   }, [token, action]);
 
   return (

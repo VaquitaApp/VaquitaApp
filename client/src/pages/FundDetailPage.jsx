@@ -153,7 +153,7 @@ export default function FundDetailPage() {
     setAccessMsg('');
     try {
       await requestFundAccess(id);
-      setAccessMsg('Te enviamos la solicitud al organizador por correo.');
+      setAccessMsg('Hemos enviado la solicitud al organizador via correo.');
     } catch (err) {
       setAccessMsg(err.response?.data?.error ?? 'No se pudo enviar la solicitud');
     } finally {
