@@ -67,15 +67,11 @@ Este componente se usa también en “Mis fondos”; los campos añadidos son co
 
 ## 4. Pruebas automatizadas
 
-**Archivo:** `server/tests/integration/routes/funds.test.js`
+**Suite HU13:** `server/tests/integration/HU13/hu13-directorio-publico.test.js` (identificadores **TC-HU13-xxx**).
 
-En el bloque `GET /api/funds/public` se añadieron casos que verifican:
+Evidencia con tabla (entrada, esperado, obtenido, éxito, fecha): [pruebas-hu13-directorio-publico.md](./pruebas-hu13-directorio-publico.md).
 
-1. Respuesta solo con fondos públicos activos (caso existente, conservado).
-2. El organizador no ve su propio fondo público en el directorio.
-3. Un participante aceptado no ve ese fondo en el directorio.
-4. Filtro `type=quota`.
-5. Filtro `status=paused` para fondos públicos en pausa.
+Los casos cubren autenticación, visibilidad/estado, exclusión de organizador y participante aceptado, participante pendiente, búsqueda `q`, filtros `type` y `status`, forma de respuesta para la tarjeta, orden `sort` y acceso al detalle público vía `GET /api/funds/:id`.
 
 ---
 
