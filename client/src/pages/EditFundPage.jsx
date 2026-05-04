@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getFund, updateFund } from '../api/funds';
 import FundForm from '../components/funds/FundForm';
 
-const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'type', 'visibility'];
+const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'type', 'expectedParticipants'];
 
 export default function EditFundPage() {
   const { id } = useParams();
@@ -21,10 +21,27 @@ export default function EditFundPage() {
   }, [id]);
 
   async function handleSubmit(data) {
+    const payload = { ...data };
+    for (const f of locked) delete payload[f];
+
+    const hasChanges = Object.keys(payload).some(key => {
+      const oldVal = fund[key];
+      const newVal = payload[key];
+      if (typeof newVal === 'object' && newVal !== null) {
+        return JSON.stringify(newVal) !== JSON.stringify(oldVal);
+      }
+      return String(newVal ?? '') !== String(oldVal ?? '');
+    });
+
+    if (!hasChanges) {
+      navigate(`/fondos/${id}`);
+      return;
+    }
+
     setSaving(true);
     setError('');
     try {
-      await updateFund(id, data);
+      await updateFund(id, payload);
       navigate(`/fondos/${id}`);
     } catch (err) {
       setError(err.response?.data?.error ?? 'Error al guardar');
@@ -32,24 +49,26 @@ export default function EditFundPage() {
     }
   }
 
-  if (loadingFund) return <p className="text-sm text-gray-400">Cargando…</p>;
-  if (!fund) return <p className="text-sm text-red-500">{error || 'Fondo no encontrado'}</p>;
+  if (loadingFund) return <p className="text-sm text-[var(--vaq-muted)]">Cargando…</p>;
+  if (!fund) return <p className="text-sm text-[var(--vaq-danger)]">{error || 'Fondo no encontrado'}</p>;
 
   const locked = (fund.collectedAmount ?? 0) > 0 ? LOCKED_FIELDS : [];
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="mx-auto max-w-lg">
       <div className="mb-6">
-        <Link to={`/fondos/${id}`} className="text-gray-400 hover:text-gray-600 text-sm">← Volver al fondo</Link>
+        <Link to={`/fondos/${id}`} className="text-sm text-[var(--vaq-muted)] transition-colors hover:text-[var(--vaq-ink)]">
+          ← Volver al fondo
+        </Link>
       </div>
-      <h1 className="text-xl font-bold text-gray-800 mb-2">Editar fondo</h1>
+      <h1 className="mb-2 text-xl font-bold text-[var(--vaq-ink)]">Editar fondo</h1>
       {(fund.collectedAmount ?? 0) > 0 && (
-        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+        <p className="mb-4 rounded-lg border border-[var(--vaq-tone-warning-text)]/25 bg-[var(--vaq-tone-warning-bg)] px-3 py-2 text-xs text-[var(--vaq-tone-warning-text)]">
           Algunos campos están bloqueados porque ya existen aportes registrados.
         </p>
       )}
-      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-      <FundForm initial={fund} lockedFields={locked} onSubmit={handleSubmit} loading={saving} />
+      {error && <p className="mb-4 text-sm text-[var(--vaq-danger)]">{error}</p>}
+      <FundForm initial={fund} lockedFields={locked} onSubmit={handleSubmit} loading={saving} submitLabel="Guardar cambios" />
     </div>
   );
 }

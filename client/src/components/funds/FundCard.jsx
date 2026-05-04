@@ -5,7 +5,7 @@ import { fmtDate, fmtName, fmtCLP } from '../../utils/format';
 
 function totalQuotas(fund) {
   const start = new Date(fund.createdAt);
-  const end   = new Date(fund.deadline);
+  const end = new Date(fund.deadline);
   if (fund.frequency === 'once') return 1;
   if (fund.frequency === 'weekly') {
     return Math.max(1, Math.floor((end - start) / (7 * 24 * 60 * 60 * 1000)) + 1);
@@ -18,28 +18,46 @@ export default function FundCard({ fund }) {
   const isQuota = fund.type === 'quota';
 
   return (
-    <Link to={`/fondos/${fund._id}`} className="flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-3">
+    <Link
+      to={`/fondos/${fund._id}`}
+      className="vaq-card flex flex-col p-5 transition-shadow hover:shadow-md"
+    >
+      <div className="mb-3 flex items-start justify-between">
         <div>
-          <h3 className="font-semibold text-gray-800 text-sm">{fund.name}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">{fmtName(fund.organizer?.name)}</p>
+          <h3 className="text-sm font-semibold text-[var(--vaq-ink)]">{fund.name}</h3>
+          <p className="mt-0.5 text-xs text-[var(--vaq-muted)]">{fmtName(fund.organizer?.name)}</p>
         </div>
         <StatusBadge status={fund.status} />
       </div>
+      {fund.goal ? (
+        <p className="mb-2 line-clamp-2 text-xs text-[var(--vaq-muted)]" title={fund.goal}>
+          <span className="font-medium text-[var(--vaq-ink)]">Objetivo: </span>
+          {fund.goal}
+        </p>
+      ) : null}
+      <p className="mb-2 text-xs text-[var(--vaq-muted)]">
+        <span className="text-[var(--vaq-ink)]">Recaudado: </span>
+        {fmtCLP(fund.collectedAmount ?? 0)}
+        <span className="mx-1 text-[var(--vaq-muted)]">·</span>
+        <span className="text-[var(--vaq-ink)]">Meta: </span>
+        {fmtCLP(fund.targetAmount)}
+      </p>
       <ProgressBar value={fund.collectedAmount ?? 0} max={fund.targetAmount} />
-      <div className="flex items-center justify-between mt-3">
+      <div className="mt-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TypeBadge type={fund.type} />
           {isQuota && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-[var(--vaq-muted)]">
               {totalQuotas(fund)} cuotas de {fmtCLP(fund.quotaAmount)}
             </span>
           )}
         </div>
-        <span className="text-xs text-gray-400">Cierre: {fmtDate(fund.deadline)}</span>
+        <span className="text-xs text-[var(--vaq-muted)]">Cierre: {fmtDate(fund.deadline)}</span>
       </div>
-      <div className="text-xs text-gray-400 mt-auto pt-2 border-t border-gray-50">
-        {fund.participantCount ? `${fund.participantCount} participantes` : 'Sin participantes'}
+      <div className="mt-auto border-t border-[var(--vaq-card-border)] pt-2 text-xs text-[var(--vaq-muted)]">
+        {fund.participantCount
+          ? `${fund.participantCount} participante${fund.participantCount !== 1 ? 's' : ''}`
+          : 'Sin participantes'}
       </div>
     </Link>
   );

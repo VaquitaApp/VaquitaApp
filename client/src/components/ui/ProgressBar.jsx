@@ -7,18 +7,18 @@ export default function ProgressBar({ value, max }) {
 
   return (
     <div className="w-full">
-      <div className="flex justify-between text-xs text-gray-500 mb-1">
+      <div className="mb-1 flex justify-between text-xs text-[var(--vaq-muted)]">
         <span>{fmtCLP(value)}</span>
-        <span className={isOver ? "font-bold text-green-600" : ""}>{actualPct}% de {fmtCLP(max)}</span>
+        <span className={isOver ? 'font-bold text-[var(--vaq-progress-overfill)]' : ''}>
+          {actualPct}% de {fmtCLP(max)}
+        </span>
       </div>
-      <div className="w-full bg-gray-100 rounded-full h-2 relative overflow-hidden">
+      <div className="relative h-2 w-full overflow-hidden rounded-full bg-[var(--vaq-progress-track)]">
         <div
-          className={`h-2 rounded-full transition-all ${isOver ? 'bg-green-500' : 'bg-indigo-500'}`}
+          className={`h-2 rounded-full transition-all ${isOver ? 'bg-[var(--vaq-progress-overfill)]' : 'bg-[var(--vaq-progress-fill)]'}`}
           style={{ width: `${barWidth}%` }}
         />
-        {isOver && (
-          <div className="absolute inset-0 bg-white/20 animate-pulse" />
-        )}
+        {isOver && <div className="absolute inset-0 animate-pulse bg-[var(--vaq-card)]/25" />}
       </div>
     </div>
   );

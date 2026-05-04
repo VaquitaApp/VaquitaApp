@@ -4,20 +4,42 @@ const Contribution = require('../models/Contribution');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { processPayment } = require('../services/paymentService');
-const { sendEmail, sendStatusChangeEmail } = require('../services/emailService');
+const { totalPeriods, pendingQuotas } = require('../services/quotaService');
+const { sendStatusChangeEmail, sendFundEditedEmail, sendMoraReminderEmail, sendFundDeletedEmail } = require('../services/emailService');
 
 const router = express.Router();
 
-// Locked fields once contributions exist
-const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'type', 'visibility'];
+// Campos bloqueados una vez que existen aportes
+const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'minAmount', 'type'];
 
-function isDeadlineValid(deadline) {
-  const today = new Date().toISOString().slice(0, 10);
-  const dl    = new Date(deadline).toISOString().slice(0, 10);
-  return dl > today;
+const FREQ_MIN_DAYS = { weekly: 7, biweekly: 14, monthly: 30 };
+const FREQ_LABELS   = { weekly: 'semanal', biweekly: 'quincenal', monthly: 'mensual' };
+
+function isFrequencyFeasible(frequency, deadline) {
+  const minDays = FREQ_MIN_DAYS[frequency];
+  if (!minDays) return true;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const dlStr    = new Date(deadline).toISOString().slice(0, 10);
+  return (new Date(dlStr) - new Date(todayStr)) / 86400000 >= minDays;
 }
 
-// Helper: compute collectedAmount for a fund
+function isDeadlineValid(deadline) {
+  const today = new Date();
+  const dl = new Date(deadline);
+  
+  const todayStr = today.toISOString().slice(0, 10);
+  const dlStr = dl.toISOString().slice(0, 10);
+  
+  if (dlStr <= todayStr) return false;
+  
+  const oneYearFromNow = new Date(today);
+  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+  const maxStr = oneYearFromNow.toISOString().slice(0, 10);
+  
+  return dlStr <= maxStr;
+}
+
+// Calcula el total recaudado para un fondo
 async function getCollectedAmount(fundId) {
   const result = await Contribution.aggregate([
     { $match: { fund: fundId, status: 'succeeded' } },
@@ -26,20 +48,43 @@ async function getCollectedAmount(fundId) {
   return result[0]?.total ?? 0;
 }
 
-// Helper: check if caller is organizer or accepted participant
+// Cierra automáticamente un fondo activo sin aportes cuya fecha límite ya venció
+async function autoExpireFund(fund) {
+  if (fund.status !== 'active') return;
+  const deadlineStr = new Date(fund.deadline).toISOString().slice(0, 10);
+  const todayStr    = new Date().toISOString().slice(0, 10);
+  if (deadlineStr >= todayStr) return;
+  const hasContribs = await Contribution.countDocuments({ fund: fund._id, status: 'succeeded' }) > 0;
+  if (!hasContribs) {
+    fund.status = 'closed';
+    await fund.save();
+  }
+}
+
+// Verifica si el usuario es organizador o participante aceptado (funciona antes y después del populate)
 function isMember(fund, userId) {
   if (fund.organizer._id?.equals(userId) || fund.organizer.equals?.(userId)) return true;
   return fund.participants.some(
-    p => p.user.equals(userId) && p.status === 'accepted'
+    p => (p.user?._id?.equals(userId) || p.user?.equals?.(userId)) && p.status === 'accepted'
   );
 }
 
-// GET /api/funds/public — must be before /:id
+// GET /api/funds/public — debe definirse antes de /:id
 router.get('/public', auth, async (req, res) => {
   try {
-    const { q, sort } = req.query;
-    const query = { visibility: 'public', status: 'active' };
+    const { q, sort, type: fundType, status: statusParam } = req.query;
+    const userId = req.user._id;
+
+    const statusFilter = statusParam === 'paused' ? 'paused' : 'active';
+
+    const query = {
+      visibility: 'public',
+      status: statusFilter,
+      organizer: { $ne: userId },
+      participants: { $not: { $elemMatch: { user: userId, status: 'accepted' } } },
+    };
     if (q) query.name = { $regex: q, $options: 'i' };
+    if (fundType === 'quota' || fundType === 'free') query.type = fundType;
 
     const sortObj = sort === 'deadline_desc' ? { deadline: -1 } : { deadline: 1 };
     const funds = await Fund.find(query)
@@ -53,7 +98,7 @@ router.get('/public', auth, async (req, res) => {
         .map(async f => ({
           ...f,
           collectedAmount: await getCollectedAmount(f._id),
-          participantCount: f.participants.filter(p => p.status === 'accepted').length,
+          participantCount: f.participants.filter(p => p.status === 'accepted').length + 1,
         }))
     );
 
@@ -87,7 +132,7 @@ router.get('/', auth, async (req, res) => {
     const withAmounts = await Promise.all(funds.map(async f => ({
       ...f,
       collectedAmount: await getCollectedAmount(f._id),
-      participantCount: f.participants.filter(p => p.status === 'accepted').length,
+      participantCount: f.participants.filter(p => p.status === 'accepted').length + 1,
     })));
 
     res.json(withAmounts);
@@ -100,18 +145,40 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { name, description, goal, type, targetAmount, quotaAmount,
-            frequency, deadline, recipientAccount, visibility } = req.body;
+            frequency, deadline, recipientAccount, visibility, coverImage,
+            minAmount, expectedParticipants } = req.body;
 
     if (deadline && !isDeadlineValid(deadline)) {
-      return res.status(400).json({ error: 'La fecha límite debe ser al menos mañana.' });
+      return res.status(400).json({ error: 'La fecha límite no puede estar en el pasado y debe ser máximo en 1 año.' });
     }
-    if (type === 'quota' && Number(quotaAmount) > Number(targetAmount)) {
-      return res.status(400).json({ error: 'El valor de la cuota no puede ser mayor al total del fondo.' });
+    if (type === 'quota' && frequency && deadline && !isFrequencyFeasible(frequency, deadline)) {
+      return res.status(400).json({
+        error: `Un fondo con frecuencia ${FREQ_LABELS[frequency]} requiere al menos ${FREQ_MIN_DAYS[frequency]} días hasta la fecha límite.`,
+      });
+    }
+    if (type === 'quota' && expectedParticipants && Number(expectedParticipants) > 0) {
+      const periods  = totalPeriods(frequency, new Date(), deadline);
+      const minQuota = Math.ceil(Number(targetAmount) / (periods * Number(expectedParticipants)));
+      if (Number(quotaAmount) < minQuota) {
+        return res.status(400).json({
+          error: `La cuota mínima es $${minQuota.toLocaleString('es-CL')} para alcanzar la meta en ${periods} cuota${periods !== 1 ? 's' : ''} con ${expectedParticipants} participante${Number(expectedParticipants) !== 1 ? 's' : ''}.`,
+        });
+      }
+    }
+    if (type === 'free' && minAmount && Number(minAmount) > Number(targetAmount)) {
+      return res.status(400).json({ error: 'El monto mínimo no puede ser mayor al total del fondo.' });
+    }
+
+    const desc = typeof description === 'string' ? description.trim() : '';
+    const goalStr = typeof goal === 'string' ? goal.trim() : '';
+    if (!desc || !goalStr) {
+      return res.status(400).json({ error: 'La descripción y el objetivo son obligatorios.' });
     }
 
     const fund = new Fund({
-      name, description, goal, type, targetAmount, quotaAmount,
-      frequency, deadline, recipientAccount, visibility,
+      name, description: desc, goal: goalStr, type, targetAmount, quotaAmount,
+      frequency, deadline, recipientAccount, visibility, coverImage,
+      minAmount, expectedParticipants,
       organizer: req.user._id,
     });
     await fund.save();
@@ -133,12 +200,13 @@ router.get('/:id', auth, async (req, res) => {
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
     if (!fund.organizer) return res.status(404).json({ error: 'Fund not found' });
 
+    await autoExpireFund(fund);
+
     const userId = req.user._id;
-    const isOrganizer = fund.organizer._id.equals(userId);
-    const isParticipant = fund.participants.some(
-      p => p.user?._id.equals(userId) && p.status === 'accepted'
+    const hasPendingInvitation = fund.participants.some(
+      p => (p.user?._id?.equals(userId) || p.user?.equals?.(userId)) && p.invitationToken
     );
-    if (!isOrganizer && !isParticipant && fund.visibility !== 'public') {
+    if (!isMember(fund, userId) && fund.visibility !== 'public' && !hasPendingInvitation) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -152,9 +220,11 @@ router.get('/:id', auth, async (req, res) => {
 // PATCH /api/funds/:id
 router.patch('/:id', auth, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id);
+    const fund = await Fund.findById(req.params.id)
+      .populate('organizer', 'name email')
+      .populate('participants.user', 'name email');
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    if (!fund.organizer._id.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
 
     const hasContribs = await Contribution.countDocuments({ fund: fund._id, status: 'succeeded' }) > 0;
@@ -168,13 +238,54 @@ router.patch('/:id', auth, async (req, res) => {
     }
 
     if (body.deadline && !isDeadlineValid(body.deadline)) {
-      return res.status(400).json({ error: 'La fecha límite debe ser al menos mañana.' });
+      return res.status(400).json({ error: 'La fecha límite no puede estar en el pasado y debe ser máximo en 1 año.' });
+    }
+    if (body.deadline !== undefined || body.frequency !== undefined) {
+      const effectiveType      = body.type      ?? fund.type;
+      const effectiveFrequency = body.frequency ?? fund.frequency;
+      const effectiveDeadline  = body.deadline  ?? fund.deadline;
+      if (effectiveType === 'quota' && effectiveFrequency && effectiveDeadline && !isFrequencyFeasible(effectiveFrequency, effectiveDeadline)) {
+        return res.status(400).json({
+          error: `Un fondo con frecuencia ${FREQ_LABELS[effectiveFrequency]} requiere al menos ${FREQ_MIN_DAYS[effectiveFrequency]} días hasta la fecha límite.`,
+        });
+      }
     }
 
-    const allowed = ['name', 'description', 'goal', ...(!hasContribs ? LOCKED_FIELDS : [])];
-    allowed.forEach(f => { if (body[f] !== undefined) fund[f] = body[f]; });
+    const hasInvited = fund.participants.length > 0;
+    let wasEdited = false;
+
+    if (hasInvited && body.description && body.description !== fund.description) {
+      fund.updateLogs.push({ message: 'El organizador actualizó la descripción' });
+    }
+    if (hasInvited && body.goal && body.goal !== fund.goal) {
+      fund.updateLogs.push({ message: 'El organizador actualizó el objetivo' });
+    }
+
+    const allowed = ['name', 'description', 'goal', 'coverImage', 'visibility', 'expectedParticipants', ...(!hasContribs ? LOCKED_FIELDS : [])];
+    for (const f of allowed) {
+      if (body[f] === undefined) continue;
+      if (f === 'description' || f === 'goal') {
+        const t = String(body[f]).trim();
+        if (!t) {
+          return res.status(400).json({
+            error: f === 'description' ? 'La descripción no puede estar vacía.' : 'El objetivo no puede estar vacío.',
+          });
+        }
+        if (JSON.stringify(fund[f]) !== JSON.stringify(t)) wasEdited = true;
+        fund[f] = t;
+        continue;
+      }
+      if (JSON.stringify(fund[f]) !== JSON.stringify(body[f])) wasEdited = true;
+      fund[f] = body[f];
+    }
 
     await fund.save();
+
+    if (wasEdited && hasInvited) {
+      sendFundEditedEmail({ fund, organizer: fund.organizer, participants: fund.participants })
+        .catch(err => console.error('Edit email failed:', err.message));
+    }
+
     res.json(fund);
   } catch (err) {
     if (err.name === 'ValidationError') return res.status(400).json({ error: err.message });
@@ -185,12 +296,16 @@ router.patch('/:id', auth, async (req, res) => {
 // DELETE /api/funds/:id
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id);
+    const fund = await Fund.findById(req.params.id)
+      .populate('participants.user', 'name email');
     if (!fund) return res.status(404).json({ error: 'Fund not found' });
     if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
 
     const hasContribs = await Contribution.countDocuments({ fund: fund._id }) > 0;
     if (hasContribs) return res.status(422).json({ error: 'Cannot delete fund with contributions' });
+
+    sendFundDeletedEmail({ fund, participants: fund.participants })
+      .catch(err => console.error('Delete email failed:', err.message));
 
     await fund.deleteOne();
     res.status(204).send();
@@ -199,7 +314,7 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// POST /api/funds/:id/payment — organizer triggers payout, marks fund completed
+// POST /api/funds/:id/payment — el organizador ejecuta el pago y completa el fondo
 router.post('/:id/payment', auth, async (req, res) => {
   try {
     const fund = await Fund.findById(req.params.id)
@@ -210,19 +325,20 @@ router.post('/:id/payment', auth, async (req, res) => {
     if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
 
     const collectedAmount = await getCollectedAmount(fund._id);
+    if (collectedAmount <= 0) {
+      return res.status(422).json({ error: 'El fondo no tiene saldo disponible para pagar' });
+    }
+
     const transaction = await processPayment({ amount: collectedAmount, recipientAccount: fund.recipientAccount });
 
-    await Contribution.create({
-      fund: fund._id,
-      user: req.user._id,
-      amount: collectedAmount,
-      method: 'simulation',
-      transactionId: transaction.transactionId,
-      provider: transaction.provider,
-      status: 'succeeded',
-    });
-
     fund.status = 'completed';
+    fund.paymentTransaction = {
+      transactionId: transaction.transactionId,
+      amount:        collectedAmount,
+      provider:      transaction.provider,
+      paidAt:        new Date(),
+    };
+    fund.updateLogs.push({ message: `Pago de ${collectedAmount} al destinatario registrado` });
     await fund.save();
 
     sendStatusChangeEmail({ fund, organizer: fund.organizer, participants: fund.participants })
@@ -234,7 +350,7 @@ router.post('/:id/payment', auth, async (req, res) => {
   }
 });
 
-// POST /api/funds/:id/reminders — manual reminder to all accepted participants
+// POST /api/funds/:id/reminders — alerta manual de mora a participantes en mora
 router.post('/:id/reminders', auth, async (req, res) => {
   try {
     const fund = await Fund.findById(req.params.id).populate('participants.user', 'name email');
@@ -242,15 +358,20 @@ router.post('/:id/reminders', auth, async (req, res) => {
     if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
 
+    const contributions = await Contribution.find({ fund: fund._id, status: 'succeeded' }).lean();
     const accepted = fund.participants.filter(p => p.status === 'accepted' && p.user?.email);
-    let sent = 0;
 
+    let sent = 0;
     for (const p of accepted) {
-      await sendEmail({
-        to: p.user.email,
-        subject: `Recordatorio: fondo "${fund.name}"`,
-        html: `<p>Hola ${p.user.name}, recuerda registrar tu aporte al fondo <b>${fund.name}</b>. Fecha límite: ${new Date(fund.deadline).toLocaleDateString('es-CL')}.</p>`,
-      }).catch(() => {});
+      const userContribs = contributions.filter(c => c.user.equals(p.user._id));
+      const inMora = fund.type === 'quota'
+        ? pendingQuotas(fund, userContribs) > 0
+        : userContribs.length === 0;
+
+      if (!inMora) continue;
+
+      const pendingCount = fund.type === 'quota' ? pendingQuotas(fund, userContribs) : 0;
+      await sendMoraReminderEmail({ fund, user: p.user, pendingCount }).catch(() => {});
       p.lastReminder = new Date();
       sent++;
     }
@@ -297,10 +418,7 @@ router.post('/:id/messages', auth, async (req, res) => {
       .populate('participants.user', 'name email');
     if (!fund) return res.status(404).json({ error: 'Fondo no encontrado' });
 
-    const isMember = fund.organizer._id.equals(req.user._id) || 
-      fund.participants.some(p => p.user?._id?.equals(req.user._id) && p.status === 'accepted');
-
-    if (!isMember) return res.status(403).json({ error: 'Solo los participantes pueden enviar mensajes' });
+    if (!isMember(fund, req.user._id)) return res.status(403).json({ error: 'Solo los participantes pueden enviar mensajes' });
 
     fund.messages.push({
       user: req.user._id,
@@ -308,13 +426,40 @@ router.post('/:id/messages', auth, async (req, res) => {
     });
     
     await fund.save();
-    
-    const updatedFund = await Fund.findById(req.params.id)
-      .populate('organizer', 'name email')
-      .populate('participants.user', 'name email')
-      .populate('messages.user', 'name email');
-      
-    res.status(201).json(updatedFund.messages);
+    await fund.populate('messages.user', 'name email');
+    res.status(201).json(fund.messages);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/funds/:id/pause
+router.post('/:id/pause', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id);
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund can only be paused from active state' });
+
+    fund.status = 'paused';
+    await fund.save();
+    res.json(fund);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/funds/:id/resume
+router.post('/:id/resume', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id);
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    if (fund.status !== 'paused') return res.status(422).json({ error: 'Fund is not paused' });
+
+    fund.status = 'active';
+    await fund.save();
+    res.json(fund);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

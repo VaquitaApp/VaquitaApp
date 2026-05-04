@@ -22,6 +22,10 @@ function validateRut(rut) {
   return dv === computed;
 }
 
+function validateName(name) {
+  return /^[\p{L} ]+$/u.test(name.trim());
+}
+
 function signToken(user) {
   return jwt.sign(
     { sub: user._id, email: user.email },
@@ -33,18 +37,30 @@ function signToken(user) {
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, rut, userType } = req.body;
+    const errors = [];
+
     if (!name || !email || !password || !rut) {
-      return res.status(400).json({ error: 'Name, email, password and RUT are required' });
+      errors.push('Name, email, password and RUT are required');
+    } else {
+      if (!validateName(name)) errors.push('El nombre solo puede contener letras y espacios');
+      if (!validateRut(rut)) errors.push('RUT inválido');
+      if (password.length < 6) errors.push('La contraseña debe tener al menos 6 caracteres');
     }
-    if (!validateRut(rut)) {
-      return res.status(400).json({ error: 'RUT inválido' });
+
+    if (errors.length > 0) {
+      return res.status(400).json({ error: errors[0], errors }); // Devolvemos ambos por retrocompatibilidad
     }
+
     const existing = await User.findOne({ email: email.toLowerCase() });
-    if (existing) return res.status(409).json({ error: 'Email already in use' });
+    if (existing) errors.push('Email already in use');
 
     const rutNorm = rut.replace(/\./g, '').toUpperCase();
     const rutExists = await User.findOne({ rut: rutNorm });
-    if (rutExists) return res.status(409).json({ error: 'RUT ya registrado' });
+    if (rutExists) errors.push('RUT ya registrado');
+
+    if (errors.length > 0) {
+      return res.status(409).json({ error: errors[0], errors });
+    }
 
     const verificationToken = uuidv4();
     const user = new User({ name, email, passwordHash: password, rut: rutNorm, userType, emailVerificationToken: verificationToken });

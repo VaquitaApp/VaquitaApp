@@ -1,18 +1,22 @@
 const { Schema, model } = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+function validateName(name) {
+  return /^[\p{L} ]+$/u.test(name.trim());
+}
+
 const userSchema = new Schema({
-  name:         { type: String, required: true, trim: true },
-  email:        { type: String, required: true, unique: true, lowercase: true, trim: true },
-  rut:          { type: String, trim: true },
+  name: { type: String, required: true, trim: true, validate: { validator: validateName, message: 'El nombre solo puede contener letras y espacios' } },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  rut: { type: String, trim: true },
   passwordHash: { type: String, required: true },
-  userType:              { type: String, enum: ['persona_natural', 'organizacion'], default: 'persona_natural' },
-  isEmailVerified:       { type: Boolean, default: false },
-  emailVerificationToken:{ type: String },
-  deleteAccountToken:    { type: String },
+  userType: { type: String, enum: ['persona_natural', 'organizacion'], default: 'persona_natural' },
+  isEmailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String },
+  deleteAccountToken: { type: String },
   preferredAccount: {
-    bank:          { type: String, default: '' },
-    accountType:   { type: String, enum: ['corriente', 'vista', 'ahorro', 'chequera_electronica', ''], default: '' },
+    bank: { type: String, default: '' },
+    accountType: { type: String, enum: ['corriente', 'vista', 'ahorro', 'chequera_electronica', ''], default: '' },
     accountNumber: { type: String, default: '' },
   },
 }, { timestamps: true });

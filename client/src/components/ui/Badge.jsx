@@ -1,30 +1,46 @@
 const STATUS_STYLES = {
-  active:    'bg-green-100 text-green-700',
-  completed: 'bg-indigo-100 text-indigo-700',
-  closed:    'bg-gray-100 text-gray-500',
+  active: 'bg-[var(--vaq-tone-success-bg)] text-[var(--vaq-tone-success-text)]',
+  completed: 'bg-[var(--vaq-tone-completed-bg)] text-[var(--vaq-tone-completed-text)]',
+  closed: 'bg-[var(--vaq-tone-closed-bg)] text-[var(--vaq-tone-closed-text)]',
 };
 
 const STATUS_LABELS = {
-  active:    'Activo',
+  active: 'Activo',
   completed: 'Completado',
-  closed:    'Cerrado',
+  closed: 'Cerrado',
 };
 
 const CONTRIBUTION_STYLES = {
-  onTime:  'bg-green-100 text-green-700',
-  pending: 'bg-yellow-100 text-yellow-700',
-  overdue: 'bg-red-100 text-red-700',
+  onTime: 'bg-[var(--vaq-tone-success-bg)] text-[var(--vaq-tone-success-text)]',
+  pending: 'bg-[var(--vaq-tone-warning-bg)] text-[var(--vaq-tone-warning-text)]',
+  overdue: 'bg-[var(--vaq-tone-danger-bg)] text-[var(--vaq-tone-danger-text)]',
 };
 
 const CONTRIBUTION_LABELS = {
-  onTime:  'Al día',
+  onTime: 'Al día',
   pending: 'Pendiente',
   overdue: 'En mora',
 };
 
+const INVITATION_STYLES = {
+  pending: 'bg-[var(--vaq-tone-warning-bg)] text-[var(--vaq-tone-warning-text)]',
+  accepted: 'bg-[var(--vaq-tone-success-bg)] text-[var(--vaq-tone-success-text)]',
+  rejected: 'bg-[var(--vaq-tone-danger-bg)] text-[var(--vaq-tone-danger-text)]',
+};
+
+const INVITATION_LABELS = {
+  pending: 'Pendiente',
+  accepted: 'Aceptada',
+  rejected: 'Rechazada',
+};
+
+const fallbackBadge = 'bg-[var(--vaq-tone-closed-bg)] text-[var(--vaq-tone-closed-text)]';
+
 export function StatusBadge({ status }) {
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-500'}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status] ?? fallbackBadge}`}
+    >
       {STATUS_LABELS[status] ?? status}
     </span>
   );
@@ -33,7 +49,9 @@ export function StatusBadge({ status }) {
 export function TypeBadge({ type }) {
   const isQuota = type === 'quota';
   return (
-    <span className={`inline-flex shrink-0 items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium ${isQuota ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
+    <span
+      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${isQuota ? 'bg-[var(--vaq-tone-type-quota-bg)] text-[var(--vaq-tone-type-quota-text)]' : 'bg-[var(--vaq-tone-type-free-bg)] text-[var(--vaq-tone-type-free-text)]'}`}
+    >
       {isQuota ? 'Por cuotas' : 'Libre'}
     </span>
   );
@@ -41,8 +59,20 @@ export function TypeBadge({ type }) {
 
 export function ContributionBadge({ status }) {
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${CONTRIBUTION_STYLES[status] ?? 'bg-gray-100 text-gray-500'}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CONTRIBUTION_STYLES[status] ?? fallbackBadge}`}
+    >
       {CONTRIBUTION_LABELS[status] ?? status}
+    </span>
+  );
+}
+
+export function InvitationBadge({ status }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${INVITATION_STYLES[status] ?? fallbackBadge}`}
+    >
+      {INVITATION_LABELS[status] ?? status}
     </span>
   );
 }

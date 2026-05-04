@@ -31,7 +31,7 @@ Thumbs.db
 *.swp
 *.swo
 
-# Claude Code (local config, credentials)
+# Local agent config
 .mcp.json
 .claude/
 

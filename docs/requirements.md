@@ -1,9 +1,5 @@
 # Requerimientos — VaquitaApp
 
-> Documento vivo. Se refina antes de implementar. Cada sección debe estar estable antes de iniciar desarrollo.
-
----
-
 ## 1. Descripción del Problema
 
 En grupos de amigos, cursos, familias, equipos y comunidades es frecuente organizar fondos colectivos: regalos grupales, paseos, cuotas, rifas, convivencias, actividades. El proceso hoy es manual (WhatsApp, transferencias sueltas, planillas), lo que genera desorden, olvidos, falta de visibilidad sobre quién pagó y desconfianza entre participantes. El organizador carga con toda la coordinación sin herramientas adecuadas.
@@ -18,11 +14,11 @@ Plataforma web que permite crear y gestionar fondos colectivos digitales. El org
 
 ## 3. Actores
 
-| Actor | Descripción |
-|---|---|
-| **Organizador** | Crea y administra el fondo; gestiona participantes y aportes. |
-| **Participante** | Se une a un fondo aceptando una invitación, realiza aportes y consulta su estado. |
-| **Administrador** | (Opcional E1) Acceso administrativo general al sistema. |
+| Actor             | Descripción                                                                       |
+| ----------------- | --------------------------------------------------------------------------------- |
+| **Organizador**   | Crea y administra el fondo; gestiona participantes y aportes.                     |
+| **Participante**  | Se une a un fondo aceptando una invitación, realiza aportes y consulta su estado. |
+| **Administrador** | (Opcional E1) Acceso administrativo general al sistema.                           |
 
 ---
 
@@ -37,6 +33,7 @@ Plataforma web que permite crear y gestionar fondos colectivos digitales. El org
 ### 4.2 Gestión de Fondos
 
 Los fondos tienen tres estados posibles: `activo`, `completado` y `cerrado`.
+
 - `activo`: recaudando aportes normalmente.
 - `completado`: monto objetivo alcanzado y pago al destinatario ejecutado.
 - `cerrado`: terminado manualmente por el organizador.
@@ -115,16 +112,17 @@ Los participantes de un fondo son exclusivamente usuarios registrados en la plat
 
 El CRUD obligatorio se aplica sobre **fondos** como entidad principal.
 
-| Operación | Descripción |
-|---|---|
-| Listar | Ver todos los fondos del usuario autenticado |
-| Buscar | Filtrar por texto libre y estado; ordenar por fecha límite. Sin filtro por rango de fechas. |
-| Ver detalle | Panel completo del fondo con estado, participantes y movimientos |
-| Agregar | Crear un nuevo fondo con sus datos básicos |
-| Editar | Modificar datos del fondo existente (con restricciones por estado y aportes) |
-| Eliminar | Dar de baja un fondo (sin dinero recaudado) |
+| Operación   | Descripción                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| Listar      | Ver todos los fondos del usuario autenticado                                                |
+| Buscar      | Filtrar por texto libre y estado; ordenar por fecha límite. Sin filtro por rango de fechas. |
+| Ver detalle | Panel completo del fondo con estado, participantes y movimientos                            |
+| Agregar     | Crear un nuevo fondo con sus datos básicos                                                  |
+| Editar      | Modificar datos del fondo existente (con restricciones por estado y aportes)                |
+| Eliminar    | Dar de baja un fondo (sin dinero recaudado)                                                 |
 
 Funcionalidades adicionales incluidas en E1:
+
 - RF-01, RF-02 (autenticación básica)
 - RF-09 a RF-12 (gestión de participantes)
 - RF-13, RF-15 (registro básico de aportes e historial)
@@ -152,22 +150,22 @@ Funcionalidades adicionales incluidas en E1:
 
 ## 8. Historial de Decisiones
 
-| Fecha | Decisión | Justificación |
-|---|---|---|
-| 2026-04-26 | Stack: React + Node.js + MongoDB + Tailwind CSS | Compatibilidad con Jest, ecosistema unificado JS, MongoDB flexible para fondos variables |
-| 2026-04-26 | Despliegue E1: solo local | Simplicidad para MVP |
-| 2026-04-26 | Modelo de fondo: cuota fija vs. monto libre | Cubre los casos de uso más comunes de vaquitas |
-| 2026-04-26 | Eliminación de fondo: no eliminar si hay dinero recaudado | Prevención de pérdida de datos y fraude |
-| 2026-04-27 | Estados del fondo: activo / completado / cerrado | Semántica clara: completado = éxito, cerrado = terminación manual |
-| 2026-04-27 | Restricciones de edición: solo en estado activo; campos financieros bloqueados con aportes | Prevención de fraude |
-| 2026-04-27 | Invitación solo a usuarios registrados mediante búsqueda | Simplifica el modelo de datos; elimina participantes externos |
-| 2026-04-27 | Flujo de pago simulado visualmente | Permite demostrar el flujo sin dependencias externas |
-| 2026-04-27 | Notificaciones incluidas en E1 con cron automático y botón manual | Cobertura completa del RF-19 desde el MVP |
-| 2026-04-27 | Email local: servidor SMTP local para desarrollo | Sin dependencias externas en E1; intercambiable en producción |
-| 2026-04-27 | Verificación de email requerida en E1 | Garantiza autenticidad del usuario antes de permitir operar; reemplaza la decisión original de registro sin verificación |
-| 2026-04-27 | RUT chileno obligatorio en registro | Identificación única del usuario en el contexto chileno; validado con módulo 11 en cliente y servidor |
-| 2026-04-27 | Campos `tipo` y `visibilidad` bloqueados con aportes | Prevención de fraude: no se puede cambiar el tipo ni la visibilidad de un fondo una vez que hay dinero comprometido |
-| 2026-04-27 | Eliminación de cuenta con confirmación por email | Proceso de dos pasos para prevenir eliminaciones accidentales; bloqueada si el usuario administra o participa en algún fondo activo |
-| 2026-04-27 | `quotaAmount` no puede superar `targetAmount` | Consistencia de datos: una cuota mayor al total del fondo no tiene sentido y confundiría a los participantes |
-| 2026-04-27 | Funcionalidad de IA diferida | No es obligatoria en E1 según el enunciado oficial |
-| 2026-04-27 | Herramienta de testing: Jest | Compatibilidad con el stack JS; cubre unit e integration tests |
+| Fecha      | Decisión                                                                                   | Justificación                                                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-04-26 | Stack: React + Node.js + MongoDB + Tailwind CSS                                            | Compatibilidad con Jest, ecosistema unificado JS, MongoDB flexible para fondos variables                                            |
+| 2026-04-26 | Despliegue E1: solo local                                                                  | Simplicidad para MVP                                                                                                                |
+| 2026-04-26 | Modelo de fondo: cuota fija vs. monto libre                                                | Cubre los casos de uso más comunes de vaquitas                                                                                      |
+| 2026-04-26 | Eliminación de fondo: no eliminar si hay dinero recaudado                                  | Prevención de pérdida de datos y fraude                                                                                             |
+| 2026-04-27 | Estados del fondo: activo / completado / cerrado                                           | Semántica clara: completado = éxito, cerrado = terminación manual                                                                   |
+| 2026-04-27 | Restricciones de edición: solo en estado activo; campos financieros bloqueados con aportes | Prevención de fraude                                                                                                                |
+| 2026-04-27 | Invitación solo a usuarios registrados mediante búsqueda                                   | Simplifica el modelo de datos; elimina participantes externos                                                                       |
+| 2026-04-27 | Flujo de pago simulado visualmente                                                         | Permite demostrar el flujo sin dependencias externas                                                                                |
+| 2026-04-27 | Notificaciones incluidas en E1 con cron automático y botón manual                          | Cobertura completa del RF-19 desde el MVP                                                                                           |
+| 2026-04-27 | Email local: servidor SMTP local para desarrollo                                           | Sin dependencias externas en E1; intercambiable en producción                                                                       |
+| 2026-04-27 | Verificación de email requerida en E1                                                      | Garantiza autenticidad del usuario antes de permitir operar; reemplaza la decisión original de registro sin verificación            |
+| 2026-04-27 | RUT chileno obligatorio en registro                                                        | Identificación única del usuario en el contexto chileno; validado con módulo 11 en cliente y servidor                               |
+| 2026-04-27 | Campos `tipo` y `visibilidad` bloqueados con aportes                                       | Prevención de fraude: no se puede cambiar el tipo ni la visibilidad de un fondo una vez que hay dinero comprometido                 |
+| 2026-04-27 | Eliminación de cuenta con confirmación por email                                           | Proceso de dos pasos para prevenir eliminaciones accidentales; bloqueada si el usuario administra o participa en algún fondo activo |
+| 2026-04-27 | `quotaAmount` no puede superar `targetAmount`                                              | Consistencia de datos: una cuota mayor al total del fondo no tiene sentido y confundiría a los participantes                        |
+| 2026-04-27 | Funcionalidad de IA diferida                                                               | No es obligatoria en E1 según el enunciado oficial                                                                                  |
+| 2026-04-27 | Herramienta de testing: Jest                                                               | Compatibilidad con el stack JS; cubre unit e integration tests                                                                      |

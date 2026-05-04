@@ -4,48 +4,61 @@ import { updateProfile, requestDeleteAccount } from '../api/participants';
 import { fmtName } from '../utils/format';
 
 const BANKS = [
-  'Banco de Chile', 'Banco Santander', 'BCI', 'Scotiabank Chile',
-  'Banco Estado', 'BICE', 'Itaú Chile', 'Banco Security',
-  'Banco Falabella', 'Banco Ripley', 'Banco Consorcio',
-  'Banco Internacional', 'Banco BTG Pactual', 'HSBC Bank Chile',
+  'Banco de Chile',
+  'Banco Santander',
+  'BCI',
+  'Scotiabank Chile',
+  'Banco Estado',
+  'BICE',
+  'Itaú Chile',
+  'Banco Security',
+  'Banco Falabella',
+  'Banco Ripley',
+  'Banco Consorcio',
+  'Banco Internacional',
+  'Banco BTG Pactual',
+  'HSBC Bank Chile',
 ];
 
 const ACCOUNT_TYPES = [
-  { value: 'corriente',            label: 'Cuenta Corriente' },
-  { value: 'vista',                label: 'Cuenta Vista / RUT' },
-  { value: 'ahorro',               label: 'Cuenta de Ahorro' },
+  { value: 'corriente', label: 'Cuenta Corriente' },
+  { value: 'vista', label: 'Cuenta Vista / RUT' },
+  { value: 'ahorro', label: 'Cuenta de Ahorro' },
   { value: 'chequera_electronica', label: 'Chequera Electrónica' },
 ];
+
+const fieldClass =
+  'w-full rounded-lg border border-[var(--vaq-input-border)] bg-[var(--vaq-well-bg)] px-3 py-2 text-sm text-[var(--vaq-muted)]';
 
 function ReadOnlyField({ label, value }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-500">
-        {value || <span className="text-gray-300 italic">—</span>}
+      <label className="mb-1 block text-sm font-medium text-[var(--vaq-ink)]">{label}</label>
+      <div className={fieldClass}>
+        {value || <span className="italic text-[var(--vaq-muted)]">—</span>}
       </div>
     </div>
   );
 }
 
 export default function ProfilePage() {
-  const { user, refreshUser, logout } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const [account, setAccount] = useState({
-    bank:          user?.preferredAccount?.bank          ?? '',
-    accountType:   user?.preferredAccount?.accountType   ?? 'corriente',
+    bank: user?.preferredAccount?.bank ?? '',
+    accountType: user?.preferredAccount?.accountType ?? 'corriente',
     accountNumber: user?.preferredAccount?.accountNumber ?? '',
   });
-  const [saved,   setSaved]   = useState(false);
+  const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
+  const [error, setError] = useState('');
 
-  const [deleteStep,  setDeleteStep]  = useState('idle'); // idle | sent | error
+  const [deleteStep, setDeleteStep] = useState('idle');
   const [deleteError, setDeleteError] = useState('');
-  const [deleting,    setDeleting]    = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   function setA(key, val) {
-    setAccount(a => ({ ...a, [key]: val }));
+    setAccount((a) => ({ ...a, [key]: val }));
   }
 
   async function handleSubmit(e) {
@@ -66,6 +79,9 @@ export default function ProfilePage() {
   }
 
   async function handleRequestDelete() {
+    if (!window.confirm('¿Seguro deseas eliminar tu cuenta?')) {
+      return;
+    }
     setDeleting(true);
     setDeleteError('');
     try {
@@ -80,82 +96,81 @@ export default function ProfilePage() {
   }
 
   const rutFormatted = user?.rut
-    ? user.rut.replace(/^(\d+)([0-9K])$/, (_, body, dv) =>
-        body.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv)
+    ? user.rut.replace(/^(\d+)([0-9K])$/, (_, body, dv) => body.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv)
     : '';
 
-  return (
-    <div className="max-w-md mx-auto space-y-6">
-      <h1 className="text-xl font-bold text-gray-800">Mi perfil</h1>
+  const selectClass =
+    'w-full rounded-lg border border-[var(--vaq-input-border)] bg-[var(--vaq-input-bg)] px-3 py-2 text-sm text-[var(--vaq-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--vaq-ring)]';
 
-      {/* Read-only info */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Información de cuenta</p>
+  return (
+    <div className="mx-auto max-w-md space-y-6">
+      <h1 className="text-xl font-bold text-[var(--vaq-ink)]">Mi perfil</h1>
+      <div className="vaq-card space-y-4 p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vaq-muted)]">Información de cuenta</p>
         <ReadOnlyField label="Nombre" value={fmtName(user?.name)} />
         <ReadOnlyField label="RUT" value={rutFormatted} />
         <ReadOnlyField label="Correo" value={user?.email} />
       </div>
 
-      {/* Editable: bank account */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Cuenta bancaria preferida</p>
-        <p className="text-xs text-gray-400">Se autocompletará al realizar aportes.</p>
+      <form onSubmit={handleSubmit} className="vaq-card space-y-4 p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vaq-muted)]">Cuenta bancaria preferida</p>
+        <p className="text-xs text-[var(--vaq-muted)]">Se autocompletará al realizar aportes.</p>
 
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        {saved && <p className="text-xs text-green-600 bg-green-50 border border-green-200 rounded px-3 py-2">Cambios guardados correctamente.</p>}
+        {error && <p className="text-xs text-[var(--vaq-danger)]">{error}</p>}
+        {saved && (
+          <p className="rounded-lg border border-[var(--vaq-card-border)] bg-[var(--vaq-tone-success-bg)] px-3 py-2 text-xs text-[var(--vaq-tone-success-text)]">
+            Cambios guardados correctamente.
+          </p>
+        )}
 
-        <select
-          value={account.bank}
-          onChange={e => setA('bank', e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        >
+        <select value={account.bank} onChange={(e) => setA('bank', e.target.value)} className={selectClass}>
           <option value="">Sin banco seleccionado</option>
-          {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+          {BANKS.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
         </select>
-        <select
-          value={account.accountType}
-          onChange={e => setA('accountType', e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        >
-          {ACCOUNT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+        <select value={account.accountType} onChange={(e) => setA('accountType', e.target.value)} className={selectClass}>
+          {ACCOUNT_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
         </select>
         <input
           type="text"
           inputMode="numeric"
           placeholder="Número de cuenta (solo dígitos)"
           value={account.accountNumber}
-          onChange={e => setA('accountNumber', e.target.value.replace(/\D/g, ''))}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          onChange={(e) => setA('accountNumber', e.target.value.replace(/\D/g, ''))}
+          className={selectClass}
         />
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 rounded-lg disabled:opacity-50 transition-colors"
-        >
+        <button type="submit" disabled={loading} className="vaq-btn-primary w-full rounded-lg py-2 text-sm">
           {loading ? 'Guardando…' : 'Guardar cuenta bancaria'}
         </button>
       </form>
 
-      {/* Delete account */}
-      <div className="bg-white rounded-xl shadow-sm border border-red-100 p-6 space-y-3">
-        <p className="text-xs font-semibold text-red-400 uppercase tracking-wide">Zona de peligro</p>
+      <div className="vaq-card space-y-3 border-[var(--vaq-danger)]/25 p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vaq-danger)]">Zona de peligro</p>
 
         {deleteStep === 'sent' ? (
-          <div className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
-            Revisa tu correo <span className="font-medium">{user?.email}</span>. Te enviamos un enlace para confirmar la eliminación.
+          <div className="rounded-lg border border-[var(--vaq-card-border)] bg-[var(--vaq-callout-neutral-bg)] px-4 py-3 text-sm text-[var(--vaq-callout-neutral-text)]">
+            Revisa tu correo <span className="font-medium">{user?.email}</span>. Te enviamos un enlace para confirmar la
+            eliminación.
           </div>
         ) : (
           <>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[var(--vaq-muted)]">
               Eliminar tu cuenta es permanente. Solo es posible si no eres organizador ni participante de ningún fondo.
             </p>
-            {deleteError && <p className="text-xs text-red-500">{deleteError}</p>}
+            {deleteError && <p className="text-xs text-[var(--vaq-danger)]">{deleteError}</p>}
             <button
               type="button"
               onClick={handleRequestDelete}
               disabled={deleting}
-              className="w-full bg-white border border-red-300 hover:border-red-500 text-red-600 text-sm font-medium py-2 rounded-lg disabled:opacity-50 transition-colors"
+              className="vaq-btn-secondary w-full rounded-lg border-[var(--vaq-danger)]/40 py-2 text-sm text-[var(--vaq-danger)] hover:border-[var(--vaq-danger)] disabled:opacity-50"
             >
               {deleting ? 'Verificando…' : 'Eliminar mi cuenta'}
             </button>
