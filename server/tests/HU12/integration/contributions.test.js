@@ -126,6 +126,12 @@ describe('GET /api/funds/:id/contributions', () => {
   });
 });
 
+// ──────────────────────────────────────────────────────────────────────
+// Bloque `POST /api/funds/:id/payment` movido a:
+//   tests/HU15/integration/hu15-pago-destinatario.test.js
+// (el endpoint corresponde a HU15 - Pago al destinatario, no a HU12)
+// ──────────────────────────────────────────────────────────────────────
+/*
 describe('POST /api/funds/:id/payment', () => {
   beforeEach(async () => {
     await createContribution({ fund: fund._id, user: organizer._id, amount: 50000 });
@@ -219,6 +225,7 @@ describe('POST /api/funds/:id/payment', () => {
     expect(res.status).toBe(422);
   });
 });
+*/
 
 describe('POST /api/funds/:id/contributions — fondo por cuotas', () => {
   const quotaAmount = 10000;
