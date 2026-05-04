@@ -16,9 +16,8 @@ import CommentSection from '../components/funds/CommentSection';
 import ConfirmModal from '../components/ui/ConfirmModal';
 
 import { fmtDate, fmtName } from '../utils/format';
-
-const FREQ_LABELS = { monthly: 'Mensual', biweekly: 'Quincenal', weekly: 'Semanal', once: 'Única vez' };
-const ACCOUNT_TYPE_LABELS = { corriente: 'Cta. Corriente', vista: 'Cta. Vista / RUT', ahorro: 'Cta. de Ahorro', chequera_electronica: 'Chequera Electrónica' };
+import { ACCOUNT_TYPE_LABELS } from '../constants/accountTypes';
+import { freqLabelCap } from '../constants/frequencies';
 
 export default function FundDetailPage() {
   const { id } = useParams();
@@ -231,7 +230,7 @@ export default function FundDetailPage() {
           <div>
             <span className="text-xs text-[var(--vaq-muted)] block mb-0.5">Tipo</span>
             {fund.type === 'quota'
-              ? `Por cuotas (${fund.quotaAmount?.toLocaleString('es-CL')} CLP, ${FREQ_LABELS[fund.frequency] ?? 'Única vez'})`
+              ? `Por cuotas (${fund.quotaAmount?.toLocaleString('es-CL')} CLP, ${freqLabelCap(fund.frequency)})`
               : 'Libre'}
           </div>
           <div>

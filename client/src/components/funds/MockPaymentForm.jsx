@@ -1,13 +1,7 @@
 import { useState } from 'react';
 import { triggerPayment } from '../../api/contributions';
 import { fmtCLP } from '../../utils/format';
-
-const ACCOUNT_TYPE_LABELS = {
-  corriente: 'Cuenta Corriente',
-  vista: 'Cuenta Vista / RUT',
-  ahorro: 'Cuenta de Ahorro',
-  chequera_electronica: 'Chequera Electrónica',
-};
+import { ACCOUNT_TYPE_LABELS } from '../../constants/accountTypes';
 
 export default function MockPaymentForm({ fundId, fund, collectedAmount, onSuccess, onClose }) {
   const [step, setStep] = useState('confirm');

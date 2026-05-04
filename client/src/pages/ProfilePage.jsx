@@ -2,30 +2,8 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { updateProfile, requestDeleteAccount } from '../api/participants';
 import { fmtName } from '../utils/format';
-
-const BANKS = [
-  'Banco de Chile',
-  'Banco Santander',
-  'BCI',
-  'Scotiabank Chile',
-  'Banco Estado',
-  'BICE',
-  'Itaú Chile',
-  'Banco Security',
-  'Banco Falabella',
-  'Banco Ripley',
-  'Banco Consorcio',
-  'Banco Internacional',
-  'Banco BTG Pactual',
-  'HSBC Bank Chile',
-];
-
-const ACCOUNT_TYPES = [
-  { value: 'corriente', label: 'Cuenta Corriente' },
-  { value: 'vista', label: 'Cuenta Vista / RUT' },
-  { value: 'ahorro', label: 'Cuenta de Ahorro' },
-  { value: 'chequera_electronica', label: 'Chequera Electrónica' },
-];
+import { BANKS } from '../constants/banks';
+import { ACCOUNT_TYPES } from '../constants/accountTypes';
 
 const fieldClass =
   'w-full rounded-lg border border-[var(--vaq-input-border)] bg-[var(--vaq-well-bg)] px-3 py-2 text-sm text-[var(--vaq-muted)]';

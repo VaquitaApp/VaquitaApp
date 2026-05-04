@@ -1,9 +1,6 @@
 const { Schema, model } = require('mongoose');
 const bcrypt = require('bcryptjs');
-
-function validateName(name) {
-  return /^[\p{L} ]+$/u.test(name.trim());
-}
+const { validateName } = require('../utils/validators');
 
 const userSchema = new Schema({
   name: { type: String, required: true, trim: true, validate: { validator: validateName, message: 'El nombre solo puede contener letras y espacios' } },

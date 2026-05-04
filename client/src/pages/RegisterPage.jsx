@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import PasswordInput from '../components/ui/PasswordInput';
 import AuthShell from '../components/layout/AuthShell';
+import { validateRut, validateName } from '../utils/validators';
 
 function formatRut(value) {
   const clean = value.replace(/[^0-9kK]/g, '').toUpperCase();
@@ -10,27 +11,6 @@ function formatRut(value) {
   const dv = clean.slice(-1);
   const body = clean.slice(0, -1);
   return `${body.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}-${dv}`;
-}
-
-function validateRut(rut) {
-  const clean = rut.replace(/\./g, '').replace(/-/, '').toUpperCase();
-  if (!/^\d{7,8}[0-9K]$/.test(clean)) return false;
-  const body = clean.slice(0, -1);
-  const dv = clean.slice(-1);
-  let sum = 0,
-    mul = 2;
-  for (let i = body.length - 1; i >= 0; i--) {
-    sum += Number(body[i]) * mul;
-    mul = mul < 7 ? mul + 1 : 2;
-  }
-  const rem = 11 - (sum % 11);
-  const computed = rem === 11 ? '0' : rem === 10 ? 'K' : String(rem);
-  return dv === computed;
-}
-
-function validateName(name) {
-  const normalized = name.trim();
-  return /^[\p{L} ]+$/u.test(normalized);
 }
 
 const inputClass =

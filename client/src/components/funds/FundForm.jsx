@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import './FundForm.css';
-
-const FREQ_MIN_DAYS = { weekly: 7, biweekly: 14, monthly: 30 };
-const FREQ_LABELS   = { weekly: 'semanal', biweekly: 'quincenal', monthly: 'mensual' };
+import { BANKS } from '../../constants/banks';
+import { ACCOUNT_TYPES } from '../../constants/accountTypes';
+import { FREQ_LABELS, FREQ_MIN_DAYS } from '../../constants/frequencies';
 
 function toDateInput(d) {
   if (!d) return '';
@@ -31,32 +31,6 @@ function Field({ label, required, children }) {
   );
 }
 
-const BANKS = [
-  'Banco de Chile',
-  'Banco Santander',
-  'BCI',
-  'Scotiabank Chile',
-  'Banco Estado',
-  'BICE',
-  'Itaú Chile',
-  'Banco Security',
-  'Banco Falabella',
-  'Banco Ripley',
-  'Banco Consorcio',
-  'Banco Internacional',
-  'Banco BTG Pactual',
-  'HSBC Bank Chile',
-  'Tenpo',
-  'MACH',
-  'Mercado Pago',
-];
-
-const ACCOUNT_TYPES = [
-  { value: 'corriente',          label: 'Cuenta Corriente' },
-  { value: 'vista',              label: 'Cuenta Vista / RUT' },
-  { value: 'ahorro',             label: 'Cuenta de Ahorro' },
-  { value: 'chequera_electronica', label: 'Chequera Electrónica' },
-];
 
 export default function FundForm({ initial = {}, lockedFields = [], onSubmit, loading, submitLabel = 'Crear Fondo Colectivo' }) {
   const [validationError, setValidationError] = useState('');
