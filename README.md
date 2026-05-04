@@ -3,22 +3,27 @@
 Plataforma web para gestionar fondos colectivos digitales: paseos, regalos grupales, cuotas, rifas y vaquitas en general.
 
 > **INF331 Pruebas de Software — Tema 3 | Universidad Técnica Federico Santa María, Semestre 1 2026**
+> **Entrega 1 — MVP** · Tag: `v1.0-entrega1` (pendiente de release)
+> **Repositorio:** https://github.com/VaquitaApp/VaquitaApp
 
 ---
 
 ## Integrantes
 
-| Nombre | Rol |
+| Nombre | ROL |
 |---|---|
-| _(agregar)_ | _(agregar)_ |
+| Benjamin Paulsen | 202173017-6 |
+| Gaspar Navarro | 202173003-6 |
+| Vicente Pérez | 202073042-3 |
+| Diego Villouta | 2773019-1 |
 
 ---
 
 ## Demo y recursos
 
-- **Video demo:** _(agregar link)_
-- **GitHub Wiki:** _(agregar link)_
-- **Tablero JIRA:** _(agregar link)_
+- **Video demo:** https://www.youtube.com/watch?v=wAFwALj1t4Q
+- **GitHub Wiki:** https://github.com/VaquitaApp/VaquitaApp/wiki
+- **Tablero JIRA:** https://usm-team-vaquitapp.atlassian.net
 
 ---
 
@@ -142,7 +147,7 @@ docker-compose up --build     # rebuild tras cambiar dependencias
 
 ## Ejecutar los tests
 
-Los tests usan base de datos en memoria. **No requieren MongoDB en ejecución.**
+La suite consta de **314 tests** (unitarios + integración) organizados por carpeta de Historia de Usuario en `server/tests/HUXX/`. Usan base de datos en memoria. **No requieren MongoDB en ejecución.**
 
 ```bash
 make test        # todos los tests
@@ -216,7 +221,7 @@ docker-compose run --rm server npm test
 
 ## Documentación técnica
 
-Ver `docs/` para el plan de implementación y los requerimientos del sistema.
+Documentación detallada (estrategia de pruebas, supuestos, dependencias, evidencias) en la **[GitHub Wiki](https://github.com/VaquitaApp/VaquitaApp/wiki)**.
 
 ---
 
