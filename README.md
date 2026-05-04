@@ -1,21 +1,21 @@
 # VaquitaApp
 
-Plataforma web para gestionar fondos colectivos digitales: paseos, regalos grupales, cuotas, rifas y vaquitas en general.
+Plataforma web para gestionar fondos colectivos digitales.
 
 > **INF331 Pruebas de Software — Tema 3 | Universidad Técnica Federico Santa María, Semestre 1 2026**
-> **Entrega 1 — MVP** · Tag: `v1.0-entrega1` (pendiente de release)
+> **Entrega 1 — MVP** · Tag: `v1.0-entrega1`
 > **Repositorio:** https://github.com/VaquitaApp/VaquitaApp
 
 ---
 
 ## Integrantes
 
-| Nombre | ROL |
-|---|---|
+| Nombre           | ROL         |
+| ---------------- | ----------- |
 | Benjamin Paulsen | 202173017-6 |
-| Gaspar Navarro | 202173003-6 |
-| Vicente Pérez | 202073042-3 |
-| Diego Villouta | 2773019-1 |
+| Gaspar Navarro   | 202173003-6 |
+| Vicente Pérez    | 202073042-3 |
+| Diego Villouta   | 2773019-1   |
 
 ---
 
@@ -29,13 +29,13 @@ Plataforma web para gestionar fondos colectivos digitales: paseos, regalos grupa
 
 ## Stack tecnológico
 
-| Capa | Tecnología |
-|---|---|
-| Frontend | React 18 + Vite + Tailwind CSS 4 |
-| Backend | Node.js 20 + Express |
-| Base de datos | MongoDB 7 |
-| Testing | Jest + Supertest + mongodb-memory-server |
-| Email (local) | Mailpit |
+| Capa          | Tecnología                               |
+| ------------- | ---------------------------------------- |
+| Frontend      | React 18 + Vite + Tailwind CSS 4         |
+| Backend       | Node.js 20 + Express                     |
+| Base de datos | MongoDB 7                                |
+| Testing       | Jest + Supertest + mongodb-memory-server |
+| Email (local) | Mailpit                                  |
 
 ---
 
@@ -43,11 +43,11 @@ Plataforma web para gestionar fondos colectivos digitales: paseos, regalos grupa
 
 Hay tres formas de levantar el proyecto. Elige la que más te acomode.
 
-| Opción | Requiere | Ideal para |
-|---|---|---|
-| [A — Makefile](#opción-a--makefile-recomendado) | Node.js 20, MongoDB, Mailpit | macOS / Linux — dos comandos desde cero |
-| [B — Manual](#opción-b--instalación-manual) | Node.js 20, MongoDB, Mailpit | Cuando el Makefile no funciona |
-| [C — Docker](#opción-c--docker) | Docker Desktop | No querer instalar MongoDB/Mailpit; equipos Windows |
+| Opción                                          | Requiere                     | Ideal para                                          |
+| ----------------------------------------------- | ---------------------------- | --------------------------------------------------- |
+| [A — Makefile](#opción-a--makefile-recomendado) | Node.js 20, MongoDB, Mailpit | macOS / Linux — dos comandos desde cero             |
+| [B — Manual](#opción-b--instalación-manual)     | Node.js 20, MongoDB, Mailpit | Cuando el Makefile no funciona                      |
+| [C — Docker](#opción-c--docker)                 | Docker Desktop               | No querer instalar MongoDB/Mailpit; equipos Windows |
 
 ---
 
@@ -55,12 +55,12 @@ Hay tres formas de levantar el proyecto. Elige la que más te acomode.
 
 ### 1. Requisitos previos
 
-| Herramienta | Versión mínima | Cómo instalar |
-|---|---|---|
-| Node.js | 20 LTS | https://nodejs.org |
-| MongoDB Community | 7 | Ver sección [Instalar MongoDB](#instalar-mongodb) |
-| Mailpit | cualquiera | Ver sección [Instalar Mailpit](#instalar-mailpit) |
-| Git | 2 | https://git-scm.com |
+| Herramienta       | Versión mínima | Cómo instalar                                     |
+| ----------------- | -------------- | ------------------------------------------------- |
+| Node.js           | 20 LTS         | https://nodejs.org                                |
+| MongoDB Community | 7              | Ver sección [Instalar MongoDB](#instalar-mongodb) |
+| Mailpit           | cualquiera     | Ver sección [Instalar Mailpit](#instalar-mailpit) |
+| Git               | 2              | https://git-scm.com                               |
 
 ### 2. Clonar, configurar y levantar
 
@@ -91,6 +91,7 @@ cp client/.env.example client/.env
 ```
 
 Edita `server/.env` y reemplaza `JWT_SECRET=change_me`:
+
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
@@ -113,6 +114,7 @@ No necesitas instalar Node.js, MongoDB ni Mailpit. Solo Docker Desktop.
 **Si tienes Node.js** — ejecuta el script de la Opción A.
 
 **Si NO tienes Node.js:**
+
 ```bash
 cp server/.env.example server/.env
 
@@ -124,6 +126,7 @@ docker run --rm node:20-alpine \
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 Copy-Item server\.env.example server\.env
 
@@ -165,55 +168,55 @@ docker-compose run --rm server npm test
 
 ## URLs de acceso
 
-| Servicio | URL |
-|---|---|
-| Aplicación web | http://localhost:5173 |
-| API / Health check | http://localhost:3001/api/health |
-| Mailpit (emails) | http://localhost:8025 |
-| Mongo Express (BD) | http://localhost:8081 *(solo Docker)* |
+| Servicio           | URL                                   |
+| ------------------ | ------------------------------------- |
+| Aplicación web     | http://localhost:5173                 |
+| API / Health check | http://localhost:3001/api/health      |
+| Mailpit (emails)   | http://localhost:8025                 |
+| Mongo Express (BD) | http://localhost:8081 _(solo Docker)_ |
 
 ---
 
 ## Instalar MongoDB
 
-| Plataforma | Instrucciones |
-|---|---|
-| macOS | `brew tap mongodb/brew && brew install mongodb-community` |
-| Ubuntu/Debian | [Guía oficial](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) |
-| Windows | [Instalador oficial](https://www.mongodb.com/try/download/community) — marcar "Install MongoDB as a Service" |
+| Plataforma    | Instrucciones                                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------------------------ |
+| macOS         | `brew tap mongodb/brew && brew install mongodb-community`                                                    |
+| Ubuntu/Debian | [Guía oficial](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/)                      |
+| Windows       | [Instalador oficial](https://www.mongodb.com/try/download/community) — marcar "Install MongoDB as a Service" |
 
 ## Arrancar MongoDB
 
-| Plataforma | Comando |
-|---|---|
+| Plataforma       | Comando                                 |
+| ---------------- | --------------------------------------- |
 | macOS (Homebrew) | `brew services start mongodb-community` |
-| Linux (systemd) | `sudo systemctl start mongod` |
-| Windows | `net start MongoDB` |
-| Sin servicio | `mongod` |
+| Linux (systemd)  | `sudo systemctl start mongod`           |
+| Windows          | `net start MongoDB`                     |
+| Sin servicio     | `mongod`                                |
 
 ## Instalar Mailpit
 
-| Plataforma | Comando |
-|---|---|
-| macOS | `brew install mailpit` |
-| Linux | `curl -sL https://raw.githubusercontent.com/axllent/mailpit/develop/install.sh \| sudo bash` |
-| Windows | Descargar `mailpit.exe` desde [GitHub Releases](https://github.com/axllent/mailpit/releases) |
-| Docker | `docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit` |
+| Plataforma | Comando                                                                                      |
+| ---------- | -------------------------------------------------------------------------------------------- |
+| macOS      | `brew install mailpit`                                                                       |
+| Linux      | `curl -sL https://raw.githubusercontent.com/axllent/mailpit/develop/install.sh \| sudo bash` |
+| Windows    | Descargar `mailpit.exe` desde [GitHub Releases](https://github.com/axllent/mailpit/releases) |
+| Docker     | `docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit`                                    |
 
 ---
 
 ## Variables de entorno — `server/.env`
 
-| Variable | Descripción | Valor por defecto |
-|---|---|---|
-| `PORT` | Puerto backend | `3001` |
-| `MONGO_URI` | URI MongoDB | `mongodb://localhost:27017/vaquitaapp` |
-| `JWT_SECRET` | Clave para firmar tokens | *(generado en setup)* |
-| `JWT_EXPIRES_IN` | Duración del token | `7d` |
-| `SMTP_HOST` | Host SMTP | `localhost` |
-| `SMTP_PORT` | Puerto SMTP | `1025` |
-| `SMTP_FROM` | Remitente de emails | `noreply@vaquitaapp.local` |
-| `APP_BASE_URL` | URL frontend (links en emails) | `http://localhost:5173` |
+| Variable         | Descripción                    | Valor por defecto                      |
+| ---------------- | ------------------------------ | -------------------------------------- |
+| `PORT`           | Puerto backend                 | `3001`                                 |
+| `MONGO_URI`      | URI MongoDB                    | `mongodb://localhost:27017/vaquitaapp` |
+| `JWT_SECRET`     | Clave para firmar tokens       | _(generado en setup)_                  |
+| `JWT_EXPIRES_IN` | Duración del token             | `7d`                                   |
+| `SMTP_HOST`      | Host SMTP                      | `localhost`                            |
+| `SMTP_PORT`      | Puerto SMTP                    | `1025`                                 |
+| `SMTP_FROM`      | Remitente de emails            | `noreply@vaquitaapp.local`             |
+| `APP_BASE_URL`   | URL frontend (links en emails) | `http://localhost:5173`                |
 
 > En Docker, `MONGO_URI` y `SMTP_HOST` se sobreescriben automáticamente con los nombres de servicio internos.
 
