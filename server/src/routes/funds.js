@@ -6,6 +6,7 @@ const auth = require('../middleware/auth');
 const { processPayment } = require('../services/paymentService');
 const { totalPeriods, pendingQuotas } = require('../services/quotaService');
 const { sendStatusChangeEmail, sendFundEditedEmail, sendMoraReminderEmail, sendFundDeletedEmail } = require('../services/emailService');
+const { FREQ_LABELS } = require('../constants');
 
 const router = express.Router();
 
@@ -13,7 +14,6 @@ const router = express.Router();
 const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'minAmount', 'type'];
 
 const FREQ_MIN_DAYS = { weekly: 7, biweekly: 14, monthly: 30 };
-const FREQ_LABELS   = { weekly: 'semanal', biweekly: 'quincenal', monthly: 'mensual' };
 
 function isFrequencyFeasible(frequency, deadline) {
   const minDays = FREQ_MIN_DAYS[frequency];
@@ -86,7 +86,10 @@ router.get('/public', auth, async (req, res) => {
     if (q) query.name = { $regex: q, $options: 'i' };
     if (fundType === 'quota' || fundType === 'free') query.type = fundType;
 
-    const sortObj = sort === 'deadline_desc' ? { deadline: -1 } : { deadline: 1 };
+    let sortObj;
+    if (sort === 'deadline_desc') sortObj = { deadline: -1 };
+    else if (sort === 'name') sortObj = { name: 1 };
+    else sortObj = { deadline: 1 };
     const funds = await Fund.find(query)
       .populate('organizer', 'name email')
       .sort(sortObj)
@@ -123,7 +126,10 @@ router.get('/', auth, async (req, res) => {
     if (status) query.status = status;
     if (q) query.name = { $regex: q, $options: 'i' };
 
-    const sortObj = sort === 'deadline_desc' ? { deadline: -1 } : { deadline: 1 };
+    let sortObj;
+    if (sort === 'deadline_desc') sortObj = { deadline: -1 };
+    else if (sort === 'name') sortObj = { name: 1 };
+    else sortObj = { deadline: 1 };
     const funds = await Fund.find(query)
       .populate('organizer', 'name email')
       .sort(sortObj)

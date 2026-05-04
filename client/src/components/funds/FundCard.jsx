@@ -10,6 +10,9 @@ function totalQuotas(fund) {
   if (fund.frequency === 'weekly') {
     return Math.max(1, Math.floor((end - start) / (7 * 24 * 60 * 60 * 1000)) + 1);
   }
+  if (fund.frequency === 'biweekly') {
+    return Math.max(1, Math.floor((end - start) / (14 * 24 * 60 * 60 * 1000)) + 1);
+  }
   const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
   return Math.max(1, months);
 }
