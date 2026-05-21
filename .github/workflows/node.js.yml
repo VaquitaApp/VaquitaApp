@@ -10,6 +10,14 @@ jobs:
   # JOB 1: Validar todo el proyecto
   build-and-test:
     runs-on: ubuntu-latest
+
+    # 1. LEVANTAMOS MONGODB EN LA NUBE DE GITHUB
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+
     steps:
       - name: Checkout del código
         uses: actions/checkout@v4
@@ -29,7 +37,16 @@ jobs:
       - name: Ejecutar pruebas del Servidor
         run: npm test
         working-directory: ./server
-        continue-on-error: true # Sigue adelante aunque fallen los tests
+        # Quitamos 'continue-on-error' para ver el resultado real y honesto
+        env:
+          PORT: 3001
+          MONGO_URI: mongodb://localhost:27017/vaquitaapp_test
+          JWT_SECRET: super_clave_secreta_para_los_tests_de_github_actions
+          JWT_EXPIRES_IN: 7d
+          SMTP_HOST: localhost
+          SMTP_PORT: 1025
+          SMTP_FROM: noreply@vaquitaapp.local
+          APP_BASE_URL: http://localhost:5173
 
       # --- BLOQUE DEL CLIENTE ---
       - name: Instalar dependencias del Cliente
@@ -40,12 +57,12 @@ jobs:
         run: npm run build --if-present
         working-directory: ./client
 
-      # --- NOTIFICACIÓN A SLACK (Se ejecuta SIEMPRE al final) ---
+      # --- NOTIFICACIÓN A SLACK ---
       - name: Notificar resultado a Slack
         uses: rtCamp/action-slack-notify@v2
-        if: always() # Obliga a que corra tanto si el pipeline pasa como si falla
+        if: always()
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_TITLE: "Estado del Pipeline - VaquitaApp"
           SLACK_MESSAGE: "El pipeline de validación ha terminado su ejecución. Revisa los detalles en GitHub Actions."
-          SLACK_COLOR: ${{ job.status }} # Se pone verde si pasó, o rojo/naranja si hubo caídas
+          SLACK_COLOR: ${{ job.status }}
