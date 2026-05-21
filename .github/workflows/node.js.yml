@@ -1,9 +1,5 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
+name: CI/CD Completo (Test y Deploy)
 
-name: Integración Continua (Entorno Develop)
-
-# El workflow se activará cada vez que subas código o cierres un PR hacia 'develop'
 on:
   push:
     branches: [ develop, main ]
@@ -11,20 +7,49 @@ on:
     branches: [ develop, main ]
 
 jobs:
+  # JOB 1: Validar todo el proyecto
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout del código
         uses: actions/checkout@v4
 
-      - name: Configurar entorno de Node.js
+      - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          # Cacheamos las dependencias usando el lockfile del servidor
+          cache-dependency-path: './server/package-lock.json'
 
-      - name: Instalar dependencias
+      # --- BLOQUE DEL SERVIDOR (Aquí corren tus tests) ---
+      - name: Instalar dependencias del Servidor
         run: npm ci
+        working-directory: ./server
 
-      - name: Ejecutar pruebas
-        run: npm test   
+      - name: Ejecutar pruebas del Servidor
+        run: npm test
+        working-directory: ./server
+
+      # --- BLOQUE DEL CLIENTE (Opcional: Valida que el frontend compile bien) ---
+      - name: Instalar dependencias del Cliente
+        run: npm ci
+        working-directory: ./client
+
+      - name: Validar compilación del Cliente
+        run: npm run build --if-present
+        working-directory: ./client
+
+  # JOB 2: Despliegue simulado (Solo en develop)
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Comando de despliegue
+        run: |
+          echo "Iniciando el deploy a tu servidor de pruebas..."
