@@ -4,6 +4,7 @@ const Contribution = require('../models/Contribution');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { requireFund, requireOrganizer, POP_ORG, POP_PARTS, POP_MSGS } = require('../middleware/funds');
+const { describeChange } = require('../utils/fundChangeLog');
 const { processPayment } = require('../services/paymentService');
 const { totalPeriods, pendingQuotas } = require('../services/quotaService');
 const { sendStatusChangeEmail, sendFundEditedEmail, sendMoraReminderEmail, sendFundDeletedEmail } = require('../services/emailService');
@@ -278,38 +279,43 @@ router.patch('/:id', auth, requireFund({ populate: [POP_ORG, POP_PARTS] }), requ
     }
 
     const hasInvited = fund.participants.length > 0;
-    let wasEdited = false;
-
-    if (hasInvited && body.description && body.description !== fund.description) {
-      fund.updateLogs.push({ message: 'El organizador actualizó la descripción' });
-    }
-    if (hasInvited && body.goal && body.goal !== fund.goal) {
-      fund.updateLogs.push({ message: 'El organizador actualizó el objetivo' });
-    }
+    const changes = [];
 
     const allowed = ['name', 'description', 'goal', 'coverImage', 'visibility', 'expectedParticipants', 'milestones', ...(!hasContribs ? LOCKED_FIELDS : [])];
     for (const f of allowed) {
       if (body[f] === undefined) continue;
+      const oldVal = fund[f];
+      let newVal = body[f];
       if (f === 'description' || f === 'goal') {
-        const t = String(body[f]).trim();
+        const t = String(newVal).trim();
         if (!t) {
           return res.status(400).json({
             error: f === 'description' ? 'La descripción no puede estar vacía.' : 'El objetivo no puede estar vacío.',
           });
         }
-        if (JSON.stringify(fund[f]) !== JSON.stringify(t)) wasEdited = true;
-        fund[f] = t;
-        continue;
+        newVal = t;
       }
-      if (JSON.stringify(fund[f]) !== JSON.stringify(body[f])) wasEdited = true;
-      fund[f] = body[f];
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        fund[f] = newVal;
+        changes.push(describeChange(f, oldVal, newVal));
+      }
+    }
+
+    if (hasInvited) {
+      for (const c of changes) {
+        fund.updateLogs.push({ message: c.message });
+      }
     }
 
     await fund.save();
 
-    if (wasEdited && hasInvited) {
-      sendFundEditedEmail({ fund, organizer: fund.organizer, participants: fund.participants })
-        .catch(err => console.error('Edit email failed:', err.message));
+    if (changes.length > 0 && hasInvited) {
+      sendFundEditedEmail({
+        fund,
+        organizer: fund.organizer,
+        participants: fund.participants,
+        changes: changes.map(c => c.message),
+      }).catch(err => console.error('Edit email failed:', err.message));
     }
 
     res.json(fund);

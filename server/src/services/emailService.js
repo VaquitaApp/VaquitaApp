@@ -139,18 +139,26 @@ async function sendMoraReminderEmail({ fund, user, pendingCount }) {
   });
 }
 
-async function sendFundEditedEmail({ fund, organizer, participants }) {
+async function sendFundEditedEmail({ fund, organizer, participants, changes = [] }) {
   const recipients = [
     organizer,
     ...participants.filter(p => p.status === 'accepted' && p.user?.email).map(p => p.user),
   ].filter(Boolean);
+
+  const changesHtml = changes.length > 0
+    ? `<ul>${changes.map(c => `<li>${c}</li>`).join('')}</ul>`
+    : '';
+  const intro = changes.length > 0
+    ? `<p>El organizador ha realizado los siguientes cambios en el fondo <b>${fund.name}</b>:</p>`
+    : `<p>El organizador ha realizado cambios en el fondo <b>${fund.name}</b>. Por favor revisa la información actualizada.</p>`;
 
   for (const r of recipients) {
     await sendEmail({
       to: r.email,
       subject: `Fondo "${fund.name}" actualizado`,
       html: `<p>Hola ${r.name},</p>
-             <p>El organizador ha realizado cambios en el fondo <b>${fund.name}</b>. Por favor revisa la información actualizada.</p>`,
+             ${intro}
+             ${changesHtml}`,
     }).catch(() => {});
   }
 }
