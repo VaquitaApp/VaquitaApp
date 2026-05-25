@@ -3,9 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import PasswordInput from '../components/ui/PasswordInput';
 import AuthShell from '../components/layout/AuthShell';
-
-const inputClass =
-  'w-full rounded-lg border border-[var(--vaq-input-border)] bg-[var(--vaq-input-bg)] px-3 py-2.5 text-sm text-[var(--vaq-ink)] shadow-sm transition-shadow placeholder:text-[var(--vaq-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--vaq-ring)]';
+import { inputClass, authCardClass } from '../components/ui/formStyles';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -32,7 +30,7 @@ export default function LoginPage() {
 
   return (
     <AuthShell>
-      <div className="w-full max-w-sm rounded-2xl border border-[var(--vaq-card-border)] bg-[var(--vaq-card)] p-8 shadow-lg shadow-[var(--vaq-forest)]/5 dark:shadow-black/40">
+      <div className={authCardClass}>
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <img
             src="/logo.png"
