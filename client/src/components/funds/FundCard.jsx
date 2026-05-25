@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { StatusBadge, TypeBadge } from '../ui/Badge';
+import { StatusBadge, TypeBadge, RoleBadge } from '../ui/Badge';
 import ProgressBar from '../ui/ProgressBar';
 import { fmtDate, fmtName, fmtCLP } from '../../utils/format';
 
@@ -17,7 +17,7 @@ function totalQuotas(fund) {
   return Math.max(1, months);
 }
 
-export default function FundCard({ fund }) {
+export default function FundCard({ fund, role }) {
   const isQuota = fund.type === 'quota';
 
   return (
@@ -25,10 +25,16 @@ export default function FundCard({ fund }) {
       to={`/fondos/${fund._id}`}
       className="vaq-card flex flex-col p-5 transition-shadow hover:shadow-md"
     >
-      <div className="mb-3 flex items-start justify-between">
-        <div>
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold text-[var(--vaq-ink)]">{fund.name}</h3>
-          <p className="mt-0.5 text-xs text-[var(--vaq-muted)]">{fmtName(fund.organizer?.name)}</p>
+          {role ? (
+            <div className="mt-1">
+              <RoleBadge isMine={role === 'mine'} organizerName={fmtName(fund.organizer?.name)} />
+            </div>
+          ) : (
+            <p className="mt-0.5 text-xs text-[var(--vaq-muted)]">{fmtName(fund.organizer?.name)}</p>
+          )}
         </div>
         <StatusBadge status={fund.status} />
       </div>
