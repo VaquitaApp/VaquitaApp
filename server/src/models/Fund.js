@@ -46,6 +46,10 @@ const fundSchema = new Schema({
     text: { type: String, required: true, trim: true },
     createdAt: { type: Date, default: Date.now },
   }],
+  milestones:       [{
+    amount: { type: Number, required: true, min: 1 },
+    description: { type: String, required: true, trim: true }
+  }],
   updateLogs:       [{ message: { type: String, required: true }, date: { type: Date, default: Date.now } }],
   paymentTransaction: {
     transactionId: { type: String },
@@ -70,6 +74,14 @@ fundSchema.pre('validate', function (next) {
   if (this.type === 'quota') {
     if (!this.quotaAmount) this.invalidate('quotaAmount', 'required for quota fund');
     if (!this.frequency)   this.invalidate('frequency',   'required for quota fund');
+  }
+
+  if (this.milestones && this.milestones.length > 0) {
+    for (const milestone of this.milestones) {
+      if (milestone.amount > this.targetAmount) {
+        this.invalidate('milestones', 'El monto del hito no puede ser mayor a la meta total.');
+      }
+    }
   }
   next();
 });

@@ -52,6 +52,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     frequency: initial.frequency ?? 'monthly',
     quotaAmount: initial.quotaAmount ?? '',
     expectedParticipants: initial.expectedParticipants ?? '',
+    milestones: initial.milestones ?? [],
   });
 
   function set(key, val) {
@@ -121,6 +122,20 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
         return;
       }
     }
+    if (data.milestones && data.milestones.length > 0) {
+      for (const m of data.milestones) {
+        if (!m.amount || !m.description) {
+          setValidationError('Todos los hitos deben tener descripción y monto.');
+          return;
+        }
+        if (Number(m.amount) >= data.targetAmount) {
+          setValidationError('El monto de un hito debe ser menor a la meta total.');
+          return;
+        }
+      }
+      data.milestones = data.milestones.map(m => ({ ...m, amount: Number(m.amount) })).sort((a,b) => a.amount - b.amount);
+    }
+
     onSubmit(data);
   }
 
@@ -310,6 +325,59 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
             </Field>
           </div>
         )}
+
+        <div className="fund-form-group">
+          <label className="fund-form-label">Metas Parciales (Hitos) - Opcional</label>
+          <p className="text-xs text-[var(--vaq-muted)] mb-3">Establece hitos intermedios para motivar a los participantes.</p>
+          {form.milestones.map((m, idx) => (
+            <div key={idx} className="flex gap-2 mb-2 items-start">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={m.description}
+                  onChange={e => {
+                    const newM = [...form.milestones];
+                    newM[idx].description = e.target.value;
+                    set('milestones', newM);
+                  }}
+                  className="fund-form-input mb-1"
+                  placeholder="Ej: Compra de materiales"
+                />
+              </div>
+              <div className="w-32">
+                <input
+                  type="number"
+                  min="1"
+                  value={m.amount}
+                  onChange={e => {
+                    const newM = [...form.milestones];
+                    newM[idx].amount = e.target.value;
+                    set('milestones', newM);
+                  }}
+                  className="fund-form-input"
+                  placeholder="Monto"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const newM = form.milestones.filter((_, i) => i !== idx);
+                  set('milestones', newM);
+                }}
+                className="px-2 py-2 text-[var(--vaq-danger)] opacity-80 hover:opacity-100"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => set('milestones', [...form.milestones, { description: '', amount: '' }])}
+            className="text-xs font-medium text-[var(--vaq-ring)] hover:underline"
+          >
+            + Añadir hito
+          </button>
+        </div>
 
         <Field label="Cuenta Destinataria (Para el retiro de fondos)" required>
           <div className={`fund-form-account-group ${locked('recipientAccount') ? 'opacity-60 pointer-events-none' : ''}`}>
