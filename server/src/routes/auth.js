@@ -98,7 +98,9 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/me', auth, async (req, res) => {
+// /me debe ser accesible aunque el email no esté verificado, para que el
+// frontend sepa que el usuario está logueado y muestre el banner de verificación.
+router.get('/me', auth.authNoVerifyCheck, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
       .select('-passwordHash -emailVerificationToken').lean();

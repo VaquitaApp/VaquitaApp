@@ -3,6 +3,7 @@ const Contribution = require('../models/Contribution');
 const auth = require('../middleware/auth');
 const { requireFund, isOrganizer } = require('../middleware/funds');
 const { pendingQuotas } = require('../services/quotaService');
+const { ERR_FUND_NOT_ACTIVE, ERR_ACCESS_DENIED } = require('../errors');
 
 const router = express.Router({ mergeParams: true });
 
@@ -10,12 +11,12 @@ const router = express.Router({ mergeParams: true });
 router.post('/', auth, requireFund(), async (req, res) => {
   try {
     const fund = req.fund;
-    if (fund.status !== 'active') return res.status(403).json({ error: 'Fund is not active' });
+    if (fund.status !== 'active') return res.status(403).json({ error: ERR_FUND_NOT_ACTIVE });
 
     const userId = req.user._id;
     const isOrg = isOrganizer(fund, userId);
     const isAccepted = fund.participants.some(p => p.user.equals(userId) && p.status === 'accepted');
-    if (!isOrg && !isAccepted) return res.status(403).json({ error: 'Access denied' });
+    if (!isOrg && !isAccepted) return res.status(403).json({ error: ERR_ACCESS_DENIED });
 
     const { amount, method, date, quotasPaid } = req.body;
     if (!amount || Number(amount) <= 0) return res.status(400).json({ error: 'amount must be > 0' });
@@ -78,7 +79,7 @@ router.get('/', auth, requireFund(), async (req, res) => {
     const isOrg = isOrganizer(fund, userId);
     const isParticipant = fund.participants.some(p => p.user.equals(userId) && p.status === 'accepted');
     if (!isOrg && !isParticipant && fund.visibility !== 'public') {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: ERR_ACCESS_DENIED });
     }
 
     const contributions = await Contribution.find({ fund: fund._id, status: 'succeeded' })

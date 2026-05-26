@@ -46,8 +46,10 @@ describe('CA1 — Acceder al detalle del fondo', () => {
       .get('/api/funds/public')
       .set(await authHeader(visitor));
     expect(res.status).toBe(200);
-    expect(res.body.length).toBeGreaterThanOrEqual(1);
+    // Solo se creó 1 fondo público en el setup → la lista debe tener exactamente 1
+    expect(res.body).toHaveLength(1);
     expect(res.body[0].visibility).toBe('public');
+    expect(res.body[0].status).toBe('active');
   });
 
   test('fondo propio aparece en /api/funds (mis fondos)', async () => {
@@ -434,14 +436,14 @@ describe('CA10 — Manejo de errores al cargar', () => {
     expect(res.body.error).toBeDefined();
   });
 
-  test('GET /api/funds/:id con ID malformado retorna error (400 o 500) con mensaje', async () => {
+  test('GET /api/funds/:id con ID malformado retorna 400 (validación temprana en middleware)', async () => {
     const user = await createUser();
 
     const res = await request(app)
       .get('/api/funds/id-invalido-xyz')
       .set(await authHeader(user));
-    expect([400, 500]).toContain(res.status);
-    expect(res.body.error).toBeDefined();
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/malformado|id/i);
   });
 
   test('GET /api/funds/:id/participants con ID inexistente retorna 404', async () => {

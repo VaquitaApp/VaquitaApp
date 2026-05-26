@@ -5,6 +5,12 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { requireFund, requireOrganizer, POP_ORG, POP_PARTS, POP_MSGS } = require('../middleware/funds');
 const { describeChange } = require('../utils/fundChangeLog');
+const {
+  ERR_FUND_NOT_FOUND,
+  ERR_FUND_NOT_ACTIVE,
+  ERR_ACCESS_DENIED,
+  ERR_CANNOT_DELETE_WITH_CONTRIBS,
+} = require('../errors');
 const { processPayment } = require('../services/paymentService');
 const { totalPeriods, pendingQuotas } = require('../services/quotaService');
 const { sendStatusChangeEmail, sendFundEditedEmail, sendMoraReminderEmail, sendFundDeletedEmail } = require('../services/emailService');
@@ -201,7 +207,7 @@ router.post('/', auth, async (req, res) => {
 router.get('/:id', auth, requireFund({ populate: [POP_ORG, POP_PARTS, POP_MSGS] }), async (req, res) => {
   try {
     const fund = req.fund;
-    if (!fund.organizer) return res.status(404).json({ error: 'Fund not found' });
+    if (!fund.organizer) return res.status(404).json({ error: ERR_FUND_NOT_FOUND });
 
     await autoExpireFund(fund);
 
@@ -210,7 +216,7 @@ router.get('/:id', auth, requireFund({ populate: [POP_ORG, POP_PARTS, POP_MSGS] 
       p => (p.user?._id?.equals(userId) || p.user?.equals?.(userId)) && p.invitationToken
     );
     if (!isMember(fund, userId) && fund.visibility !== 'public' && !hasPendingInvitation) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: ERR_ACCESS_DENIED });
     }
 
     const collectedAmount = await getCollectedAmount(fund._id);
@@ -252,7 +258,7 @@ router.get('/:id/participants/:userId/status', auth, async (req, res) => {
 router.patch('/:id', auth, requireFund({ populate: [POP_ORG, POP_PARTS] }), requireOrganizer, async (req, res) => {
   try {
     const fund = req.fund;
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
 
     const hasContribs = await Contribution.countDocuments({ fund: fund._id, status: 'succeeded' }) > 0;
     const body = req.body;
@@ -330,7 +336,7 @@ router.delete('/:id', auth, requireFund({ populate: [POP_PARTS] }), requireOrgan
   try {
     const fund = req.fund;
     const hasContribs = await Contribution.countDocuments({ fund: fund._id }) > 0;
-    if (hasContribs) return res.status(422).json({ error: 'Cannot delete fund with contributions' });
+    if (hasContribs) return res.status(422).json({ error: ERR_CANNOT_DELETE_WITH_CONTRIBS });
 
     sendFundDeletedEmail({ fund, participants: fund.participants })
       .catch(err => console.error('Delete email failed:', err.message));
@@ -346,7 +352,7 @@ router.delete('/:id', auth, requireFund({ populate: [POP_PARTS] }), requireOrgan
 router.post('/:id/payment', auth, requireFund({ populate: [POP_ORG, POP_PARTS] }), requireOrganizer, async (req, res) => {
   try {
     const fund = req.fund;
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
 
     const collectedAmount = await getCollectedAmount(fund._id);
     if (collectedAmount <= 0) {
@@ -378,7 +384,7 @@ router.post('/:id/payment', auth, requireFund({ populate: [POP_ORG, POP_PARTS] }
 router.post('/:id/reminders', auth, requireFund({ populate: [POP_PARTS] }), requireOrganizer, async (req, res) => {
   try {
     const fund = req.fund;
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
 
     const contributions = await Contribution.find({ fund: fund._id, status: 'succeeded' }).lean();
     const accepted = fund.participants.filter(p => p.status === 'accepted' && p.user?.email);
@@ -409,7 +415,7 @@ router.post('/:id/reminders', auth, requireFund({ populate: [POP_PARTS] }), requ
 router.post('/:id/close', auth, requireFund({ populate: [POP_ORG, POP_PARTS] }), requireOrganizer, async (req, res) => {
   try {
     const fund = req.fund;
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
 
     const hasContribs = await Contribution.countDocuments({ fund: fund._id, status: 'succeeded' }) > 0;
     if (hasContribs) return res.status(422).json({ error: 'Cannot close a fund with contributions — pay the recipient instead' });

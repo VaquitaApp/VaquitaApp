@@ -22,6 +22,7 @@ afterAll(() => db.disconnect());
 describe('Fund model', () => {
   test('creates a free fund with defaults', async () => {
     const fund = await Fund.create(base);
+    expect(fund.type).toBe('free');             // assertion central del nombre del test
     expect(fund.status).toBe('active');
     expect(fund.visibility).toBe('private');
     expect(fund.participants).toHaveLength(0);

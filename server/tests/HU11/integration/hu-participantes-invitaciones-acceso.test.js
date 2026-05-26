@@ -9,6 +9,7 @@ const app = require('../../../src/app');
 const Fund = require('../../../src/models/Fund');
 const { connect, disconnect, clear } = require('../../helpers/db');
 const { createUser, createFund, createContribution } = require('../../helpers/factories');
+const { ERR_USER_ALREADY_PARTICIPANT } = require('../../../src/errors');
 
 let organizer, participant, stranger, orgToken, partToken, fund;
 
@@ -104,7 +105,7 @@ describe('HU participantes — invitaciones y acceso', () => {
       .send({ userId: participant._id.toString() });
 
     expect(res.status).toBe(409);
-    expect(res.body.error).toMatch(/already a participant/i);
+    expect(res.body.error).toBe(ERR_USER_ALREADY_PARTICIPANT);
   });
 
   it('[TC-HU-PART-007] Al aceptar invitación el usuario figura como participante aceptado', async () => {

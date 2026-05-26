@@ -336,11 +336,17 @@ export default function FundDetailPage() {
               userContributions={contributions.filter(
                 c => c.user?._id?.toString() === user?._id?.toString()
               )}
-              onCreated={(c, options) => {
+              onCreated={async (c, options) => {
                 setContributions(prev => [
                   { ...c, user: { _id: user._id, name: user.name, email: user.email } },
                   ...prev,
                 ]);
+                try {
+                  const { data } = await getParticipants(id);
+                  setParticipants(data);
+                } catch {
+                  // si falla el refresh, badge queda stale hasta el próximo render con datos frescos
+                }
                 if (!options?.keepOpen) {
                   setShowContribForm(false);
                 }

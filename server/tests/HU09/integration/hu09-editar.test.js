@@ -6,6 +6,7 @@ const request = require('supertest');
 const app = require('../../../src/app');
 const db = require('../../helpers/db');
 const { createUser, createFund, createContribution } = require('../../helpers/factories');
+const { ERR_FUND_NOT_ACTIVE } = require('../../../src/errors');
 
 beforeAll(() => db.connect());
 afterEach(() => db.clear());
@@ -41,7 +42,7 @@ describe('HU09: Editar Fondo — PATCH /api/funds/:id', () => {
       .set(await authHeader(user))
       .send({ name: 'X' });
     expect(res.status).toBe(422);
-    expect(res.body.error).toMatch(/not active/i);
+    expect(res.body.error).toBe(ERR_FUND_NOT_ACTIVE);
   });
 
   test('TC-HU09-02b: 422 si el fondo está completado', async () => {
@@ -96,8 +97,8 @@ describe('HU09: Editar Fondo — PATCH /api/funds/:id', () => {
     expect(res.body.visibility).toBe('public');
   });
 
-  // ─── TC-HU09-06: updateLog al cambiar descripción/objetivo ───────
-  test('TC-HU09-06: Genera updateLog al cambiar descripción con invitados', async () => {
+  // ─── TC-HU09-06: updateLog genera UNA entrada por cada campo cambiado ─────────
+  test('TC-HU09-06: Genera exactamente 2 updateLogs al cambiar descripción Y objetivo con invitados', async () => {
     const org = await createUser({ email: 'org@test.com' });
     const part = await createUser({ email: 'part@test.com' });
     const fund = await createFund({
@@ -114,10 +115,31 @@ describe('HU09: Editar Fondo — PATCH /api/funds/:id', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.description).toBe('New desc');
-    expect(res.body.updateLogs.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.goal).toBe('New goal');
+    expect(res.body.updateLogs).toHaveLength(2);
     const msgs = res.body.updateLogs.map(l => l.message.toLowerCase());
     expect(msgs.some(m => m.includes('descripción'))).toBe(true);
     expect(msgs.some(m => m.includes('objetivo'))).toBe(true);
+  });
+
+  // ─── TC-HU09-06b: solo descripción cambiada → exactamente 1 updateLog ─────────
+  test('TC-HU09-06b: Cambiar solo descripción genera exactamente 1 updateLog', async () => {
+    const org = await createUser({ email: 'org@test.com' });
+    const part = await createUser({ email: 'part@test.com' });
+    const fund = await createFund({
+      organizer: org._id,
+      participants: [{ user: part._id, status: 'accepted' }],
+      description: 'Old desc',
+    });
+
+    const res = await request(app)
+      .patch(`/api/funds/${fund._id}`)
+      .set(await authHeader(org))
+      .send({ description: 'New desc' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.updateLogs).toHaveLength(1);
+    expect(res.body.updateLogs[0].message.toLowerCase()).toContain('descripción');
   });
 
   // ─── TC-HU09-07: Aplazar fecha límite sin colapsar ───────────────

@@ -85,11 +85,16 @@ describe('HU05-1: Inicio de sesión — POST /api/auth/login', () => {
     expect(differenceInSeconds).toBe(sevenDaysInSeconds);
   });
 
-  // ─── TC-HU05-1-08: Contraseña menor a 6 caracteres (Validación Backend) ─────
-  test('TC-HU05-1-08: Rechaza si la contraseña tiene menos de 6 caracteres devolviendo 401', async () => {
+  // ─── TC-HU05-1-08: Contraseña menor a 6 caracteres ──────────────────────────
+  // NOTA: El endpoint de login no valida largo de password por sí mismo; el bloqueo
+  // efectivo de passwords <6 ocurre en el register (ver TC-HU05-2-04 en HU05-2).
+  // Esta prueba verifica que un password de 5 caracteres NO da acceso, lo que se
+  // cumple porque nunca pudo registrarse un usuario con ese password.
+  test('TC-HU05-1-08: Login con password < 6 caracteres responde 401 (contra usuario existente con otro password)', async () => {
+    const user = await createUser({ email: 'test8@prueba.cl' });
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'test8@prueba.cl', password: '12345' });
+      .send({ email: user.email, password: '12345' });
 
     expect(res.status).toBe(401);
   });

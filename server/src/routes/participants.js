@@ -6,6 +6,12 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { requireFund, requireOrganizer, isOrganizer, POP_ORG, POP_PARTS } = require('../middleware/funds');
 const { isFundExpired } = require('../utils/funds');
+const {
+  ERR_FUND_NOT_ACTIVE,
+  ERR_DEADLINE_EXPIRED,
+  ERR_USER_ALREADY_PARTICIPANT,
+  ERR_ACCESS_DENIED,
+} = require('../errors');
 const { pendingQuotas } = require('../services/quotaService');
 const {
   sendEmail,
@@ -19,9 +25,9 @@ const router = express.Router({ mergeParams: true });
 router.post('/invitations', auth, requireFund(), requireOrganizer, async (req, res) => {
   try {
     const fund = req.fund;
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
     if (isFundExpired(fund)) {
-      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+      return res.status(422).json({ error: ERR_DEADLINE_EXPIRED });
     }
 
     const { userId } = req.body;
@@ -37,7 +43,7 @@ router.post('/invitations', auth, requireFund(), requireOrganizer, async (req, r
 
     if (existing) {
       if (existing.status === 'accepted') {
-        return res.status(409).json({ error: 'User already a participant' });
+        return res.status(409).json({ error: ERR_USER_ALREADY_PARTICIPANT });
       }
       existing.invitationToken = uuidv4();
       existing.joinRequestToken = undefined;
@@ -85,7 +91,7 @@ router.post('/join-request', auth, requireFund({ populate: [POP_ORG] }), async (
     if (fund.visibility !== 'public') return res.status(403).json({ error: 'El fondo no es público' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'El fondo no está activo' });
     if (isFundExpired(fund)) {
-      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+      return res.status(422).json({ error: ERR_DEADLINE_EXPIRED });
     }
     if (isOrganizer(fund, req.user._id)) {
       return res.status(422).json({ error: 'El organizador no puede solicitar unirse a su propio fondo' });
@@ -173,7 +179,7 @@ router.get('/participants', auth, requireFund({ populate: [POP_PARTS] }), async 
     const isOrg = isOrganizer(fund, userId);
     const isParticipant = fund.participants.some(p => p.user._id.equals(userId) && p.status === 'accepted');
     const isPendingInvitee = fund.participants.some(p => p.user._id.equals(userId) && p.invitationToken);
-    if (!isOrg && !isParticipant && !isPendingInvitee) return res.status(403).json({ error: 'Access denied' });
+    if (!isOrg && !isParticipant && !isPendingInvitee) return res.status(403).json({ error: ERR_ACCESS_DENIED });
 
     const contributions = await Contribution.find({ fund: fund._id, status: 'succeeded' }).lean();
 
@@ -213,9 +219,9 @@ router.get('/participants', auth, requireFund({ populate: [POP_PARTS] }), async 
 router.post('/accept-my-invitation', auth, requireFund(), async (req, res) => {
   try {
     const fund = req.fund;
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
     if (isFundExpired(fund)) {
-      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+      return res.status(422).json({ error: ERR_DEADLINE_EXPIRED });
     }
 
     const idx = fund.participants.findIndex(p => p.user.equals(req.user._id) && p.invitationToken);
@@ -243,7 +249,7 @@ router.post('/access-requests', auth, requireFund({ populate: [POP_ORG] }), asyn
       return res.status(422).json({ error: 'Fund is not active' });
     }
     if (isFundExpired(fund)) {
-      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+      return res.status(422).json({ error: ERR_DEADLINE_EXPIRED });
     }
 
     const userId = req.user._id;
