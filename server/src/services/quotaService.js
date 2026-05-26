@@ -29,10 +29,16 @@ function periodsElapsed(fund) {
 
 // Retorna cuántas cuotas le faltan al usuario. 0 = al día.
 function pendingQuotas(fund, userContributions) {
-  const totalPaid = userContributions.reduce((s, c) => s + c.amount, 0);
-  const paid = Math.floor(totalPaid / fund.quotaAmount);
+  const paid = userContributions.reduce((s, c) => s + (c.quotasPaid || Math.floor(c.amount / fund.quotaAmount)), 0);
   const due  = periodsElapsed(fund);
   return Math.max(0, due - paid);
+}
+
+// Retorna el saldo de cuotas restantes (el total absoluto del fondo)
+function remainingQuotas(fund, userContributions) {
+  const paid = userContributions.reduce((s, c) => s + (c.quotasPaid || Math.floor(c.amount / fund.quotaAmount)), 0);
+  const total = fund.totalQuotas || totalPeriods(fund.frequency, fund.createdAt, fund.deadline);
+  return Math.max(0, total - paid);
 }
 
 // Deadline del período actual según la frecuencia del fondo
@@ -49,4 +55,4 @@ function currentPeriodDeadline(fund) {
   return new Date(start.getTime() + elapsed * periodDays[fund.frequency] * 86400000);
 }
 
-module.exports = { totalPeriods, periodsElapsed, pendingQuotas, currentPeriodDeadline };
+module.exports = { totalPeriods, periodsElapsed, pendingQuotas, remainingQuotas, currentPeriodDeadline };

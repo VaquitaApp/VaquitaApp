@@ -294,6 +294,7 @@ export default function FundDetailPage() {
           )}
         </div>
         <ParticipantList
+          fund={fund}
           organizer={fund.organizer}
           participants={participants}
           contributions={contributions}

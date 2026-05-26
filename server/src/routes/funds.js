@@ -223,6 +223,34 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+// GET /api/funds/:id/participants/:userId/status
+router.get('/:id/participants/:userId/status', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id);
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    
+    if (req.user._id.toString() !== req.params.userId && !fund.organizer.equals(req.user._id)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const { pendingQuotas, remainingQuotas, totalPeriods } = require('../services/quotaService');
+    const userContribs = await Contribution.find({ fund: fund._id, user: req.params.userId, status: 'succeeded' }).lean();
+    
+    let statusObj = {};
+    if (fund.type === 'quota') {
+      const paid = userContribs.reduce((s, c) => s + (c.quotasPaid || Math.floor(c.amount / fund.quotaAmount)), 0);
+      statusObj.pending = pendingQuotas(fund, userContribs);
+      statusObj.remaining = remainingQuotas(fund, userContribs);
+      statusObj.paid = paid;
+      statusObj.total = fund.totalQuotas || totalPeriods(fund.frequency, fund.createdAt, fund.deadline);
+    }
+    
+    res.json(statusObj);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // PATCH /api/funds/:id
 router.patch('/:id', auth, async (req, res) => {
   try {

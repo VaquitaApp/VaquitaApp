@@ -28,6 +28,7 @@ const fundSchema = new Schema({
   targetAmount:     { type: Number, required: true, min: 1 },
   minAmount:        { type: Number },
   quotaAmount:         { type: Number },
+  totalQuotas:      { type: Number, min: 1 },
   expectedParticipants: { type: Number, min: 1 },
   frequency:           { type: String, enum: ['once', 'weekly', 'biweekly', 'monthly'] },
   deadline:         { type: Date, required: true },
@@ -70,6 +71,7 @@ fundSchema.pre('validate', function (next) {
   if (this.type === 'quota') {
     if (!this.quotaAmount) this.invalidate('quotaAmount', 'required for quota fund');
     if (!this.frequency)   this.invalidate('frequency',   'required for quota fund');
+    if (!this.totalQuotas) this.invalidate('totalQuotas', 'required for quota fund');
   }
   next();
 });

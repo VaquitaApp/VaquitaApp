@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createContribution } from '../../api/contributions';
 import { updateProfile } from '../../api/participants';
 import { useAuth } from '../../contexts/AuthContext';
@@ -29,14 +29,14 @@ function computePending(fund, userContributions) {
   return Math.max(0, periodsElapsed(fund) - paid);
 }
 
+import { getParticipantStatus } from '../../api/funds';
+
 export default function ContributionForm({ fundId, fund, userContributions = [], onCreated, onCancel }) {
   const { user, refreshUser } = useAuth();
   const saved = user?.preferredAccount;
   const hasSaved = saved?.bank && saved?.accountNumber;
 
   const isQuota = fund?.type === 'quota';
-  const pending = isQuota ? computePending(fund, userContributions) : null;
-  const fixedAmt = isQuota ? pending * fund.quotaAmount : null;
   const destination = fund?.recipientAccount;
 
   const [origin, setOrigin] = useState({
@@ -45,6 +45,23 @@ export default function ContributionForm({ fundId, fund, userContributions = [],
     accountNumber: saved?.accountNumber ?? '',
   });
   const [amount, setAmount] = useState('');
+  const [quotasToPay, setQuotasToPay] = useState(1);
+  const [statusObj, setStatusObj] = useState(null);
+  
+  useEffect(() => {
+    if (isQuota && user) {
+      getParticipantStatus(fundId, user._id).then(res => {
+        setStatusObj(res.data);
+        if (res.data.pending > 0) {
+          setQuotasToPay(res.data.pending);
+        }
+      }).catch(console.error);
+    }
+  }, [isQuota, fundId, user]);
+
+  const pending = statusObj ? statusObj.pending : 0;
+  const remaining = statusObj ? statusObj.remaining : null;
+  const fixedAmt = isQuota ? quotasToPay * fund.quotaAmount : null;
   const [step, setStep] = useState('form');
   const [error, setError] = useState('');
   const [successError, setSuccessError] = useState('');
@@ -85,6 +102,7 @@ export default function ContributionForm({ fundId, fund, userContributions = [],
       const res = await createContribution(fundId, {
         amount: isQuota ? fixedAmt : Number(amount),
         method: 'transfer',
+        quotasPaid: isQuota ? quotasToPay : undefined,
       });
       setStep('success');
       if (shouldPromptSaveAfterSuccess) {
@@ -226,18 +244,29 @@ export default function ContributionForm({ fundId, fund, userContributions = [],
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-[var(--vaq-ink)]">Monto (CLP)</label>
         {isQuota ? (
           <>
+            <label className="mb-1 block text-xs font-medium text-[var(--vaq-ink)]">¿Cuántas cuotas pagarás?</label>
+            <select 
+              value={quotasToPay} 
+              onChange={(e) => setQuotasToPay(Number(e.target.value))}
+              className={fieldSelect}
+            >
+              {Array.from({ length: remaining || 1 }, (_, i) => i + 1).map(n => (
+                <option key={n} value={n}>{n} {n === 1 ? 'cuota' : 'cuotas'} {n === remaining ? '(Saldo completo)' : ''}</option>
+              ))}
+            </select>
+            <label className="mt-3 mb-1 block text-xs font-medium text-[var(--vaq-ink)]">Monto a pagar (CLP)</label>
             <div className="w-full rounded-lg border border-[var(--vaq-input-border)] bg-[var(--vaq-well-bg)] px-3 py-2 text-sm text-[var(--vaq-ink)]">
               {fmtCLP(fixedAmt)}
             </div>
             <p className="mt-1 text-xs text-[var(--vaq-forest)]">
-              {pending === 1 ? '1 cuota pendiente' : `${pending} cuotas pendientes (${fmtCLP(fund.quotaAmount)} c/u)`}
+              {pending > 0 ? (pending === 1 ? '1 cuota pendiente' : `${pending} cuotas pendientes`) : 'Estás al día'} ({fmtCLP(fund.quotaAmount)} c/u)
             </p>
           </>
         ) : (
           <>
+            <label className="mb-1 block text-xs font-medium text-[var(--vaq-ink)]">Monto (CLP)</label>
             <input
               type="number"
               min={fund.minAmount || 1}
