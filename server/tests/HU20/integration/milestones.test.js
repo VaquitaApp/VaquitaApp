@@ -79,6 +79,6 @@ describe('HU20 - Metas Parciales (Hitos) de Recaudación (Integración)', () => 
       });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toContain('Validation failed');
+    expect(res.body.error).toMatch(/validation failed/i);
   });
 });
