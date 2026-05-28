@@ -55,7 +55,7 @@ describe('HU08: Ver Detalle y Progreso del Fondo — GET /api/funds/:id', () => 
     const part = await createUser({ email: 'part@test.com' });
     const fund = await createFund({
       organizer: org._id,
-      type: 'quota',
+      type: 'quota', totalQuotas: 12,
       frequency: 'monthly',
       quotaAmount: 10000,
       participants: [{ user: part._id, status: 'accepted' }],

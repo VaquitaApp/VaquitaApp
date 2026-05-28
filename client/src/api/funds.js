@@ -11,3 +11,4 @@ export const sendReminders  = (id) => api.post(`/funds/${id}/reminders`, null);
 export const postMessage    = (id, data) => api.post(`/funds/${id}/messages`, data);
 export const pauseFund      = (id)     => api.post(`/funds/${id}/pause`);
 export const resumeFund     = (id)     => api.post(`/funds/${id}/resume`);
+export const getParticipantStatus = (fundId, userId) => api.get(`/funds/${fundId}/participants/${userId}/status`);

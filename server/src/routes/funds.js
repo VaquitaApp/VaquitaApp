@@ -11,7 +11,7 @@ const { FREQ_LABELS } = require('../constants');
 const router = express.Router();
 
 // Campos bloqueados una vez que existen aportes
-const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'minAmount', 'type'];
+const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'totalQuotas', 'minAmount', 'type'];
 
 const FREQ_MIN_DAYS = { weekly: 7, biweekly: 14, monthly: 30 };
 
@@ -152,7 +152,7 @@ router.post('/', auth, async (req, res) => {
   try {
     const { name, description, goal, type, targetAmount, quotaAmount,
             frequency, deadline, recipientAccount, visibility, coverImage,
-            minAmount, expectedParticipants } = req.body;
+            minAmount, expectedParticipants, totalQuotas } = req.body;
 
     if (deadline && !isDeadlineValid(deadline)) {
       return res.status(400).json({ error: 'La fecha límite no puede estar en el pasado y debe ser máximo en 1 año.' });
@@ -184,7 +184,7 @@ router.post('/', auth, async (req, res) => {
     const fund = new Fund({
       name, description: desc, goal: goalStr, type, targetAmount, quotaAmount,
       frequency, deadline, recipientAccount, visibility, coverImage,
-      minAmount, expectedParticipants,
+      minAmount, expectedParticipants, totalQuotas,
       organizer: req.user._id,
     });
     await fund.save();
@@ -218,6 +218,34 @@ router.get('/:id', auth, async (req, res) => {
 
     const collectedAmount = await getCollectedAmount(fund._id);
     res.json({ ...fund.toObject(), collectedAmount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/funds/:id/participants/:userId/status
+router.get('/:id/participants/:userId/status', auth, async (req, res) => {
+  try {
+    const fund = await Fund.findById(req.params.id);
+    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    
+    if (req.user._id.toString() !== req.params.userId && !fund.organizer.equals(req.user._id)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const { pendingQuotas, remainingQuotas, totalPeriods } = require('../services/quotaService');
+    const userContribs = await Contribution.find({ fund: fund._id, user: req.params.userId, status: 'succeeded' }).lean();
+    
+    let statusObj = {};
+    if (fund.type === 'quota') {
+      const paid = userContribs.reduce((s, c) => s + (c.quotasPaid || Math.floor(c.amount / fund.quotaAmount)), 0);
+      statusObj.pending = pendingQuotas(fund, userContribs);
+      statusObj.remaining = remainingQuotas(fund, userContribs);
+      statusObj.paid = paid;
+      statusObj.total = fund.totalQuotas || totalPeriods(fund.frequency, fund.createdAt, fund.deadline);
+    }
+    
+    res.json(statusObj);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
