@@ -9,11 +9,13 @@ describe('HU19 - Pago Adelantado de Cuotas (Integración)', () => {
   let token, user, fundId;
 
   beforeAll(async () => {
+    const { connect } = require('../../helpers/db');
+    await connect();
     user = await User.create({
       name: 'Aportante Test',
       email: 'aportante.hu19@test.com',
-      password: 'Password123!',
-      isVerified: true
+      passwordHash: 'Password123!',
+      isEmailVerified: true
     });
     const resAuth = await request(app)
       .post('/api/auth/login')
@@ -26,7 +28,7 @@ describe('HU19 - Pago Adelantado de Cuotas (Integración)', () => {
       name: 'Fondo Cuotas',
       description: 'Test cuotas',
       goal: 'Test',
-      type: 'quota', totalQuotas: 12,
+      type: 'quota',
       targetAmount: 100000,
       quotaAmount: 10000,
       totalQuotas: 10,
@@ -46,8 +48,9 @@ describe('HU19 - Pago Adelantado de Cuotas (Integración)', () => {
   });
 
   afterAll(async () => {
+    const { disconnect } = require('../../helpers/db');
     await User.deleteMany({});
-    await mongoose.connection.close();
+    await disconnect();
   });
 
   it('Debe permitir pagar múltiples cuotas a la vez', async () => {

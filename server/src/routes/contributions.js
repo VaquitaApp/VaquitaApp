@@ -22,7 +22,8 @@ router.post('/', auth, async (req, res) => {
     const { amount, method, date, quotasPaid } = req.body;
     if (!amount || Number(amount) <= 0) return res.status(400).json({ error: 'amount must be > 0' });
 
-    let finalQuotasPaid = quotasPaid ? Number(quotasPaid) : 1;
+    let finalQuotasPaid = quotasPaid ? Number(quotasPaid) : (fund.type === 'quota' ? Math.floor(Number(amount) / fund.quotaAmount) : 1);
+    if (finalQuotasPaid < 1) finalQuotasPaid = 1;
 
     if (fund.type === 'quota') {
       const userContribs = await Contribution.find({ fund: fund._id, user: userId, status: 'succeeded' }).lean();

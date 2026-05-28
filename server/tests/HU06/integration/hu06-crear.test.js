@@ -102,7 +102,7 @@ describe('HU06: Crear Fondo Colectivo — POST /api/funds', () => {
     const res = await request(app)
       .post('/api/funds')
       .set(await authHeader(user))
-      .send({ ...validFundBody, type: 'quota', totalQuotas: 12, quotaAmount: 10000, frequency: 'monthly' });
+      .send({ ...validFundBody, type: 'quota', totalQuotas: 12, quotaAmount: 10000, frequency: 'monthly', deadline: new Date(Date.now() + 86400000 * 60).toISOString() });
     expect(res.status).toBe(201);
     expect(res.body.type).toBe('quota');
     expect(res.body.quotaAmount).toBe(10000);

@@ -274,7 +274,7 @@ describe('POST /api/funds/:id/contributions — fondo por cuotas', () => {
     expect(res.status).toBe(400);
   });
 
-  it('400 if amount covers only partial catch-up when multiple quotas are overdue', async () => {
+  it('201 if amount covers only partial catch-up when multiple quotas are overdue (flexible payment)', async () => {
     const unMesAtras = new Date();
     unMesAtras.setMonth(unMesAtras.getMonth() - 1);
     await Fund.collection.updateOne({ _id: quotaFund._id }, { $set: { createdAt: unMesAtras } });
@@ -284,9 +284,9 @@ describe('POST /api/funds/:id/contributions — fondo por cuotas', () => {
       .set('Authorization', `Bearer ${partToken}`)
       .send({ amount: quotaAmount, method: 'transfer' }); // solo 1 cuando se deben 2
 
-    expect(res.status).toBe(400);
-    expect(res.body.pendingQuotas).toBe(2);
-    expect(res.body.requiredAmount).toBe(quotaAmount * 2);
+    expect(res.status).toBe(201);
+    expect(res.body.amount).toBe(quotaAmount);
+    expect(res.body.quotasPaid).toBe(1);
   });
 
   it('201 with catch-up amount when multiple quotas are overdue', async () => {
@@ -352,7 +352,7 @@ describe('POST /api/funds/:id/contributions — fondo quincenal', () => {
     expect(res.body.requiredAmount).toBe(quotaAmount);
   });
 
-  it('400 con monto de 1 cuota cuando hay 2 cuotas quincenales atrasadas', async () => {
+  it('201 con monto de 1 cuota cuando hay 2 cuotas quincenales atrasadas (pago flexible)', async () => {
     const quinceDiasAtras = new Date();
     quinceDiasAtras.setDate(quinceDiasAtras.getDate() - 15);
     await Fund.collection.updateOne({ _id: biweeklyFund._id }, { $set: { createdAt: quinceDiasAtras } });
@@ -362,8 +362,8 @@ describe('POST /api/funds/:id/contributions — fondo quincenal', () => {
       .set('Authorization', `Bearer ${partToken}`)
       .send({ amount: quotaAmount, method: 'transfer' });
 
-    expect(res.status).toBe(400);
-    expect(res.body.pendingQuotas).toBe(2);
-    expect(res.body.requiredAmount).toBe(quotaAmount * 2);
+    expect(res.status).toBe(201);
+    expect(res.body.amount).toBe(quotaAmount);
+    expect(res.body.quotasPaid).toBe(1);
   });
 });

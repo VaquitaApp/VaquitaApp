@@ -11,7 +11,7 @@ const { FREQ_LABELS } = require('../constants');
 const router = express.Router();
 
 // Campos bloqueados una vez que existen aportes
-const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'minAmount', 'type'];
+const LOCKED_FIELDS = ['targetAmount', 'deadline', 'recipientAccount', 'frequency', 'quotaAmount', 'totalQuotas', 'minAmount', 'type'];
 
 const FREQ_MIN_DAYS = { weekly: 7, biweekly: 14, monthly: 30 };
 
@@ -152,7 +152,7 @@ router.post('/', auth, async (req, res) => {
   try {
     const { name, description, goal, type, targetAmount, quotaAmount,
             frequency, deadline, recipientAccount, visibility, coverImage,
-            minAmount, expectedParticipants } = req.body;
+            minAmount, expectedParticipants, totalQuotas } = req.body;
 
     if (deadline && !isDeadlineValid(deadline)) {
       return res.status(400).json({ error: 'La fecha límite no puede estar en el pasado y debe ser máximo en 1 año.' });
@@ -184,7 +184,7 @@ router.post('/', auth, async (req, res) => {
     const fund = new Fund({
       name, description: desc, goal: goalStr, type, targetAmount, quotaAmount,
       frequency, deadline, recipientAccount, visibility, coverImage,
-      minAmount, expectedParticipants,
+      minAmount, expectedParticipants, totalQuotas,
       organizer: req.user._id,
     });
     await fund.save();
