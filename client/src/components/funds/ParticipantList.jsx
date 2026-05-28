@@ -2,6 +2,7 @@ import { ContributionBadge } from '../ui/Badge';
 import { fmtName, fmtCLP } from '../../utils/format';
 
 export default function ParticipantList({
+  fund,
   organizer,
   participants = [],
   contributions = [],
@@ -22,7 +23,15 @@ export default function ParticipantList({
       .reduce((sum, c) => sum + c.amount, 0);
   }
 
+  function quotasFor(userId) {
+    if (fund?.type !== 'quota') return null;
+    return contributions
+      .filter((c) => c.user?._id?.toString() === userId?.toString())
+      .reduce((sum, c) => sum + (c.quotasPaid || Math.floor(c.amount / fund.quotaAmount)), 0);
+  }
+
   const orgTotal = organizer ? totalFor(organizer._id) : 0;
+  const orgQuotas = organizer ? quotasFor(organizer._id) : null;
 
   return (
     <div className="overflow-x-auto">
@@ -48,6 +57,7 @@ export default function ParticipantList({
               </td>
               <td className="py-2 pr-4">
                 <p className="font-medium text-gray-700">{fmtCLP(orgTotal)}</p>
+                {orgQuotas !== null && <p className="text-xs text-[var(--vaq-muted)]">Ha pagado {orgQuotas} cuotas</p>}
               </td>
               {isOrganizer && (
                 <td className="py-2 pr-4">
@@ -58,6 +68,7 @@ export default function ParticipantList({
           )}
           {visible.map((p) => {
             const total = totalFor(p.user?._id);
+            const quotas = quotasFor(p.user?._id);
 
             return (
               <tr key={p._id} className="border-b border-[var(--vaq-card-border)] hover:bg-[var(--vaq-well-bg)]">
@@ -74,6 +85,7 @@ export default function ParticipantList({
                 </td>
                 <td className="py-2 pr-4">
                   <p className="font-medium text-gray-700">{fmtCLP(total)}</p>
+                  {quotas !== null && <p className="text-xs text-[var(--vaq-muted)]">Ha pagado {quotas} cuotas</p>}
                 </td>
                 {isOrganizer && (
                   <td className="py-2 pr-4">

@@ -433,7 +433,7 @@ describe('POST /api/funds/:id/reminders', () => {
     quotaFund = await createFund({
       organizer: organizer._id,
       status: 'active',
-      type: 'quota',
+      type: 'quota', totalQuotas: 12,
       frequency: 'monthly',
       quotaAmount: 10000,
       deadline: new Date(Date.now() + 86400000 * 60),

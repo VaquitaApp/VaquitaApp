@@ -91,7 +91,7 @@ describe('HU12 — Registrar aporte', () => {
     const quotaAmount = 12000;
     const quotaFund = await createFund({
       organizer: organizer._id,
-      type: 'quota',
+      type: 'quota', totalQuotas: 12,
       quotaAmount,
       frequency: 'monthly',
       status: 'active',
@@ -176,7 +176,7 @@ describe('HU12 — Registrar aporte', () => {
     const quotaAmount = 5000;
     const quotaFund = await createFund({
       organizer: organizer._id,
-      type: 'quota',
+      type: 'quota', totalQuotas: 1,
       quotaAmount,
       frequency: 'once',
       status: 'active',

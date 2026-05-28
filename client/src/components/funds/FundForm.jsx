@@ -51,6 +51,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     visibility: initial.visibility ?? 'public',
     frequency: initial.frequency ?? 'monthly',
     quotaAmount: initial.quotaAmount ?? '',
+    totalQuotas: initial.totalQuotas ?? '',
     expectedParticipants: initial.expectedParticipants ?? '',
     milestones: initial.milestones ?? [],
   });
@@ -105,6 +106,11 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
         data.expectedParticipants = Number(form.expectedParticipants);
       } else {
         delete data.expectedParticipants;
+      }
+      if (form.totalQuotas) {
+        data.totalQuotas = Number(form.totalQuotas);
+      } else {
+        delete data.totalQuotas;
       }
       if (form.deadline && form.frequency) {
         const minDays  = FREQ_MIN_DAYS[form.frequency] ?? 0;
@@ -297,17 +303,32 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
         )}
 
         {form.type === 'quota' && !locked('expectedParticipants') && (
-          <Field label="Participantes esperados (para estimar cuota)">
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={form.expectedParticipants}
-              onChange={e => set('expectedParticipants', e.target.value)}
-              className="fund-form-input"
-              placeholder="Ej: 5"
-            />
-          </Field>
+          <div className="fund-form-row">
+            <Field label="Participantes esperados (para estimar cuota)">
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={form.expectedParticipants}
+                onChange={e => set('expectedParticipants', e.target.value)}
+                className="fund-form-input"
+                placeholder="Ej: 5"
+              />
+            </Field>
+
+            <Field label="Total de cuotas por usuario (Opcional)">
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={form.totalQuotas}
+                onChange={e => set('totalQuotas', e.target.value)}
+                disabled={locked('totalQuotas')}
+                className="fund-form-input"
+                placeholder={periods ? `Auto: ${periods} cuotas hasta el límite` : "Ej: 10"}
+              />
+            </Field>
+          </div>
         )}
 
         {form.type === 'free' && (
