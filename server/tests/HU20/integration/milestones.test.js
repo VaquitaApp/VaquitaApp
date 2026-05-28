@@ -11,6 +11,10 @@ describe('HU20 - Metas Parciales (Hitos) de Recaudación (Integración)', () => 
 
   beforeAll(async () => {
     await connect();
+  });
+
+  beforeEach(async () => {
+    await clear();
     user = await User.create({
       name: 'Hitos Test',
       email: 'hitos.hu20@test.com',
