@@ -234,7 +234,7 @@ describe('POST /api/funds/:id/contributions — fondo por cuotas', () => {
   beforeEach(async () => {
     quotaFund = await createFund({
       organizer: organizer._id,
-      type: 'quota',
+      type: 'quota', totalQuotas: 12,
       quotaAmount,
       frequency: 'monthly',
       status: 'active',
@@ -321,7 +321,7 @@ describe('POST /api/funds/:id/contributions — fondo quincenal', () => {
   beforeEach(async () => {
     biweeklyFund = await createFund({
       organizer: organizer._id,
-      type: 'quota',
+      type: 'quota', totalQuotas: 12,
       quotaAmount,
       frequency: 'biweekly',
       status: 'active',

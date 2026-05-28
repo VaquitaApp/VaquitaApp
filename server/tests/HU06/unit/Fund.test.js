@@ -33,7 +33,7 @@ describe('Fund model', () => {
 
   test('quota fund saves with quotaAmount and frequency', async () => {
     const fund = await Fund.create({
-      ...base, type: 'quota', quotaAmount: 20000, frequency: 'monthly',
+      ...base, type: 'quota', totalQuotas: 12, quotaAmount: 20000, frequency: 'monthly',
     });
     expect(fund.quotaAmount).toBe(20000);
     expect(fund.frequency).toBe('monthly');

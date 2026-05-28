@@ -26,7 +26,7 @@ describe('HU19 - Pago Adelantado de Cuotas (Integración)', () => {
       name: 'Fondo Cuotas',
       description: 'Test cuotas',
       goal: 'Test',
-      type: 'quota',
+      type: 'quota', totalQuotas: 12,
       targetAmount: 100000,
       quotaAmount: 10000,
       totalQuotas: 10,

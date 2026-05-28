@@ -3,7 +3,7 @@ const { pendingQuotas, remainingQuotas } = require('../../../src/services/quotaS
 describe('quotaService - HU19 Pago Adelantado de Cuotas', () => {
   it('debe calcular correctly pendingQuotas y remainingQuotas usando quotasPaid', () => {
     const fund = {
-      type: 'quota',
+      type: 'quota', totalQuotas: 12,
       quotaAmount: 10000,
       totalQuotas: 10,
       frequency: 'monthly',

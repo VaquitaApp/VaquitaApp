@@ -85,7 +85,7 @@ describe('POST /api/funds — cuota minima sugerida con participantes esperados'
   const expectedParticipants = 4;
 
   const quotaFundBody = {
-    name: 'Fondo Cuotas', type: 'quota', targetAmount: 120000,
+    name: 'Fondo Cuotas', type: 'quota', totalQuotas: 12, targetAmount: 120000,
     description: 'Un fondo por cuotas', goal: 'Juntar para el paseo',
     deadline,
     recipientAccount: { bank: 'Banco Estado', accountType: 'vista', accountNumber: '12345678' },
@@ -144,7 +144,7 @@ describe('POST /api/funds — cuota minima sugerida con participantes esperados'
 
 describe('POST /api/funds — validacion frecuencia vs fecha limite en fondos de cuota', () => {
   const quotaBase = {
-    name: 'Fondo Cuotas', type: 'quota', targetAmount: 50000,
+    name: 'Fondo Cuotas', type: 'quota', totalQuotas: 12, targetAmount: 50000,
     description: 'Descripcion', goal: 'Objetivo',
     recipientAccount: { bank: 'Banco Estado', accountType: 'vista', accountNumber: '12345678' },
     visibility: 'private',
@@ -395,7 +395,7 @@ describe('PATCH /api/funds/:id', () => {
     const user = await createUser();
     const fund = await createFund({
       organizer: user._id,
-      type: 'quota',
+      type: 'quota', totalQuotas: 12,
       frequency: 'weekly',
       quotaAmount: 5000,
       deadline: new Date(Date.now() + 86400000 * 30),

@@ -28,7 +28,7 @@ async function makeWeeklyQuotaFund(daysAgo, userIds) {
   const createdAt = new Date(Date.now() - daysAgo * 86400000);
   const fund = await createFund({
     organizer: organizer._id,
-    type: 'quota',
+    type: 'quota', totalQuotas: 12,
     frequency: 'weekly',
     quotaAmount: 1000,
     createdAt,
