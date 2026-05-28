@@ -4,15 +4,18 @@ const { app } = require('../../../src/app');
 const User = require('../../../src/models/User');
 const Fund = require('../../../src/models/Fund');
 
+const { connect, disconnect, clear } = require('../../helpers/db');
+
 describe('HU20 - Metas Parciales (Hitos) de Recaudación (Integración)', () => {
   let token, user;
 
   beforeAll(async () => {
+    await connect();
     user = await User.create({
       name: 'Hitos Test',
       email: 'hitos.hu20@test.com',
-      password: 'Password123!',
-      isVerified: true
+      passwordHash: 'Password123!',
+      isEmailVerified: true
     });
     const resAuth = await request(app)
       .post('/api/auth/login')
@@ -21,12 +24,11 @@ describe('HU20 - Metas Parciales (Hitos) de Recaudación (Integración)', () => 
   });
 
   afterEach(async () => {
-    await Fund.deleteMany({});
+    await clear();
   });
 
   afterAll(async () => {
-    await User.deleteMany({});
-    await mongoose.connection.close();
+    await disconnect();
   });
 
   it('Debe permitir crear un fondo con hitos (milestones) validos', async () => {
