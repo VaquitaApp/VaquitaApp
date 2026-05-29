@@ -10,7 +10,7 @@ import { ACCOUNT_TYPE_LABELS } from '../../constants/accountTypes';
 const fieldSelect =
   'w-full rounded-lg border border-[var(--vaq-input-border)] bg-[var(--vaq-input-bg)] px-3 py-2 text-sm text-[var(--vaq-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--vaq-ring)]';
 
-export default function ContributionForm({ fundId, fund, onCreated, onCancel }) {
+export default function ContributionForm({ fundId, fund, collectedAmount = 0, onCreated, onCancel }) {
   const { user, refreshUser } = useAuth();
   const saved = user?.preferredAccount;
   const hasSaved = saved?.bank && saved?.accountNumber;
@@ -26,21 +26,32 @@ export default function ContributionForm({ fundId, fund, onCreated, onCancel }) 
   const [amount, setAmount] = useState('');
   const [quotasToPay, setQuotasToPay] = useState(1);
   const [statusObj, setStatusObj] = useState(null);
+  const [statusError, setStatusError] = useState(false);
   
   useEffect(() => {
     if (isQuota && user) {
       getParticipantStatus(fundId, user._id).then(res => {
         setStatusObj(res.data);
-        if (res.data.pending > 0) {
-          setQuotasToPay(res.data.pending);
-        }
-      }).catch(console.error);
+        const want = res.data.pending > 0 ? res.data.pending : 1;
+        setQuotasToPay(Math.min(want, res.data.maxPayable || 1));
+      }).catch(() => setStatusError(true));
     }
   }, [isQuota, fundId, user]);
 
   const pending = statusObj ? statusObj.pending : 0;
   const remaining = statusObj ? statusObj.remaining : null;
+  const maxPayable = statusObj ? statusObj.maxPayable : null;
+  const remainingToTarget = statusObj ? statusObj.remainingToTarget : null;
+  const paid = statusObj ? statusObj.paid : null;
+  const total = statusObj ? statusObj.total : null;
   const fixedAmt = isQuota ? quotasToPay * fund.quotaAmount : null;
+  // Fondo libre: máximo = lo que falta para la meta (tope global). Validación previa al submit.
+  const freeMax = !isQuota ? Math.max(0, (fund?.targetAmount ?? 0) - collectedAmount) : null;
+  const freeInvalid = !isQuota && (
+    !amount || Number(amount) <= 0 ||
+    Number(amount) > freeMax ||
+    (!!fund?.minAmount && Number(amount) < fund.minAmount)
+  );
   const [step, setStep] = useState('form');
   const [error, setError] = useState('');
   const [successError, setSuccessError] = useState('');
@@ -81,7 +92,7 @@ export default function ContributionForm({ fundId, fund, onCreated, onCancel }) 
       const res = await createContribution(fundId, {
         amount: isQuota ? fixedAmt : Number(amount),
         method: 'transfer',
-        quotasPaid: isQuota ? quotasToPay : undefined,
+        paidQuotas: isQuota ? quotasToPay : undefined,
       });
       setStep('success');
       if (shouldPromptSaveAfterSuccess) {
@@ -95,12 +106,32 @@ export default function ContributionForm({ fundId, fund, onCreated, onCancel }) 
     }
   }
 
-  if (isQuota && pending === 0) {
+  if (isQuota && statusError) {
     return (
       <div className="py-6 text-center">
-        <div className="mb-2 text-3xl">✅</div>
-        <p className="font-semibold text-[var(--vaq-ink)]">Estás al día</p>
-        <p className="mt-1 text-xs text-[var(--vaq-muted)]">No tienes cuotas pendientes por el momento.</p>
+        <div className="mb-2 text-3xl">⚠️</div>
+        <p className="font-semibold text-[var(--vaq-ink)]">No pudimos cargar tu estado de cuotas</p>
+        <p className="mt-1 text-xs text-[var(--vaq-muted)]">Intenta nuevamente en unos momentos.</p>
+        <button type="button" onClick={onCancel} className="vaq-link mt-4 text-xs">Cerrar</button>
+      </div>
+    );
+  }
+
+  if (isQuota && !statusObj) {
+    return (
+      <div className="py-8 text-center">
+        <div className="vaq-spinner mx-auto mb-3" aria-hidden />
+        <p className="text-sm font-medium text-[var(--vaq-muted)]">Cargando estado de cuotas…</p>
+      </div>
+    );
+  }
+
+  if (isQuota && maxPayable === 0) {
+    return (
+      <div className="py-6 text-center">
+        <div className="mb-2 text-3xl">🎯</div>
+        <p className="font-semibold text-[var(--vaq-ink)]">El fondo ya alcanzó su meta</p>
+        <p className="mt-1 text-xs text-[var(--vaq-muted)]">No se aceptan más aportes.</p>
         <button type="button" onClick={onCancel} className="vaq-link mt-4 text-xs">
           Cerrar
         </button>
@@ -231,8 +262,8 @@ export default function ContributionForm({ fundId, fund, onCreated, onCancel }) 
               onChange={(e) => setQuotasToPay(Number(e.target.value))}
               className={fieldSelect}
             >
-              {Array.from({ length: remaining || 1 }, (_, i) => i + 1).map(n => (
-                <option key={n} value={n}>{n} {n === 1 ? 'cuota' : 'cuotas'} {n === remaining ? '(Saldo completo)' : ''}</option>
+              {Array.from({ length: maxPayable || 1 }, (_, i) => i + 1).map(n => (
+                <option key={n} value={n}>{n} {n === 1 ? 'cuota' : 'cuotas'} {n === maxPayable ? '(máximo)' : ''}</option>
               ))}
             </select>
             <label className="mt-3 mb-1 block text-xs font-medium text-[var(--vaq-ink)]">Monto a pagar (CLP)</label>
@@ -240,8 +271,19 @@ export default function ContributionForm({ fundId, fund, onCreated, onCancel }) 
               {fmtCLP(fixedAmt)}
             </div>
             <p className="mt-1 text-xs text-[var(--vaq-forest)]">
-              {pending > 0 ? (pending === 1 ? '1 cuota pendiente' : `${pending} cuotas pendientes`) : 'Estás al día'} ({fmtCLP(fund.quotaAmount)} c/u)
+              {pending > 0
+                ? `${pending} cuota${pending !== 1 ? 's' : ''} pendiente${pending !== 1 ? 's' : ''}. `
+                : remaining === 0
+                  ? 'Ya cumpliste tu parte. '
+                  : 'Estás al día — puedes adelantar cuotas. '}
+              Puedes pagar hasta {maxPayable} cuota{maxPayable !== 1 ? 's' : ''} (cada una de {fmtCLP(fund.quotaAmount)}).
             </p>
+            {remainingToTarget != null && (
+              <p className="mt-1 text-xs text-[var(--vaq-muted)]">Para completar el fondo faltan {fmtCLP(remainingToTarget)}.</p>
+            )}
+            {paid != null && total != null && (
+              <p className="mt-1 text-xs text-[var(--vaq-muted)]">Tu parte: {total} cuota{total !== 1 ? 's' : ''}. Pagadas: {paid}.</p>
+            )}
           </>
         ) : (
           <>
@@ -249,12 +291,19 @@ export default function ContributionForm({ fundId, fund, onCreated, onCancel }) 
             <input
               type="number"
               min={fund.minAmount || 1}
+              max={freeMax}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className={fieldSelect}
               required
             />
-            {fund.minAmount > 0 && <p className="mt-1 text-xs text-[var(--vaq-forest)]">Monto mínimo: {fmtCLP(fund.minAmount)}</p>}
+            <p className="mt-1 text-xs text-[var(--vaq-forest)]">
+              {fund.minAmount > 0 && <>Mínimo: {fmtCLP(fund.minAmount)}. </>}
+              Máximo: {fmtCLP(freeMax)} (restante para la meta).
+            </p>
+            {amount && Number(amount) > freeMax && (
+              <p className="mt-1 text-xs text-[var(--vaq-danger)]">El monto supera el restante para la meta ({fmtCLP(freeMax)}).</p>
+            )}
           </>
         )}
       </div>
@@ -264,7 +313,7 @@ export default function ContributionForm({ fundId, fund, onCreated, onCancel }) 
       </p>
 
       <div className="flex gap-2">
-        <button type="submit" className="vaq-btn-primary flex-1 rounded-lg py-2 text-sm font-medium">
+        <button type="submit" disabled={freeInvalid} className="vaq-btn-primary flex-1 rounded-lg py-2 text-sm font-medium disabled:opacity-50">
           Transferir
         </button>
         <button

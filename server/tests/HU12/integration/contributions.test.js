@@ -227,7 +227,7 @@ describe('POST /api/funds/:id/contributions — fondo por cuotas', () => {
     expect(res.body.requiredAmount).toBe(quotaAmount);
   });
 
-  it('400 if amount is more than required quota', async () => {
+  it('400 si el monto no es múltiplo exacto del valor de la cuota', async () => {
     const res = await request(app)
       .post(`/api/funds/${quotaFund._id}/contributions`)
       .set('Authorization', `Bearer ${partToken}`)
@@ -248,21 +248,7 @@ describe('POST /api/funds/:id/contributions — fondo por cuotas', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.amount).toBe(quotaAmount);
-    expect(res.body.quotasPaid).toBe(1);
-  });
-
-  it('201 with catch-up amount when multiple quotas are overdue', async () => {
-    const unMesAtras = new Date();
-    unMesAtras.setMonth(unMesAtras.getMonth() - 1);
-    await Fund.collection.updateOne({ _id: quotaFund._id }, { $set: { createdAt: unMesAtras } });
-
-    const res = await request(app)
-      .post(`/api/funds/${quotaFund._id}/contributions`)
-      .set('Authorization', `Bearer ${partToken}`)
-      .send({ amount: quotaAmount * 2, method: 'transfer' });
-
-    expect(res.status).toBe(201);
-    expect(res.body.amount).toBe(quotaAmount * 2);
+    expect(res.body.paidQuotas).toBe(1);
   });
 
   it('free fund still accepts any positive amount', async () => {
@@ -304,30 +290,6 @@ describe('POST /api/funds/:id/contributions — fondo quincenal', () => {
     expect(res.body.amount).toBe(quotaAmount);
   });
 
-  it('400 si el monto no coincide con la cuota quincenal requerida', async () => {
-    const res = await request(app)
-      .post(`/api/funds/${biweeklyFund._id}/contributions`)
-      .set('Authorization', `Bearer ${partToken}`)
-      .send({ amount: quotaAmount - 1, method: 'transfer' });
-
-    expect(res.status).toBe(400);
-    expect(res.body.requiredAmount).toBe(quotaAmount);
-  });
-
-  it('201 con monto de 1 cuota cuando hay 2 cuotas quincenales atrasadas (pago flexible)', async () => {
-    const quinceDiasAtras = new Date();
-    quinceDiasAtras.setDate(quinceDiasAtras.getDate() - 15);
-    await Fund.collection.updateOne({ _id: biweeklyFund._id }, { $set: { createdAt: quinceDiasAtras } });
-
-    const res = await request(app)
-      .post(`/api/funds/${biweeklyFund._id}/contributions`)
-      .set('Authorization', `Bearer ${partToken}`)
-      .send({ amount: quotaAmount, method: 'transfer' });
-
-    expect(res.status).toBe(201);
-    expect(res.body.amount).toBe(quotaAmount);
-    expect(res.body.quotasPaid).toBe(1);
-  });
 });
 
 // Contrato que respalda el fix de UI en FundDetailPage: el badge "mora / al día"

@@ -60,12 +60,12 @@ describe('HU19 - Pago Adelantado de Cuotas (Integración)', () => {
       .send({
         amount: 30000,
         method: 'transfer',
-        quotasPaid: 3
+        paidQuotas: 3
       });
 
     expect(res.status).toBe(201);
     expect(res.body.amount).toBe(30000);
-    expect(res.body.quotasPaid).toBe(3);
+    expect(res.body.paidQuotas).toBe(3);
 
     const statusRes = await request(app)
       .get(`/api/funds/${fundId}/participants/${user._id}/status`)

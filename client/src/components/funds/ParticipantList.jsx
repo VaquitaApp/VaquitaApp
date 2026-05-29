@@ -27,7 +27,7 @@ export default function ParticipantList({
     if (fund?.type !== 'quota') return null;
     return contributions
       .filter((c) => c.user?._id?.toString() === userId?.toString())
-      .reduce((sum, c) => sum + (c.quotasPaid || Math.floor(c.amount / fund.quotaAmount)), 0);
+      .reduce((sum, c) => sum + (c.paidQuotas || Math.floor(c.amount / fund.quotaAmount)), 0);
   }
 
   const orgTotal = organizer ? totalFor(organizer._id) : 0;

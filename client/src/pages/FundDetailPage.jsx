@@ -65,6 +65,7 @@ export default function FundDetailPage() {
   const accepted = participants.filter(p => p.status === 'accepted');
   const isMember = isOrganizer || accepted.some(p => p.user?._id?.toString() === user?._id?.toString());
   const collectedAmount = contributions.reduce((sum, c) => sum + c.amount, 0);
+  const isFull = !!fund && collectedAmount >= fund.targetAmount;
   const onTimeCount = participants.filter(p => p.contributionStatus === 'onTime').length;
   const hasOverdue = participants.some(p => p.contributionStatus === 'overdue');
   const myParticipant = participants.find(p => p.user?._id?.toString() === user?._id?.toString());
@@ -287,7 +288,7 @@ export default function FundDetailPage() {
       <div className="vaq-card p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-[var(--vaq-ink)]">Participantes</h2>
-          {isOrganizer && fund.status === 'active' && (
+          {isOrganizer && fund.status === 'active' && !isFull && (
             <button
               onClick={() => setShowInvite(true)}
               className="vaq-btn-primary rounded-md px-3 py-1.5 text-xs transition-opacity hover:opacity-95"
@@ -319,7 +320,7 @@ export default function FundDetailPage() {
       <div className="vaq-card p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-[var(--vaq-ink)]">Historial de aportes</h2>
-          {isMember && fund.status === 'active' && !showContribForm && (
+          {isMember && fund.status === 'active' && !isFull && !showContribForm && (
             <button
               onClick={() => setShowContribForm(true)}
               className="vaq-btn-primary rounded-md px-3 py-1.5 text-xs transition-opacity hover:opacity-95"
@@ -333,9 +334,7 @@ export default function FundDetailPage() {
             <ContributionForm
               fundId={id}
               fund={fund}
-              userContributions={contributions.filter(
-                c => c.user?._id?.toString() === user?._id?.toString()
-              )}
+              collectedAmount={collectedAmount}
               onCreated={async (c, options) => {
                 setContributions(prev => [
                   { ...c, user: { _id: user._id, name: user.name, email: user.email } },

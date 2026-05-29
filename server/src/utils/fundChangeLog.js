@@ -7,7 +7,6 @@ const FIELD_LABELS = {
   deadline: 'Fecha límite',
   quotaAmount: 'Monto por cuota',
   frequency: 'Frecuencia',
-  coverImage: 'Imagen de portada',
   visibility: 'Visibilidad',
   expectedParticipants: 'Participantes esperados',
   type: 'Tipo de fondo',
@@ -19,7 +18,7 @@ const FREQUENCY_LABELS = { once: 'Única', weekly: 'Semanal', biweekly: 'Quincen
 const TYPE_LABELS = { quota: 'Por cuotas', free: 'Libre' };
 
 const MONEY_FIELDS = new Set(['targetAmount', 'minAmount', 'quotaAmount']);
-const OPAQUE_FIELDS = new Set(['description', 'goal', 'coverImage', 'recipientAccount']);
+const OPAQUE_FIELDS = new Set(['description', 'goal', 'recipientAccount']);
 
 function isBlank(v) {
   return v === null || v === undefined || v === '';

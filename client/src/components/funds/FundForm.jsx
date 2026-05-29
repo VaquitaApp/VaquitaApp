@@ -19,6 +19,20 @@ function totalPeriods(frequency, start, end) {
   return Math.max(1, months);
 }
 
+// Menor divisor de `target` que sea >= `q` (para sugerir una cuota que divida la meta).
+function nearestDivisorAtLeast(target, q) {
+  if (!target || !q || q < 1) return target || null;
+  let best = target; // target siempre se divide a sí mismo
+  for (let i = 1; i * i <= target; i++) {
+    if (target % i === 0) {
+      const a = i, b = target / i;
+      if (a >= q && a < best) best = a;
+      if (b >= q && b < best) best = b;
+    }
+  }
+  return best;
+}
+
 function Field({ label, required, children }) {
   return (
     <div className="fund-form-group">
@@ -38,7 +52,6 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     name: initial.name ?? '',
     description: initial.description ?? '',
     goal: initial.goal ?? '',
-    coverImage: initial.coverImage ?? '',
     type: initial.type ?? 'free',
     targetAmount: initial.targetAmount ?? '',
     minAmount: initial.minAmount ?? '',
@@ -82,6 +95,12 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     periods && expectedP > 0
       ? Math.ceil(Number(form.targetAmount) / (periods * expectedP))
       : null;
+
+  const targetNum = Number(form.targetAmount);
+  const quotaNum = Number(form.quotaAmount);
+  const quotaIndivisible =
+    form.type === 'quota' && targetNum > 0 && quotaNum > 0 && targetNum % quotaNum !== 0;
+  const divisorSuggestion = quotaIndivisible ? nearestDivisorAtLeast(targetNum, quotaNum) : null;
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -127,6 +146,13 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
         );
         return;
       }
+      if (data.targetAmount % data.quotaAmount !== 0) {
+        const sug = nearestDivisorAtLeast(data.targetAmount, data.quotaAmount);
+        setValidationError(
+          `El valor de la cuota debe dividir exactamente la meta ($${data.targetAmount.toLocaleString('es-CL')}). Prueba con $${sug.toLocaleString('es-CL')}.`
+        );
+        return;
+      }
     }
     if (data.milestones && data.milestones.length > 0) {
       for (const m of data.milestones) {
@@ -153,6 +179,11 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
   minDate.setDate(minDate.getDate() + deadlineMinDays);
   const maxDate = new Date(today);
   maxDate.setFullYear(maxDate.getFullYear() + 1);
+
+  // Días entre hoy y el plazo elegido (para deshabilitar frecuencias que no caben en el plazo).
+  const daysToDeadline = form.deadline
+    ? (new Date(form.deadline) - new Date(new Date().toLocaleDateString('en-CA'))) / 86400000
+    : null;
 
   return (
     <div className="fund-form-container">
@@ -206,17 +237,6 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
           />
         </Field>
 
-        <Field label="Imagen de Portada (URL) - Opcional">
-          <input
-            type="url"
-            value={form.coverImage}
-            onChange={e => set('coverImage', e.target.value)}
-            disabled={locked('coverImage')}
-            className="fund-form-input"
-            placeholder="https://ejemplo.com/imagen.jpg"
-          />
-        </Field>
-
         <div className="fund-form-row">
           <Field label="Tipo de recolección">
             <select
@@ -262,22 +282,22 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
             <Field label="Frecuencia de aporte">
               <select
                 value={form.frequency}
-                onChange={e => {
-                  const freq = e.target.value;
-                  set('frequency', freq);
-                  if (form.deadline) {
-                    const minDays  = FREQ_MIN_DAYS[freq] ?? 1;
-                    const todayStr = new Date().toLocaleDateString('en-CA');
-                    const minStr   = new Date(new Date(todayStr).getTime() + minDays * 86400000).toLocaleDateString('en-CA');
-                    if (form.deadline < minStr) set('deadline', '');
-                  }
-                }}
+                onChange={e => set('frequency', e.target.value)}
                 disabled={locked('frequency')}
                 className="fund-form-input fund-form-select"
               >
-                <option value="monthly">Mensual</option>
-                <option value="biweekly">Quincenal</option>
-                <option value="weekly">Semanal</option>
+                {[
+                  { value: 'monthly', label: 'Mensual' },
+                  { value: 'biweekly', label: 'Quincenal' },
+                  { value: 'weekly', label: 'Semanal' },
+                ].map(o => {
+                  const noCabe = daysToDeadline != null && FREQ_MIN_DAYS[o.value] > daysToDeadline;
+                  return (
+                    <option key={o.value} value={o.value} disabled={noCabe}>
+                      {o.label}{noCabe ? ` — necesita ≥${FREQ_MIN_DAYS[o.value]} días` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </Field>
 
@@ -296,6 +316,12 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
                 <p className="fund-form-hint">
                   Mínimo sugerido: ${suggestedQuota.toLocaleString('es-CL')} / cuota ({periods} cuota{periods !== 1 ? 's' : ''}, {expectedP} participante{expectedP !== 1 ? 's' : ''}).{' '}
                   <button type="button" onClick={() => set('quotaAmount', suggestedQuota)}>Usar este valor</button>
+                </p>
+              )}
+              {quotaIndivisible && !locked('quotaAmount') && (
+                <p className="fund-form-hint text-[var(--vaq-danger)]">
+                  La cuota debe dividir exactamente la meta. Sugerencia: ${divisorSuggestion?.toLocaleString('es-CL')}.{' '}
+                  <button type="button" onClick={() => set('quotaAmount', divisorSuggestion)}>Usar este valor</button>
                 </p>
               )}
             </Field>
