@@ -367,6 +367,7 @@ describe('GET /api/funds/:id/participants — sincronización con aportes', () =
     const quotaFund = await createFund({
       organizer: organizer._id,
       type: 'quota',
+      totalQuotas: 12,
       quotaAmount,
       frequency: 'monthly',
       status: 'active',
