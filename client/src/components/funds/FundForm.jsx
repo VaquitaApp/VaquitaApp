@@ -181,6 +181,11 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
   const maxDate = new Date(today);
   maxDate.setFullYear(maxDate.getFullYear() + 1);
 
+  // Días entre hoy y el plazo elegido (para deshabilitar frecuencias que no caben en el plazo).
+  const daysToDeadline = form.deadline
+    ? (new Date(form.deadline) - new Date(new Date().toLocaleDateString('en-CA'))) / 86400000
+    : null;
+
   return (
     <div className="fund-form-container">
       <form onSubmit={handleSubmit}>
@@ -289,22 +294,22 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
             <Field label="Frecuencia de aporte">
               <select
                 value={form.frequency}
-                onChange={e => {
-                  const freq = e.target.value;
-                  set('frequency', freq);
-                  if (form.deadline) {
-                    const minDays  = FREQ_MIN_DAYS[freq] ?? 1;
-                    const todayStr = new Date().toLocaleDateString('en-CA');
-                    const minStr   = new Date(new Date(todayStr).getTime() + minDays * 86400000).toLocaleDateString('en-CA');
-                    if (form.deadline < minStr) set('deadline', '');
-                  }
-                }}
+                onChange={e => set('frequency', e.target.value)}
                 disabled={locked('frequency')}
                 className="fund-form-input fund-form-select"
               >
-                <option value="monthly">Mensual</option>
-                <option value="biweekly">Quincenal</option>
-                <option value="weekly">Semanal</option>
+                {[
+                  { value: 'monthly', label: 'Mensual' },
+                  { value: 'biweekly', label: 'Quincenal' },
+                  { value: 'weekly', label: 'Semanal' },
+                ].map(o => {
+                  const noCabe = daysToDeadline != null && FREQ_MIN_DAYS[o.value] > daysToDeadline;
+                  return (
+                    <option key={o.value} value={o.value} disabled={noCabe}>
+                      {o.label}{noCabe ? ` — necesita ≥${FREQ_MIN_DAYS[o.value]} días` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </Field>
 
