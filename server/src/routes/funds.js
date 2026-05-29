@@ -159,7 +159,7 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { name, description, goal, type, targetAmount, quotaAmount,
-            frequency, deadline, recipientAccount, visibility, coverImage,
+            frequency, deadline, recipientAccount, visibility,
             minAmount, expectedParticipants, totalQuotas } = req.body;
 
     if (deadline && !isDeadlineValid(deadline)) {
@@ -201,7 +201,7 @@ router.post('/', auth, async (req, res) => {
 
     const fund = new Fund({
       name, description: desc, goal: goalStr, type, targetAmount, quotaAmount,
-      frequency, deadline, recipientAccount, visibility, coverImage,
+      frequency, deadline, recipientAccount, visibility,
       minAmount, expectedParticipants, totalQuotas: finalTotalQuotas, milestones: req.body.milestones || [],
       organizer: req.user._id,
     });
@@ -303,7 +303,7 @@ router.patch('/:id', auth, requireFund({ populate: [POP_ORG, POP_PARTS] }), requ
     const hasInvited = fund.participants.length > 0;
     const changes = [];
 
-    const allowed = ['name', 'description', 'goal', 'coverImage', 'visibility', 'expectedParticipants', 'milestones', ...(!hasContribs ? LOCKED_FIELDS : [])];
+    const allowed = ['name', 'description', 'goal', 'visibility', 'expectedParticipants', 'milestones', ...(!hasContribs ? LOCKED_FIELDS : [])];
     for (const f of allowed) {
       if (body[f] === undefined) continue;
       const oldVal = fund[f];

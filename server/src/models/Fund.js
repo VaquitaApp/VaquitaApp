@@ -23,7 +23,6 @@ const fundSchema = new Schema({
   name:             { type: String, required: true, trim: true },
   description:      { type: String, required: true, trim: true },
   goal:             { type: String, required: true, trim: true },
-  coverImage:       { type: String, default: '' },
   type:             { type: String, enum: ['quota', 'free'], required: true },
   targetAmount:     { type: Number, required: true, min: 1 },
   minAmount:        { type: Number },

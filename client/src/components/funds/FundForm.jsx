@@ -52,7 +52,6 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     name: initial.name ?? '',
     description: initial.description ?? '',
     goal: initial.goal ?? '',
-    coverImage: initial.coverImage ?? '',
     type: initial.type ?? 'free',
     targetAmount: initial.targetAmount ?? '',
     minAmount: initial.minAmount ?? '',
@@ -235,17 +234,6 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
             placeholder="Cuéntanos más detalles sobre este fondo..."
             required
             rows={3}
-          />
-        </Field>
-
-        <Field label="Imagen de Portada (URL) - Opcional">
-          <input
-            type="url"
-            value={form.coverImage}
-            onChange={e => set('coverImage', e.target.value)}
-            disabled={locked('coverImage')}
-            className="fund-form-input"
-            placeholder="https://ejemplo.com/imagen.jpg"
           />
         </Field>
 

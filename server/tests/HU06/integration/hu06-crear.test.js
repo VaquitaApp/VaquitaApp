@@ -110,12 +110,11 @@ describe('HU06: Crear Fondo Colectivo — POST /api/funds', () => {
     const res = await request(app)
       .post('/api/funds')
       .set(await authHeader(user))
-      .send({ ...validFundBody, minAmount: 5000, coverImage: 'https://img.com/pic.jpg' });
+      .send({ ...validFundBody, minAmount: 5000 });
     expect(res.status).toBe(201);
     expect(res.body.name).toBe('Fondo Paseo');
     expect(res.body.organizer.toString()).toBe(user._id.toString());
     expect(res.body.minAmount).toBe(5000);
-    expect(res.body.coverImage).toBe('https://img.com/pic.jpg');
   });
 
   // ─── TC-HU06-06: Crear fondo "quota" con cuota y frecuencia ──────
