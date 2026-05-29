@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import PasswordInput from '../components/ui/PasswordInput';
 import AuthShell from '../components/layout/AuthShell';
 import { validateRut, validateName } from '../utils/validators';
+import { inputClass, authCardClass } from '../components/ui/formStyles';
 
 function formatRut(value) {
   const clean = value.replace(/[^0-9kK]/g, '').toUpperCase();
@@ -12,12 +13,6 @@ function formatRut(value) {
   const body = clean.slice(0, -1);
   return `${body.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}-${dv}`;
 }
-
-const inputClass =
-  'w-full rounded-lg border border-[var(--vaq-input-border)] bg-[var(--vaq-input-bg)] px-3 py-2.5 text-sm text-[var(--vaq-ink)] shadow-sm transition-shadow placeholder:text-[var(--vaq-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--vaq-ring)]';
-
-const cardClass =
-  'w-full max-w-sm rounded-2xl border border-[var(--vaq-card-border)] bg-[var(--vaq-card)] p-8 shadow-lg shadow-[var(--vaq-forest)]/5 dark:shadow-black/40';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -83,7 +78,7 @@ export default function RegisterPage() {
   if (sent) {
     return (
       <AuthShell>
-        <div className={`${cardClass} text-center`}>
+        <div className={`${authCardClass} text-center`}>
           <div className="mb-4 text-4xl" aria-hidden>
             📬
           </div>
@@ -96,16 +91,7 @@ export default function RegisterPage() {
           <p className="mb-1 text-sm text-[var(--vaq-muted)]">Enviamos un enlace de verificación a</p>
           <p className="mb-4 font-medium text-[var(--vaq-ink)]">{form.email}</p>
           <p className="mb-6 text-xs text-[var(--vaq-muted)]">
-            Haz clic en el enlace para activar tu cuenta. Si usas Mailpit en desarrollo, encuéntralo en{' '}
-            <a
-              href="http://localhost:8025"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-[var(--vaq-forest)] underline-offset-2 hover:underline"
-            >
-              localhost:8025
-            </a>
-            .
+            Haz clic en el enlace para activar tu cuenta.
           </p>
           <Link to="/login" className="text-sm font-semibold text-[var(--vaq-forest)] underline-offset-2 hover:underline">
             Ir al inicio de sesión
@@ -117,7 +103,7 @@ export default function RegisterPage() {
 
   return (
     <AuthShell>
-      <div className={cardClass}>
+      <div className={authCardClass}>
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <img
             src="/logo.png"

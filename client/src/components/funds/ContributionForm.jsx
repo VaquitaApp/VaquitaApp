@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createContribution } from '../../api/contributions';
+import { getParticipantStatus } from '../../api/funds';
 import { updateProfile } from '../../api/participants';
 import { useAuth } from '../../contexts/AuthContext';
 import { fmtCLP } from '../../utils/format';
@@ -9,29 +10,7 @@ import { ACCOUNT_TYPE_LABELS } from '../../constants/accountTypes';
 const fieldSelect =
   'w-full rounded-lg border border-[var(--vaq-input-border)] bg-[var(--vaq-input-bg)] px-3 py-2 text-sm text-[var(--vaq-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--vaq-ring)]';
 
-function periodsElapsed(fund) {
-  if (fund.frequency === 'once') return 1;
-  const start = new Date(fund.createdAt);
-  const now = new Date();
-  if (fund.frequency === 'weekly') {
-    return Math.max(1, Math.floor((now - start) / (7 * 24 * 60 * 60 * 1000)) + 1);
-  }
-  if (fund.frequency === 'biweekly') {
-    return Math.max(1, Math.floor((now - start) / (14 * 24 * 60 * 60 * 1000)) + 1);
-  }
-  const months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1;
-  return Math.max(1, months);
-}
-
-function computePending(fund, userContributions) {
-  const totalPaid = userContributions.reduce((s, c) => s + c.amount, 0);
-  const paid = Math.floor(totalPaid / fund.quotaAmount);
-  return Math.max(0, periodsElapsed(fund) - paid);
-}
-
-import { getParticipantStatus } from '../../api/funds';
-
-export default function ContributionForm({ fundId, fund, userContributions = [], onCreated, onCancel }) {
+export default function ContributionForm({ fundId, fund, onCreated, onCancel }) {
   const { user, refreshUser } = useAuth();
   const saved = user?.preferredAccount;
   const hasSaved = saved?.bank && saved?.accountNumber;

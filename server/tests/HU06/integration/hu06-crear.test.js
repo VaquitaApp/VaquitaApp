@@ -32,13 +32,35 @@ const validFundBody = {
 describe('HU06: Crear Fondo Colectivo — POST /api/funds', () => {
 
   // ─── TC-HU06-01: Campos obligatorios incompletos ──────────────────
-  test('TC-HU06-01: Rechaza si faltan campos obligatorios', async () => {
+  test('TC-HU06-01a: Rechaza body con solo nombre (faltan description, goal, deadline, recipientAccount)', async () => {
     const user = await createUser();
     const res = await request(app)
       .post('/api/funds')
       .set(await authHeader(user))
       .send({ name: 'Solo nombre' });
     expect(res.status).toBe(400);
+  });
+
+  test('TC-HU06-01b: Rechaza body válido sin description (resto de campos válidos)', async () => {
+    const user = await createUser();
+    const { description, ...bodyNoDesc } = validFundBody;
+    const res = await request(app)
+      .post('/api/funds')
+      .set(await authHeader(user))
+      .send(bodyNoDesc);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/descripci[oó]n|description/i);
+  });
+
+  test('TC-HU06-01c: Rechaza body válido sin goal (resto de campos válidos)', async () => {
+    const user = await createUser();
+    const { goal, ...bodyNoGoal } = validFundBody;
+    const res = await request(app)
+      .post('/api/funds')
+      .set(await authHeader(user))
+      .send(bodyNoGoal);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/objetivo|goal/i);
   });
 
   // ─── TC-HU06-02: Monto esperado cero o negativo ──────────────────

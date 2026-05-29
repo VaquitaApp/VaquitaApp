@@ -86,18 +86,20 @@ describe('HU07: Visualizar Mis Fondos — GET /api/funds', () => {
       
     expect(res.status).toBe(200);
     expect(res.body.length).toBe(2);
-    
-    // Verificamos que contenga las propiedades necesarias
-    res.body.forEach(f => {
-      expect(f.name).toBeDefined();
-      expect(f.goal).toBeDefined();
-      expect(f.deadline).toBeDefined();
-      expect(['active', 'closed', 'completed', 'paused']).toContain(f.status);
-    });
 
-    const statuses = res.body.map(f => f.status);
-    expect(statuses).toContain('active');
-    expect(statuses).toContain('closed');
+    // Localizamos cada fondo por nombre y validamos valores EXACTOS (no solo existencia).
+    const activo  = res.body.find(f => f.name === 'Fondo Activo');
+    const cerrado = res.body.find(f => f.name === 'Fondo Cerrado');
+
+    expect(activo).toBeDefined();
+    expect(activo.goal).toBe('Objetivo A');
+    expect(activo.deadline).toBeDefined();
+    expect(activo.status).toBe('active');
+
+    expect(cerrado).toBeDefined();
+    expect(cerrado.goal).toBe('Objetivo C');
+    expect(cerrado.deadline).toBeDefined();
+    expect(cerrado.status).toBe('closed');
   });
 
   // ─── CA2: Mostrar monto total aportado por fondo ──────────────

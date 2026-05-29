@@ -6,6 +6,8 @@ const request = require('supertest');
 const app = require('../../../src/app');
 const db = require('../../helpers/db');
 const { createUser, createFund, createContribution } = require('../../helpers/factories');
+const Fund = require('../../../src/models/Fund');
+const { ERR_CANNOT_DELETE_WITH_CONTRIBS } = require('../../../src/errors');
 
 beforeAll(() => db.connect());
 afterEach(() => db.clear());
@@ -21,13 +23,15 @@ async function authHeader(user) {
 describe('HU10: Eliminar / Cancelar Fondo — DELETE /api/funds/:id', () => {
 
   // ─── TC-HU10-01: Eliminar fondo sin aportes ──────────────────────
-  test('TC-HU10-01: 204 elimina fondo sin aportes', async () => {
+  test('TC-HU10-01: 204 elimina fondo sin aportes y el documento desaparece de la BD', async () => {
     const user = await createUser();
     const fund = await createFund({ organizer: user._id });
     const res = await request(app)
       .delete(`/api/funds/${fund._id}`)
       .set(await authHeader(user));
     expect(res.status).toBe(204);
+    // Confirmar el efecto destructivo: ya no existe en la BD
+    expect(await Fund.findById(fund._id)).toBeNull();
   });
 
   // ─── TC-HU10-02: No se puede eliminar con aportes ────────────────
@@ -40,11 +44,11 @@ describe('HU10: Eliminar / Cancelar Fondo — DELETE /api/funds/:id', () => {
       .delete(`/api/funds/${fund._id}`)
       .set(await authHeader(user));
     expect(res.status).toBe(422);
-    expect(res.body.error).toMatch(/Cannot delete fund with contributions/i);
+    expect(res.body.error).toBe(ERR_CANNOT_DELETE_WITH_CONTRIBS);
   });
 
   // ─── TC-HU10-03: Eliminar fondo con participantes (email) ────────
-  test('TC-HU10-03: 204 elimina fondo con participantes invitados (sin aportes)', async () => {
+  test('TC-HU10-03: 204 elimina fondo con participantes invitados (sin aportes); documento desaparece', async () => {
     const org = await createUser({ email: 'org@test.com' });
     const part = await createUser({ email: 'part@test.com' });
     const fund = await createFund({
@@ -56,6 +60,7 @@ describe('HU10: Eliminar / Cancelar Fondo — DELETE /api/funds/:id', () => {
       .delete(`/api/funds/${fund._id}`)
       .set(await authHeader(org));
     expect(res.status).toBe(204);
+    expect(await Fund.findById(fund._id)).toBeNull();
   });
 
   // ─── Extra: 403 si no es organizador ──────────────────────────────

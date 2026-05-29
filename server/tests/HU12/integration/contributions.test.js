@@ -52,26 +52,9 @@ beforeEach(async () => {
 });
 
 describe('POST /api/funds/:id/contributions', () => {
-  it('creates contribution for organizer (201)', async () => {
-    const res = await request(app)
-      .post(`/api/funds/${fund._id}/contributions`)
-      .set('Authorization', `Bearer ${orgToken}`)
-      .send({ amount: 10000, method: 'transfer' });
-
-    expect(res.status).toBe(201);
-    expect(res.body.amount).toBe(10000);
-    expect(res.body.status).toBe('succeeded');
-  });
-
-  it('creates contribution for accepted participant (201)', async () => {
-    const res = await request(app)
-      .post(`/api/funds/${fund._id}/contributions`)
-      .set('Authorization', `Bearer ${partToken}`)
-      .send({ amount: 5000, method: 'cash' });
-
-    expect(res.status).toBe(201);
-    expect(res.body.amount).toBe(5000);
-  });
+  // Crear como organizer / participant aceptado y validar amount<=0 los cubre
+  // hu12-registrar-aporte.test.js (HU12-INT-01, INT-05).
+  // Aquí solo conservamos los casos de auth no triviales y la matriz quota/biweekly.
 
   it('returns 403 for non-member', async () => {
     const res = await request(app)
@@ -90,34 +73,13 @@ describe('POST /api/funds/:id/contributions', () => {
 
     expect(res.status).toBe(403);
   });
-
-  it('returns 400 if amount <= 0', async () => {
-    const res = await request(app)
-      .post(`/api/funds/${fund._id}/contributions`)
-      .set('Authorization', `Bearer ${orgToken}`)
-      .send({ amount: 0, method: 'transfer' });
-
-    expect(res.status).toBe(400);
-  });
 });
 
 describe('GET /api/funds/:id/contributions', () => {
-  beforeEach(async () => {
-    await createContribution({ fund: fund._id, user: organizer._id, amount: 20000 });
-    await createContribution({ fund: fund._id, user: participant._id, amount: 10000 });
-  });
-
-  it('returns sorted list for organizer (200)', async () => {
-    const res = await request(app)
-      .get(`/api/funds/${fund._id}/contributions`)
-      .set('Authorization', `Bearer ${orgToken}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0].user.name).toBeDefined();
-  });
-
+  // "returns sorted list for organizer" cubierto por HU12-INT-07 con asserts más exhaustivos.
+  // Aquí solo el caso de auth negativa (stranger).
   it('returns 403 for stranger', async () => {
+    await createContribution({ fund: fund._id, user: organizer._id, amount: 20000 });
     const res = await request(app)
       .get(`/api/funds/${fund._id}/contributions`)
       .set('Authorization', `Bearer ${strangerToken}`);
@@ -365,5 +327,77 @@ describe('POST /api/funds/:id/contributions — fondo quincenal', () => {
     expect(res.status).toBe(201);
     expect(res.body.amount).toBe(quotaAmount);
     expect(res.body.quotasPaid).toBe(1);
+  });
+});
+
+// Contrato que respalda el fix de UI en FundDetailPage: el badge "mora / al día"
+// se renderiza desde contributionStatus calculado server-side. Tras un POST de
+// aporte exitoso, un nuevo GET /participants DEBE reflejar el estado actualizado
+// sin caché stale. Si esta promesa del backend se rompe, el refetch del cliente
+// devuelve datos viejos y el bug original (badge stale) reaparece.
+describe('GET /api/funds/:id/participants — sincronización con aportes', () => {
+  it('fondo libre: contributionStatus pasa de overdue a onTime tras un aporte', async () => {
+    const before = await request(app)
+      .get(`/api/funds/${fund._id}/participants`)
+      .set('Authorization', `Bearer ${partToken}`);
+    const partBefore = before.body.find(
+      p => p.user?._id?.toString() === participant._id.toString()
+    );
+    expect(partBefore.contributionStatus).toBe('overdue');
+    expect(partBefore.contributionCount).toBe(0);
+
+    const contribRes = await request(app)
+      .post(`/api/funds/${fund._id}/contributions`)
+      .set('Authorization', `Bearer ${partToken}`)
+      .send({ amount: 5000, method: 'transfer' });
+    expect(contribRes.status).toBe(201);
+
+    const after = await request(app)
+      .get(`/api/funds/${fund._id}/participants`)
+      .set('Authorization', `Bearer ${partToken}`);
+    const partAfter = after.body.find(
+      p => p.user?._id?.toString() === participant._id.toString()
+    );
+    expect(partAfter.contributionStatus).toBe('onTime');
+    expect(partAfter.contributionCount).toBe(1);
+  });
+
+  it('fondo por cuotas: contributionStatus pasa de overdue a onTime tras pagar la cuota exacta', async () => {
+    const quotaAmount = 10000;
+    const quotaFund = await createFund({
+      organizer: organizer._id,
+      type: 'quota',
+      totalQuotas: 12,
+      quotaAmount,
+      frequency: 'monthly',
+      status: 'active',
+      deadline: new Date(Date.now() + 86400000 * 30),
+      targetAmount: 60000,
+    });
+    const invToken = await invite(orgToken, participant._id, quotaFund._id);
+    await request(app).post(`/api/invitations/${invToken}/accept`);
+
+    const before = await request(app)
+      .get(`/api/funds/${quotaFund._id}/participants`)
+      .set('Authorization', `Bearer ${partToken}`);
+    const partBefore = before.body.find(
+      p => p.user?._id?.toString() === participant._id.toString()
+    );
+    expect(partBefore.contributionStatus).toBe('overdue');
+
+    const contribRes = await request(app)
+      .post(`/api/funds/${quotaFund._id}/contributions`)
+      .set('Authorization', `Bearer ${partToken}`)
+      .send({ amount: quotaAmount, method: 'transfer' });
+    expect(contribRes.status).toBe(201);
+
+    const after = await request(app)
+      .get(`/api/funds/${quotaFund._id}/participants`)
+      .set('Authorization', `Bearer ${partToken}`);
+    const partAfter = after.body.find(
+      p => p.user?._id?.toString() === participant._id.toString()
+    );
+    expect(partAfter.contributionStatus).toBe('onTime');
+    expect(partAfter.contributionCount).toBe(1);
   });
 });

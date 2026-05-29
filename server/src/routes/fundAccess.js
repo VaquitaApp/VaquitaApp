@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Fund = require('../models/Fund');
 const User = require('../models/User');
+const { isFundExpired } = require('../utils/funds');
 const { sendAccessRequestDecisionToUser } = require('../services/emailService');
 
 const router = express.Router();
@@ -45,7 +46,7 @@ async function respond(req, res, accepted) {
     if (fund.status !== 'active') {
       return res.status(422).json({ error: 'No puedes responder: el fondo está cerrado o completado.' });
     }
-    if (new Date(fund.deadline) <= new Date()) {
+    if (isFundExpired(fund)) {
       return res.status(422).json({ error: 'No puedes responder: la fecha límite del fondo ya fue superada.' });
     }
 

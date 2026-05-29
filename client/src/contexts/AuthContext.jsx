@@ -5,18 +5,15 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem('token')));
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
-      getMe()
-        .then(res => setUser(res.data.user))
-        .catch(() => localStorage.removeItem('token'))
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    if (!token) return;
+    getMe()
+      .then(res => setUser(res.data.user))
+      .catch(() => localStorage.removeItem('token'))
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (email, password) => {
@@ -47,4 +44,5 @@ export function AuthProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);

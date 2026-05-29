@@ -3,6 +3,14 @@ const Fund = require('../models/Fund');
 const Contribution = require('../models/Contribution');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { requireFund, requireOrganizer, POP_ORG, POP_PARTS, POP_MSGS } = require('../middleware/funds');
+const { describeChange } = require('../utils/fundChangeLog');
+const {
+  ERR_FUND_NOT_FOUND,
+  ERR_FUND_NOT_ACTIVE,
+  ERR_ACCESS_DENIED,
+  ERR_CANNOT_DELETE_WITH_CONTRIBS,
+} = require('../errors');
 const { processPayment } = require('../services/paymentService');
 const { totalPeriods, pendingQuotas } = require('../services/quotaService');
 const { sendStatusChangeEmail, sendFundEditedEmail, sendMoraReminderEmail, sendFundDeletedEmail } = require('../services/emailService');
@@ -196,15 +204,10 @@ router.post('/', auth, async (req, res) => {
 });
 
 // GET /api/funds/:id
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', auth, requireFund({ populate: [POP_ORG, POP_PARTS, POP_MSGS] }), async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id)
-      .populate('organizer', 'name email')
-      .populate('participants.user', 'name email')
-      .populate('messages.user', 'name email');
-
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer) return res.status(404).json({ error: 'Fund not found' });
+    const fund = req.fund;
+    if (!fund.organizer) return res.status(404).json({ error: ERR_FUND_NOT_FOUND });
 
     await autoExpireFund(fund);
 
@@ -213,7 +216,7 @@ router.get('/:id', auth, async (req, res) => {
       p => (p.user?._id?.equals(userId) || p.user?.equals?.(userId)) && p.invitationToken
     );
     if (!isMember(fund, userId) && fund.visibility !== 'public' && !hasPendingInvitation) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: ERR_ACCESS_DENIED });
     }
 
     const collectedAmount = await getCollectedAmount(fund._id);
@@ -252,14 +255,10 @@ router.get('/:id/participants/:userId/status', auth, async (req, res) => {
 });
 
 // PATCH /api/funds/:id
-router.patch('/:id', auth, async (req, res) => {
+router.patch('/:id', auth, requireFund({ populate: [POP_ORG, POP_PARTS] }), requireOrganizer, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id)
-      .populate('organizer', 'name email')
-      .populate('participants.user', 'name email');
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer._id.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+    const fund = req.fund;
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
 
     const hasContribs = await Contribution.countDocuments({ fund: fund._id, status: 'succeeded' }) > 0;
     const body = req.body;
@@ -286,38 +285,43 @@ router.patch('/:id', auth, async (req, res) => {
     }
 
     const hasInvited = fund.participants.length > 0;
-    let wasEdited = false;
-
-    if (hasInvited && body.description && body.description !== fund.description) {
-      fund.updateLogs.push({ message: 'El organizador actualizó la descripción' });
-    }
-    if (hasInvited && body.goal && body.goal !== fund.goal) {
-      fund.updateLogs.push({ message: 'El organizador actualizó el objetivo' });
-    }
+    const changes = [];
 
     const allowed = ['name', 'description', 'goal', 'coverImage', 'visibility', 'expectedParticipants', 'milestones', ...(!hasContribs ? LOCKED_FIELDS : [])];
     for (const f of allowed) {
       if (body[f] === undefined) continue;
+      const oldVal = fund[f];
+      let newVal = body[f];
       if (f === 'description' || f === 'goal') {
-        const t = String(body[f]).trim();
+        const t = String(newVal).trim();
         if (!t) {
           return res.status(400).json({
             error: f === 'description' ? 'La descripción no puede estar vacía.' : 'El objetivo no puede estar vacío.',
           });
         }
-        if (JSON.stringify(fund[f]) !== JSON.stringify(t)) wasEdited = true;
-        fund[f] = t;
-        continue;
+        newVal = t;
       }
-      if (JSON.stringify(fund[f]) !== JSON.stringify(body[f])) wasEdited = true;
-      fund[f] = body[f];
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        fund[f] = newVal;
+        changes.push(describeChange(f, oldVal, newVal));
+      }
+    }
+
+    if (hasInvited) {
+      for (const c of changes) {
+        fund.updateLogs.push({ message: c.message });
+      }
     }
 
     await fund.save();
 
-    if (wasEdited && hasInvited) {
-      sendFundEditedEmail({ fund, organizer: fund.organizer, participants: fund.participants })
-        .catch(err => console.error('Edit email failed:', err.message));
+    if (changes.length > 0 && hasInvited) {
+      sendFundEditedEmail({
+        fund,
+        organizer: fund.organizer,
+        participants: fund.participants,
+        changes: changes.map(c => c.message),
+      }).catch(err => console.error('Edit email failed:', err.message));
     }
 
     res.json(fund);
@@ -328,15 +332,11 @@ router.patch('/:id', auth, async (req, res) => {
 });
 
 // DELETE /api/funds/:id
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, requireFund({ populate: [POP_PARTS] }), requireOrganizer, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id)
-      .populate('participants.user', 'name email');
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
-
+    const fund = req.fund;
     const hasContribs = await Contribution.countDocuments({ fund: fund._id }) > 0;
-    if (hasContribs) return res.status(422).json({ error: 'Cannot delete fund with contributions' });
+    if (hasContribs) return res.status(422).json({ error: ERR_CANNOT_DELETE_WITH_CONTRIBS });
 
     sendFundDeletedEmail({ fund, participants: fund.participants })
       .catch(err => console.error('Delete email failed:', err.message));
@@ -349,14 +349,10 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 // POST /api/funds/:id/payment — el organizador ejecuta el pago y completa el fondo
-router.post('/:id/payment', auth, async (req, res) => {
+router.post('/:id/payment', auth, requireFund({ populate: [POP_ORG, POP_PARTS] }), requireOrganizer, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id)
-      .populate('organizer', 'name email')
-      .populate('participants.user', 'name email');
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer._id.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+    const fund = req.fund;
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
 
     const collectedAmount = await getCollectedAmount(fund._id);
     if (collectedAmount <= 0) {
@@ -385,12 +381,10 @@ router.post('/:id/payment', auth, async (req, res) => {
 });
 
 // POST /api/funds/:id/reminders — alerta manual de mora a participantes en mora
-router.post('/:id/reminders', auth, async (req, res) => {
+router.post('/:id/reminders', auth, requireFund({ populate: [POP_PARTS] }), requireOrganizer, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id).populate('participants.user', 'name email');
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+    const fund = req.fund;
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
 
     const contributions = await Contribution.find({ fund: fund._id, status: 'succeeded' }).lean();
     const accepted = fund.participants.filter(p => p.status === 'accepted' && p.user?.email);
@@ -418,14 +412,10 @@ router.post('/:id/reminders', auth, async (req, res) => {
 });
 
 // POST /api/funds/:id/close
-router.post('/:id/close', auth, async (req, res) => {
+router.post('/:id/close', auth, requireFund({ populate: [POP_ORG, POP_PARTS] }), requireOrganizer, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id)
-      .populate('organizer', 'name email')
-      .populate('participants.user', 'name email');
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer._id.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
+    const fund = req.fund;
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
 
     const hasContribs = await Contribution.countDocuments({ fund: fund._id, status: 'succeeded' }) > 0;
     if (hasContribs) return res.status(422).json({ error: 'Cannot close a fund with contributions — pay the recipient instead' });
@@ -442,16 +432,12 @@ router.post('/:id/close', auth, async (req, res) => {
   }
 });
 // POST /api/funds/:id/messages
-router.post('/:id/messages', auth, async (req, res) => {
+router.post('/:id/messages', auth, requireFund({ populate: [POP_ORG, POP_PARTS] }), async (req, res) => {
   try {
     const { text } = req.body;
     if (!text || !text.trim()) return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
 
-    const fund = await Fund.findById(req.params.id)
-      .populate('organizer', 'name email')
-      .populate('participants.user', 'name email');
-    if (!fund) return res.status(404).json({ error: 'Fondo no encontrado' });
-
+    const fund = req.fund;
     if (!isMember(fund, req.user._id)) return res.status(403).json({ error: 'Solo los participantes pueden enviar mensajes' });
 
     fund.messages.push({
@@ -468,11 +454,9 @@ router.post('/:id/messages', auth, async (req, res) => {
 });
 
 // POST /api/funds/:id/pause
-router.post('/:id/pause', auth, async (req, res) => {
+router.post('/:id/pause', auth, requireFund(), requireOrganizer, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id);
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    const fund = req.fund;
     if (fund.status !== 'active') return res.status(422).json({ error: 'Fund can only be paused from active state' });
 
     fund.status = 'paused';
@@ -484,11 +468,9 @@ router.post('/:id/pause', auth, async (req, res) => {
 });
 
 // POST /api/funds/:id/resume
-router.post('/:id/resume', auth, async (req, res) => {
+router.post('/:id/resume', auth, requireFund(), requireOrganizer, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id);
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
+    const fund = req.fund;
     if (fund.status !== 'paused') return res.status(422).json({ error: 'Fund is not paused' });
 
     fund.status = 'active';

@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { fmtName } from '../../utils/format';
 import ThemeToggle from '../ui/ThemeToggle';
+import UserPill from '../ui/UserPill';
 
 function userInitial(name) {
   if (!name || !name.trim()) return '?';
@@ -98,17 +99,7 @@ function NavbarMobileBlock({ renderNavLinks, displayName, initial, onLogout }) {
       >
         <div className="flex flex-col gap-0.5">{renderNavLinks()}</div>
         <div className="vaq-nav-item mt-3 flex items-center gap-3 border-t border-[var(--vaq-nav-border)] pt-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-[var(--vaq-nav-border)] bg-[var(--vaq-surface-elevated)] py-1 pl-1 pr-3">
-            <span
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--vaq-badge-bg)] text-sm font-bold text-[var(--vaq-badge-fg)]"
-              aria-hidden
-            >
-              {initial}
-            </span>
-            <span className="truncate text-sm font-semibold text-[var(--vaq-ink)]">
-              {displayName || 'Cuenta'}
-            </span>
-          </div>
+          <UserPill name={displayName} initial={initial} expand />
           <button
             type="button"
             onClick={onLogout}
@@ -134,22 +125,15 @@ export default function Navbar() {
 
   const displayName = fmtName(user?.name);
   const initial = userInitial(user?.name || user?.email);
-  const profileLabel = displayName || 'Perfil';
 
-  const renderNavLinks = () => [
-    ...NAV_ITEMS.map(({ to, end, label }) => (
+  const renderNavLinks = () =>
+    NAV_ITEMS.map(({ to, end, label }) => (
       <span key={to} className="vaq-nav-item block">
         <NavLink to={to} end={end} className={navLinkClass}>
           {label}
         </NavLink>
       </span>
-    )),
-    <span key="/perfil" className="vaq-nav-item block">
-      <NavLink to="/perfil" end className={navLinkClass}>
-        {profileLabel}
-      </NavLink>
-    </span>,
-  ];
+    ));
 
   return (
     <nav
@@ -182,20 +166,7 @@ export default function Navbar() {
           <div className="flex items-center gap-0.5 pr-2">{renderNavLinks()}</div>
           <div className="mx-2 hidden h-8 w-px bg-[var(--vaq-nav-border)] sm:block" aria-hidden />
           <div className="flex items-center gap-2 pl-1 md:gap-3">
-            <div
-              className="flex items-center gap-2 rounded-full border border-[var(--vaq-nav-border)] bg-[var(--vaq-surface-elevated)] py-1 pl-1 pr-3 shadow-sm"
-              title={displayName || 'Usuario'}
-            >
-              <span
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--vaq-badge-bg)] text-sm font-bold text-[var(--vaq-badge-fg)]"
-                aria-hidden
-              >
-                {initial}
-              </span>
-              <span className="max-w-[10rem] truncate text-sm font-semibold text-[var(--vaq-ink)]">
-                {displayName || 'Cuenta'}
-              </span>
-            </div>
+            <UserPill name={displayName} initial={initial} />
             <ThemeToggle />
             <button
               type="button"

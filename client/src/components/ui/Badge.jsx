@@ -76,3 +76,20 @@ export function InvitationBadge({ status }) {
     </span>
   );
 }
+
+export function RoleBadge({ isMine, organizerName }) {
+  if (isMine) {
+    return (
+      <span className="inline-flex max-w-full items-center rounded-full bg-[var(--vaq-badge-bg)] px-2 py-0.5 text-xs font-medium text-[var(--vaq-badge-fg)]">
+        Organizador
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex max-w-full items-center rounded-full bg-[var(--vaq-surface-muted)] px-2 py-0.5 text-xs font-medium text-[var(--vaq-muted)]">
+      <span className="truncate">
+        Invitado por <span className="font-semibold text-[var(--vaq-ink)]">{organizerName}</span>
+      </span>
+    </span>
+  );
+}

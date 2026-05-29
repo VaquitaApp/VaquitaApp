@@ -36,7 +36,7 @@ describe('HU08: Ver Detalle y Progreso del Fondo — GET /api/funds/:id', () => 
   });
 
   // ─── TC-HU08-02: Recaudación supera la meta sin romperse ─────────
-  test('TC-HU08-02: Funciona cuando recaudación supera la meta', async () => {
+  test('TC-HU08-02: collectedAmount=50000 supera targetAmount=40000 sin error', async () => {
     const user = await createUser();
     const fund = await createFund({ organizer: user._id, targetAmount: 40000 });
     await createContribution({ fund: fund._id, user: user._id, amount: 50000 });
@@ -46,7 +46,8 @@ describe('HU08: Ver Detalle y Progreso del Fondo — GET /api/funds/:id', () => 
       .set(await authHeader(user));
 
     expect(res.status).toBe(200);
-    expect(res.body.collectedAmount).toBeGreaterThan(res.body.targetAmount);
+    expect(res.body.collectedAmount).toBe(50000);
+    expect(res.body.targetAmount).toBe(40000);
   });
 
   // ─── TC-HU08-03: Fondo "quota" muestra frecuencia y estado ───────
@@ -149,5 +150,54 @@ describe('HU08: Ver Detalle y Progreso del Fondo — GET /api/funds/:id', () => 
       .set(await authHeader(user));
     expect(res.status).toBe(200);
     expect(res.body.collectedAmount).toBe(0);
+  });
+
+  // ─── autoExpireFund: efecto colateral en GET /:id ──────────────────────────────
+  // GET /api/funds/:id ejecuta autoExpireFund() que cierra automáticamente fondos
+  // activos cuya deadline ya pasó y que no tienen ningún aporte registrado.
+  // Sin estos tests, esa rama de código no se ejercita por la suite.
+  test('autoExpireFund: GET /:id cierra fondo activo con deadline pasada y sin aportes', async () => {
+    const user = await createUser();
+    const fund = await createFund({ organizer: user._id, status: 'active' });
+
+    // Forzar deadline en el pasado vía update directo (bypass de validators de ruta)
+    const Fund = require('../../../src/models/Fund');
+    await Fund.collection.updateOne(
+      { _id: fund._id },
+      { $set: { deadline: new Date(Date.now() - 86400000 * 2) } }
+    );
+
+    const res = await request(app)
+      .get(`/api/funds/${fund._id}`)
+      .set(await authHeader(user));
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('closed');
+
+    // Verificación en BD: el estado realmente persistió
+    const updated = await Fund.findById(fund._id);
+    expect(updated.status).toBe('closed');
+  });
+
+  test('autoExpireFund: NO cierra el fondo si tiene aportes succeeded (aunque deadline pasó)', async () => {
+    const user = await createUser();
+    const fund = await createFund({ organizer: user._id, status: 'active' });
+    await createContribution({ fund: fund._id, user: user._id, amount: 1000, status: 'succeeded' });
+
+    const Fund = require('../../../src/models/Fund');
+    await Fund.collection.updateOne(
+      { _id: fund._id },
+      { $set: { deadline: new Date(Date.now() - 86400000 * 2) } }
+    );
+
+    const res = await request(app)
+      .get(`/api/funds/${fund._id}`)
+      .set(await authHeader(user));
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('active');
+
+    const updated = await Fund.findById(fund._id);
+    expect(updated.status).toBe('active');
   });
 });

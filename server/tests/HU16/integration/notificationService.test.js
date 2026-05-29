@@ -56,6 +56,13 @@ describe('sendFundReminders', () => {
     expect(updated.participants[0].moraReminderActive).toBe(true);
     expect(updated.participants[0].lastReminder).toBeDefined();
     expect(sendMoraReminderEmail).toHaveBeenCalledTimes(1);
+    // Verificar que la invocación trae los argumentos correctos, no solo el conteo.
+    // Si el código manda el participant equivocado o pendingCount mal calculado, falla.
+    expect(sendMoraReminderEmail).toHaveBeenCalledWith(expect.objectContaining({
+      user: expect.objectContaining({ email: 'mora@test.cl' }),
+      pendingCount: 1, // weekly, 6 días en el período, sin pago → 1 cuota debida
+      fund: expect.objectContaining({ _id: fund._id }),
+    }));
   });
 
   test('desactiva moraReminderActive cuando el usuario paga su mora', async () => {
@@ -123,5 +130,10 @@ describe('sendFundReminders', () => {
     await sendFundReminders(populated);
 
     expect(sendMoraReminderEmail).toHaveBeenCalledTimes(1);
+    // Verificación de args: el participant correcto y pendingCount=1 (weekly, 1 día, sin pagos)
+    expect(sendMoraReminderEmail).toHaveBeenCalledWith(expect.objectContaining({
+      user: expect.objectContaining({ email: 'sostenido@test.cl' }),
+      pendingCount: 1,
+    }));
   });
 });

@@ -42,25 +42,27 @@ describe('HU05-2: Registro de Usuario — POST /api/auth/register', () => {
   });
 
   // ─── CA3: No permite registrar RUT o correo existente ──────────────
-  test('TC-HU05-2-03 (CA3): Retorna 400/409 si el correo o RUT ya está registrado', async () => {
+  test('TC-HU05-2-03 (CA3): Retorna 409 si el correo o RUT ya está registrado', async () => {
     // Creamos un usuario previo con un RUT normalizado y email específico
     await createUser({ email: 'existente@prueba.cl', rut: '21253453-6' });
-    
-    // Intento con correo existente
-    const existingEmailPayload = { ...validPayload, email: 'existente@prueba.cl', rut: '13.345.678-K' };
+
+    // Intento con correo existente (RUT válido y distinto al ya registrado)
+    const existingEmailPayload = { ...validPayload, email: 'existente@prueba.cl', rut: '11.111.111-1' };
     const res1 = await request(app)
       .post('/api/auth/register')
       .send(existingEmailPayload);
-      
-    expect([400, 409]).toContain(res1.status);
+
+    expect(res1.status).toBe(409);
+    expect(res1.body.error).toMatch(/email/i);
 
     // Intento con RUT existente
     const existingRutPayload = { ...validPayload, rut: '21.253.453-6', email: 'otromail@prueba.cl' };
     const res2 = await request(app)
       .post('/api/auth/register')
       .send(existingRutPayload);
-      
-    expect([400, 409]).toContain(res2.status);
+
+    expect(res2.status).toBe(409);
+    expect(res2.body.error).toMatch(/RUT/i);
   });
 
   // ─── CA4: Contraseña debe tener mínimo 6 caracteres ──────────────

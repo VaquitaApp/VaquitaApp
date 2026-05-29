@@ -4,6 +4,14 @@ const Fund = require('../models/Fund');
 const Contribution = require('../models/Contribution');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { requireFund, requireOrganizer, isOrganizer, POP_ORG, POP_PARTS } = require('../middleware/funds');
+const { isFundExpired } = require('../utils/funds');
+const {
+  ERR_FUND_NOT_ACTIVE,
+  ERR_DEADLINE_EXPIRED,
+  ERR_USER_ALREADY_PARTICIPANT,
+  ERR_ACCESS_DENIED,
+} = require('../errors');
 const { pendingQuotas } = require('../services/quotaService');
 const {
   sendEmail,
@@ -14,14 +22,12 @@ const {
 const router = express.Router({ mergeParams: true });
 
 // POST /api/funds/:id/invitations
-router.post('/invitations', auth, async (req, res) => {
+router.post('/invitations', auth, requireFund(), requireOrganizer, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id);
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
-    if (new Date(fund.deadline) <= new Date()) {
-      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+    const fund = req.fund;
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
+    if (isFundExpired(fund)) {
+      return res.status(422).json({ error: ERR_DEADLINE_EXPIRED });
     }
 
     const { userId } = req.body;
@@ -37,7 +43,7 @@ router.post('/invitations', auth, async (req, res) => {
 
     if (existing) {
       if (existing.status === 'accepted') {
-        return res.status(409).json({ error: 'User already a participant' });
+        return res.status(409).json({ error: ERR_USER_ALREADY_PARTICIPANT });
       }
       existing.invitationToken = uuidv4();
       existing.joinRequestToken = undefined;
@@ -79,16 +85,15 @@ router.post('/invitations', auth, async (req, res) => {
 });
 
 // POST /api/funds/:id/join-request
-router.post('/join-request', auth, async (req, res) => {
+router.post('/join-request', auth, requireFund({ populate: [POP_ORG] }), async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id).populate('organizer', 'name email');
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    const fund = req.fund;
     if (fund.visibility !== 'public') return res.status(403).json({ error: 'El fondo no es público' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'El fondo no está activo' });
-    if (new Date(fund.deadline) <= new Date()) {
-      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+    if (isFundExpired(fund)) {
+      return res.status(422).json({ error: ERR_DEADLINE_EXPIRED });
     }
-    if (fund.organizer._id.equals(req.user._id)) {
+    if (isOrganizer(fund, req.user._id)) {
       return res.status(422).json({ error: 'El organizador no puede solicitar unirse a su propio fondo' });
     }
 
@@ -128,12 +133,9 @@ router.post('/join-request', auth, async (req, res) => {
 });
 
 // DELETE /api/funds/:id/invitations/:userId
-router.delete('/invitations/:userId', auth, async (req, res) => {
+router.delete('/invitations/:userId', auth, requireFund({ populate: [POP_PARTS] }), requireOrganizer, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id).populate('participants.user', 'name email');
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
-
+    const fund = req.fund;
     const participant = fund.participants.find(p => p.user?._id?.equals(req.params.userId));
     if (!participant) return res.status(404).json({ error: 'Invitación no encontrada' });
     if (participant.status !== 'pending') {
@@ -151,12 +153,9 @@ router.delete('/invitations/:userId', auth, async (req, res) => {
 });
 
 // DELETE /api/funds/:id/participants/:userId
-router.delete('/participants/:userId', auth, async (req, res) => {
+router.delete('/participants/:userId', auth, requireFund(), requireOrganizer, async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id);
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (!fund.organizer.equals(req.user._id)) return res.status(403).json({ error: 'Not the organizer' });
-
+    const fund = req.fund;
     const hasContribs = await Contribution.countDocuments({
       fund: fund._id,
       user: req.params.userId,
@@ -173,16 +172,14 @@ router.delete('/participants/:userId', auth, async (req, res) => {
 });
 
 // GET /api/funds/:id/participants
-router.get('/participants', auth, async (req, res) => {
+router.get('/participants', auth, requireFund({ populate: [POP_PARTS] }), async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id).populate('participants.user', 'name email');
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-
+    const fund = req.fund;
     const userId = req.user._id;
-    const isOrganizer = fund.organizer.equals(userId);
+    const isOrg = isOrganizer(fund, userId);
     const isParticipant = fund.participants.some(p => p.user._id.equals(userId) && p.status === 'accepted');
     const isPendingInvitee = fund.participants.some(p => p.user._id.equals(userId) && p.invitationToken);
-    if (!isOrganizer && !isParticipant && !isPendingInvitee) return res.status(403).json({ error: 'Access denied' });
+    if (!isOrg && !isParticipant && !isPendingInvitee) return res.status(403).json({ error: ERR_ACCESS_DENIED });
 
     const contributions = await Contribution.find({ fund: fund._id, status: 'succeeded' }).lean();
 
@@ -219,13 +216,12 @@ router.get('/participants', auth, async (req, res) => {
 });
 
 // POST /api/funds/:id/accept-my-invitation — el participante invitado acepta la invitación sin usar el token
-router.post('/accept-my-invitation', auth, async (req, res) => {
+router.post('/accept-my-invitation', auth, requireFund(), async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id);
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
-    if (fund.status !== 'active') return res.status(422).json({ error: 'Fund is not active' });
-    if (new Date(fund.deadline) <= new Date()) {
-      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+    const fund = req.fund;
+    if (fund.status !== 'active') return res.status(422).json({ error: ERR_FUND_NOT_ACTIVE });
+    if (isFundExpired(fund)) {
+      return res.status(422).json({ error: ERR_DEADLINE_EXPIRED });
     }
 
     const idx = fund.participants.findIndex(p => p.user.equals(req.user._id) && p.invitationToken);
@@ -243,23 +239,21 @@ router.post('/accept-my-invitation', auth, async (req, res) => {
 });
 
 // POST /api/funds/:id/access-requests — solicitud de acceso a fondo público (subdocumento accessRequests)
-router.post('/access-requests', auth, async (req, res) => {
+router.post('/access-requests', auth, requireFund({ populate: [POP_ORG] }), async (req, res) => {
   try {
-    const fund = await Fund.findById(req.params.id).populate('organizer', 'name email');
-    if (!fund) return res.status(404).json({ error: 'Fund not found' });
+    const fund = req.fund;
     if (fund.visibility !== 'public') {
       return res.status(403).json({ error: 'Este fondo no es público' });
     }
     if (fund.status !== 'active') {
       return res.status(422).json({ error: 'Fund is not active' });
     }
-    if (new Date(fund.deadline) <= new Date()) {
-      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+    if (isFundExpired(fund)) {
+      return res.status(422).json({ error: ERR_DEADLINE_EXPIRED });
     }
 
     const userId = req.user._id;
-    const orgId = fund.organizer._id ?? fund.organizer;
-    if (orgId.equals(userId)) {
+    if (isOrganizer(fund, userId)) {
       return res.status(422).json({ error: 'El organizador no puede solicitar acceso' });
     }
 
