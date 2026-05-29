@@ -10,7 +10,7 @@ import { ACCOUNT_TYPE_LABELS } from '../../constants/accountTypes';
 const fieldSelect =
   'w-full rounded-lg border border-[var(--vaq-input-border)] bg-[var(--vaq-input-bg)] px-3 py-2 text-sm text-[var(--vaq-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--vaq-ring)]';
 
-export default function ContributionForm({ fundId, fund, onCreated, onCancel }) {
+export default function ContributionForm({ fundId, fund, collectedAmount = 0, onCreated, onCancel }) {
   const { user, refreshUser } = useAuth();
   const saved = user?.preferredAccount;
   const hasSaved = saved?.bank && saved?.accountNumber;
@@ -45,6 +45,13 @@ export default function ContributionForm({ fundId, fund, onCreated, onCancel }) 
   const paid = statusObj ? statusObj.paid : null;
   const total = statusObj ? statusObj.total : null;
   const fixedAmt = isQuota ? quotasToPay * fund.quotaAmount : null;
+  // Fondo libre: máximo = lo que falta para la meta (tope global). Validación previa al submit.
+  const freeMax = !isQuota ? Math.max(0, (fund?.targetAmount ?? 0) - collectedAmount) : null;
+  const freeInvalid = !isQuota && (
+    !amount || Number(amount) <= 0 ||
+    Number(amount) > freeMax ||
+    (!!fund?.minAmount && Number(amount) < fund.minAmount)
+  );
   const [step, setStep] = useState('form');
   const [error, setError] = useState('');
   const [successError, setSuccessError] = useState('');
@@ -284,12 +291,19 @@ export default function ContributionForm({ fundId, fund, onCreated, onCancel }) 
             <input
               type="number"
               min={fund.minAmount || 1}
+              max={freeMax}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className={fieldSelect}
               required
             />
-            {fund.minAmount > 0 && <p className="mt-1 text-xs text-[var(--vaq-forest)]">Monto mínimo: {fmtCLP(fund.minAmount)}</p>}
+            <p className="mt-1 text-xs text-[var(--vaq-forest)]">
+              {fund.minAmount > 0 && <>Mínimo: {fmtCLP(fund.minAmount)}. </>}
+              Máximo: {fmtCLP(freeMax)} (restante para la meta).
+            </p>
+            {amount && Number(amount) > freeMax && (
+              <p className="mt-1 text-xs text-[var(--vaq-danger)]">El monto supera el restante para la meta ({fmtCLP(freeMax)}).</p>
+            )}
           </>
         )}
       </div>
@@ -299,7 +313,7 @@ export default function ContributionForm({ fundId, fund, onCreated, onCancel }) 
       </p>
 
       <div className="flex gap-2">
-        <button type="submit" className="vaq-btn-primary flex-1 rounded-lg py-2 text-sm font-medium">
+        <button type="submit" disabled={freeInvalid} className="vaq-btn-primary flex-1 rounded-lg py-2 text-sm font-medium disabled:opacity-50">
           Transferir
         </button>
         <button

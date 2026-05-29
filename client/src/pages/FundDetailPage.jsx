@@ -334,6 +334,7 @@ export default function FundDetailPage() {
             <ContributionForm
               fundId={id}
               fund={fund}
+              collectedAmount={collectedAmount}
               onCreated={async (c, options) => {
                 setContributions(prev => [
                   { ...c, user: { _id: user._id, name: user.name, email: user.email } },
