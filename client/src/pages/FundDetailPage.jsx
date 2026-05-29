@@ -11,6 +11,7 @@ import ParticipantList from '../components/funds/ParticipantList';
 import ContributionForm from '../components/funds/ContributionForm';
 import ContributionList from '../components/funds/ContributionList';
 import MockPaymentForm from '../components/funds/MockPaymentForm';
+import MilestonesTimeline from '../components/funds/MilestonesTimeline';
 import FundChart from '../components/funds/FundChart';
 import CommentSection from '../components/funds/CommentSection';
 import ConfirmModal from '../components/ui/ConfirmModal';
@@ -219,8 +220,10 @@ export default function FundDetailPage() {
         )}
 
         <div className="mt-4">
-          <ProgressBar value={collectedAmount} max={fund.targetAmount} />
+          <ProgressBar value={collectedAmount} max={fund.targetAmount} milestones={fund.milestones} />
         </div>
+
+        <MilestonesTimeline milestones={fund.milestones} currentAmount={collectedAmount} />
 
         <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-[var(--vaq-muted)]">
           <div>
