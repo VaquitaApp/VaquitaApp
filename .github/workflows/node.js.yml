@@ -14,7 +14,7 @@ jobs:
     # 1. LEVANTAMOS MONGODB EN LA NUBE DE GITHUB
     services:
       mongodb:
-        image: mongo:6.0
+        image: mongo:7
         ports:
           - 27017:27017
 
@@ -51,6 +51,10 @@ jobs:
       # --- BLOQUE DEL CLIENTE ---
       - name: Instalar dependencias del Cliente
         run: npm ci
+        working-directory: ./client
+
+      - name: Lint del Cliente
+        run: npm run lint
         working-directory: ./client
 
       - name: Validar compilación del Cliente
