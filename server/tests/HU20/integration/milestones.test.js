@@ -81,4 +81,27 @@ describe('HU20 - Metas Parciales (Hitos) de Recaudación (Integración)', () => 
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/validation failed/i);
   });
+
+  it('No debe permitir crear dos hitos con el mismo monto', async () => {
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Fondo Hitos Duplicados',
+        description: 'Test hitos',
+        goal: 'Test',
+        type: 'free',
+        targetAmount: 100000,
+        deadline: new Date(Date.now() + 10000000000),
+        recipientAccount: { bank: 'Banco Test', accountType: 'corriente', accountNumber: '123' },
+        visibility: 'public',
+        milestones: [
+          { amount: 25000, description: 'Hito A' },
+          { amount: 25000, description: 'Hito B' }
+        ]
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/validation failed/i);
+  });
 });
