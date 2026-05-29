@@ -36,7 +36,7 @@ export default function FundCard({ fund, role }) {
             <p className="mt-0.5 text-xs text-[var(--vaq-muted)]">{fmtName(fund.organizer?.name)}</p>
           )}
         </div>
-        <StatusBadge status={fund.status} />
+        <StatusBadge status={fund.status === 'active' && (fund.collectedAmount ?? 0) >= fund.targetAmount ? 'reached' : fund.status} />
       </div>
       {fund.goal ? (
         <p className="mb-2 line-clamp-2 text-xs text-[var(--vaq-muted)]" title={fund.goal}>

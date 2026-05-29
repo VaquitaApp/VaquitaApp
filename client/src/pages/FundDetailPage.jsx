@@ -200,6 +200,11 @@ export default function FundDetailPage() {
           Este fondo se encuentra pausado por el organizador. No se reciben aportes temporalmente.
         </div>
       )}
+      {isFull && fund.status === 'active' && (
+        <div className="mb-4 rounded-lg border border-[var(--vaq-amber)]/35 bg-[var(--vaq-tone-warning-bg)] px-4 py-3 text-sm text-[var(--vaq-tone-warning-text)]">
+          🎯 Meta alcanzada. Falta el pago al destinatario para completar el fondo.
+        </div>
+      )}
 
       {/* Resumen del fondo */}
       <div className="vaq-card p-6 mb-4">
@@ -208,7 +213,7 @@ export default function FundDetailPage() {
             <h1 className="text-xl font-bold text-[var(--vaq-ink)]">{fund.name}</h1>
             <p className="mt-0.5 text-sm text-[var(--vaq-muted)]">Organizado por {fmtName(fund.organizer?.name)}</p>
           </div>
-          <StatusBadge status={fund.status} />
+          <StatusBadge status={isFull && fund.status === 'active' ? 'reached' : fund.status} />
         </div>
 
         {fund.description && (
