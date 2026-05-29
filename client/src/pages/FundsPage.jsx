@@ -57,7 +57,13 @@ export default function FundsPage() {
         </Link>
       </div>
 
-      <FundFilters value={filters} onChange={setFilters} showRole />
+      <FundFilters
+        value={filters}
+        onChange={setFilters}
+        showRole
+        canClear={isFiltered}
+        onClear={() => setFilters(INITIAL_FILTERS)}
+      />
 
       {loading && <p className="text-sm text-[var(--vaq-muted)]">Cargando…</p>}
       {error && <p className="text-sm text-[var(--vaq-danger)]">{error}</p>}
@@ -72,13 +78,6 @@ export default function FundsPage() {
       {showEmpty && isFiltered && (
         <div className="py-16 text-center text-[var(--vaq-muted)]">
           <p className="text-lg">Ningún fondo coincide con los filtros</p>
-          <button
-            type="button"
-            onClick={() => setFilters(INITIAL_FILTERS)}
-            className="mt-2 text-sm font-semibold text-[var(--vaq-forest)] underline-offset-2 hover:underline"
-          >
-            Limpiar filtros
-          </button>
         </div>
       )}
 

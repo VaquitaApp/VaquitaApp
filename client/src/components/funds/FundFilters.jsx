@@ -10,7 +10,7 @@ const ROLES = [
   { value: 'invited', label: 'Invitado' },
 ];
 
-export default function FundFilters({ value, onChange, showRole = false }) {
+export default function FundFilters({ value, onChange, showRole = false, canClear = false, onClear }) {
   function set(key, val) {
     onChange({ ...value, [key]: val });
   }
@@ -63,6 +63,15 @@ export default function FundFilters({ value, onChange, showRole = false }) {
           <option value="deadline_desc">Cierre lejano</option>
           <option value="name">Nombre A-Z</option>
         </select>
+        {canClear && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="ml-auto self-center text-sm font-semibold text-[var(--vaq-forest)] underline-offset-2 hover:underline"
+          >
+            Limpiar filtros
+          </button>
+        )}
       </div>
     </div>
   );
