@@ -78,10 +78,15 @@ fundSchema.pre('validate', function (next) {
   }
 
   if (this.milestones && this.milestones.length > 0) {
+    const seenAmounts = new Set();
     for (const milestone of this.milestones) {
       if (milestone.amount > this.targetAmount) {
         this.invalidate('milestones', 'El monto del hito no puede ser mayor a la meta total.');
       }
+      if (seenAmounts.has(milestone.amount)) {
+        this.invalidate('milestones', 'No puede haber dos hitos con el mismo monto.');
+      }
+      seenAmounts.add(milestone.amount);
     }
   }
   next();

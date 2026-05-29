@@ -64,7 +64,6 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     visibility: initial.visibility ?? 'public',
     frequency: initial.frequency ?? 'monthly',
     quotaAmount: initial.quotaAmount ?? '',
-    totalQuotas: initial.totalQuotas ?? '',
     expectedParticipants: initial.expectedParticipants ?? '',
     milestones: initial.milestones ?? [],
   });
@@ -102,6 +101,23 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     form.type === 'quota' && targetNum > 0 && quotaNum > 0 && targetNum % quotaNum !== 0;
   const divisorSuggestion = quotaIndivisible ? nearestDivisorAtLeast(targetNum, quotaNum) : null;
 
+  // Hitos con monto repetido (comparado como número, ignorando vacíos) → feedback inline.
+  const milestoneAmountCounts = form.milestones.reduce((acc, m) => {
+    if (m.amount !== '' && m.amount != null) {
+      const a = Number(m.amount);
+      acc[a] = (acc[a] || 0) + 1;
+    }
+    return acc;
+  }, {});
+  const hasDuplicateMilestone = Object.values(milestoneAmountCounts).some(c => c > 1);
+  const isDuplicateMilestone = m =>
+    m.amount !== '' && m.amount != null && milestoneAmountCounts[Number(m.amount)] > 1;
+
+  // Hito cuyo monto iguala o supera la meta total → feedback inline.
+  const milestoneExceedsTarget = m =>
+    m.amount !== '' && m.amount != null && targetNum > 0 && Number(m.amount) >= targetNum;
+  const hasMilestoneOverTarget = form.milestones.some(milestoneExceedsTarget);
+
   function handleSubmit(e) {
     e.preventDefault();
     setValidationError('');
@@ -125,11 +141,6 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
         data.expectedParticipants = Number(form.expectedParticipants);
       } else {
         delete data.expectedParticipants;
-      }
-      if (form.totalQuotas) {
-        data.totalQuotas = Number(form.totalQuotas);
-      } else {
-        delete data.totalQuotas;
       }
       if (form.deadline && form.frequency) {
         const minDays  = FREQ_MIN_DAYS[form.frequency] ?? 0;
@@ -341,19 +352,6 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
                 placeholder="Ej: 5"
               />
             </Field>
-
-            <Field label="Total de cuotas por usuario (Opcional)">
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={form.totalQuotas}
-                onChange={e => set('totalQuotas', e.target.value)}
-                disabled={locked('totalQuotas')}
-                className="fund-form-input"
-                placeholder={periods ? `Auto: ${periods} cuotas hasta el límite` : "Ej: 10"}
-              />
-            </Field>
           </div>
         )}
 
@@ -404,6 +402,11 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
                   className="fund-form-input"
                   placeholder="Monto"
                 />
+                {milestoneExceedsTarget(m) ? (
+                  <p className="text-xs text-[var(--vaq-danger)] mt-1">Debe ser menor a la meta</p>
+                ) : isDuplicateMilestone(m) && (
+                  <p className="text-xs text-[var(--vaq-danger)] mt-1">Monto repetido</p>
+                )}
               </div>
               <button
                 type="button"
@@ -468,7 +471,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || hasDuplicateMilestone || hasMilestoneOverTarget}
           className="fund-form-submit"
         >
           {loading ? 'Procesando...' : submitLabel}
