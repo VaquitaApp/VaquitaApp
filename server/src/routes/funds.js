@@ -179,6 +179,11 @@ router.post('/', auth, async (req, res) => {
         });
       }
     }
+    if (type === 'quota' && targetAmount && quotaAmount && Number(targetAmount) % Number(quotaAmount) !== 0) {
+      return res.status(400).json({
+        error: `El valor de la cuota debe dividir exactamente la meta. Elige una cuota que sea divisor de $${Number(targetAmount).toLocaleString('es-CL')} CLP.`,
+      });
+    }
     if (type === 'free' && minAmount && Number(minAmount) > Number(targetAmount)) {
       return res.status(400).json({ error: 'El monto mínimo no puede ser mayor al total del fondo.' });
     }
@@ -189,10 +194,15 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ error: 'La descripción y el objetivo son obligatorios.' });
     }
 
+    // totalQuotas: explícito si se ingresa; si no, se deriva del plazo y la frecuencia.
+    const finalTotalQuotas = type === 'quota'
+      ? (totalQuotas ? Number(totalQuotas) : totalPeriods(frequency, new Date(), deadline))
+      : undefined;
+
     const fund = new Fund({
       name, description: desc, goal: goalStr, type, targetAmount, quotaAmount,
       frequency, deadline, recipientAccount, visibility, coverImage,
-      minAmount, expectedParticipants, totalQuotas, milestones: req.body.milestones || [],
+      minAmount, expectedParticipants, totalQuotas: finalTotalQuotas, milestones: req.body.milestones || [],
       organizer: req.user._id,
     });
     await fund.save();
@@ -236,18 +246,24 @@ router.get('/:id/participants/:userId/status', auth, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const { pendingQuotas, remainingQuotas, totalPeriods } = require('../services/quotaService');
+    const { pendingQuotas, remainingQuotas, paidQuotasOf, totalQuotasOf } = require('../services/quotaService');
     const userContribs = await Contribution.find({ fund: fund._id, user: req.params.userId, status: 'succeeded' }).lean();
-    
+
     let statusObj = {};
     if (fund.type === 'quota') {
-      const paid = userContribs.reduce((s, c) => s + (c.quotasPaid || Math.floor(c.amount / fund.quotaAmount)), 0);
+      const remaining = remainingQuotas(fund, userContribs);
+      const collected = await getCollectedAmount(fund._id);
+      const remainingToTarget = Math.max(0, fund.targetAmount - collected);
       statusObj.pending = pendingQuotas(fund, userContribs);
-      statusObj.remaining = remainingQuotas(fund, userContribs);
-      statusObj.paid = paid;
-      statusObj.total = fund.totalQuotas || totalPeriods(fund.frequency, fund.createdAt, fund.deadline);
+      statusObj.remaining = remaining;
+      statusObj.paid = paidQuotasOf(fund, userContribs);
+      statusObj.total = totalQuotasOf(fund);
+      statusObj.remainingToTarget = remainingToTarget;
+      // El tope de cuotas a pagar lo manda la meta del fondo, no la parte del participante:
+      // puede sobre-aportar mientras al fondo le falte.
+      statusObj.maxPayable = Math.floor(remainingToTarget / fund.quotaAmount);
     }
-    
+
     res.json(statusObj);
   } catch (err) {
     res.status(500).json({ error: err.message });

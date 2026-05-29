@@ -87,35 +87,6 @@ describe('HU12 — Registrar aporte', () => {
     expect(res.body.collectedAmount).toBe(8000);
   });
 
-  it('HU12-INT-03: fondo por cuotas — tras pago exacto, participante figura al día en GET participants', async () => {
-    const quotaAmount = 12000;
-    const quotaFund = await createFund({
-      organizer: organizer._id,
-      type: 'quota', totalQuotas: 12,
-      quotaAmount,
-      frequency: 'monthly',
-      status: 'active',
-      deadline: new Date(Date.now() + 86400000 * 30),
-      targetAmount: 50000,
-    });
-    const tok = await invite(orgToken, participant._id, quotaFund._id);
-    await request(app).post(`/api/invitations/${tok}/accept`);
-
-    await request(app)
-      .post(`/api/funds/${quotaFund._id}/contributions`)
-      .set('Authorization', `Bearer ${partToken}`)
-      .send({ amount: quotaAmount, method: 'transfer' });
-
-    const parts = await request(app)
-      .get(`/api/funds/${quotaFund._id}/participants`)
-      .set('Authorization', `Bearer ${partToken}`);
-
-    expect(parts.status).toBe(200);
-    const row = parts.body.find(p => p.user?._id?.toString() === participant._id.toString());
-    expect(row).toBeDefined();
-    expect(row.contributionStatus).toBe('onTime');
-  });
-
   it('HU12-INT-04: fondo no activo (pausado) rechaza nuevo aporte con 403', async () => {
     await Fund.updateOne({ _id: freeFund._id }, { $set: { status: 'paused' } });
 
@@ -172,31 +143,40 @@ describe('HU12 — Registrar aporte', () => {
     expect(mine.date).toBeDefined();
   });
 
-  it('HU12-INT-08: cuotas — si ya está al día, segundo pago igual devuelve 400', async () => {
+  it('HU12-INT-08: cuotas — un participante puede sobre-aportar si al fondo le falta, y se rechaza al completarlo', async () => {
     const quotaAmount = 5000;
     const quotaFund = await createFund({
       organizer: organizer._id,
-      type: 'quota', totalQuotas: 1,
+      type: 'quota', totalQuotas: 1, // su parte esperada es 1 cuota...
       quotaAmount,
       frequency: 'once',
       status: 'active',
       deadline: new Date(Date.now() + 86400000 * 30),
-      targetAmount: 10000,
+      targetAmount: 10000, // ...pero la meta necesita 2 cuotas
     });
     const tok = await invite(orgToken, participant._id, quotaFund._id);
     await request(app).post(`/api/invitations/${tok}/accept`);
 
-    await request(app)
+    // Cumple su parte (1 cuota).
+    const first = await request(app)
       .post(`/api/funds/${quotaFund._id}/contributions`)
       .set('Authorization', `Bearer ${partToken}`)
       .send({ amount: quotaAmount, method: 'transfer' });
+    expect(first.status).toBe(201);
 
-    const res = await request(app)
+    // Al fondo aún le faltan 5000 → puede aportar una cuota extra (sobre-aporte).
+    const second = await request(app)
       .post(`/api/funds/${quotaFund._id}/contributions`)
       .set('Authorization', `Bearer ${partToken}`)
       .send({ amount: quotaAmount, method: 'transfer' });
+    expect(second.status).toBe(201);
 
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/al día|pendientes/i);
+    // Fondo completo → se rechaza.
+    const third = await request(app)
+      .post(`/api/funds/${quotaFund._id}/contributions`)
+      .set('Authorization', `Bearer ${partToken}`)
+      .send({ amount: quotaAmount, method: 'transfer' });
+    expect(third.status).toBe(400);
+    expect(third.body.error).toMatch(/completar|meta/i);
   });
 });

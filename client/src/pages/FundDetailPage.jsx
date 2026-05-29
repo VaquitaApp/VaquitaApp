@@ -333,9 +333,6 @@ export default function FundDetailPage() {
             <ContributionForm
               fundId={id}
               fund={fund}
-              userContributions={contributions.filter(
-                c => c.user?._id?.toString() === user?._id?.toString()
-              )}
               onCreated={async (c, options) => {
                 setContributions(prev => [
                   { ...c, user: { _id: user._id, name: user.name, email: user.email } },

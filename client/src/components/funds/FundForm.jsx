@@ -19,6 +19,20 @@ function totalPeriods(frequency, start, end) {
   return Math.max(1, months);
 }
 
+// Menor divisor de `target` que sea >= `q` (para sugerir una cuota que divida la meta).
+function nearestDivisorAtLeast(target, q) {
+  if (!target || !q || q < 1) return target || null;
+  let best = target; // target siempre se divide a sí mismo
+  for (let i = 1; i * i <= target; i++) {
+    if (target % i === 0) {
+      const a = i, b = target / i;
+      if (a >= q && a < best) best = a;
+      if (b >= q && b < best) best = b;
+    }
+  }
+  return best;
+}
+
 function Field({ label, required, children }) {
   return (
     <div className="fund-form-group">
@@ -83,6 +97,12 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
       ? Math.ceil(Number(form.targetAmount) / (periods * expectedP))
       : null;
 
+  const targetNum = Number(form.targetAmount);
+  const quotaNum = Number(form.quotaAmount);
+  const quotaIndivisible =
+    form.type === 'quota' && targetNum > 0 && quotaNum > 0 && targetNum % quotaNum !== 0;
+  const divisorSuggestion = quotaIndivisible ? nearestDivisorAtLeast(targetNum, quotaNum) : null;
+
   function handleSubmit(e) {
     e.preventDefault();
     setValidationError('');
@@ -124,6 +144,13 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
       if (suggestedQuota !== null && data.quotaAmount < suggestedQuota) {
         setValidationError(
           `La cuota mínima es $${suggestedQuota.toLocaleString('es-CL')} para alcanzar la meta en ${periods} cuota${periods !== 1 ? 's' : ''} con ${expectedP} participante${expectedP !== 1 ? 's' : ''}.`
+        );
+        return;
+      }
+      if (data.targetAmount % data.quotaAmount !== 0) {
+        const sug = nearestDivisorAtLeast(data.targetAmount, data.quotaAmount);
+        setValidationError(
+          `El valor de la cuota debe dividir exactamente la meta ($${data.targetAmount.toLocaleString('es-CL')}). Prueba con $${sug.toLocaleString('es-CL')}.`
         );
         return;
       }
@@ -296,6 +323,12 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
                 <p className="fund-form-hint">
                   Mínimo sugerido: ${suggestedQuota.toLocaleString('es-CL')} / cuota ({periods} cuota{periods !== 1 ? 's' : ''}, {expectedP} participante{expectedP !== 1 ? 's' : ''}).{' '}
                   <button type="button" onClick={() => set('quotaAmount', suggestedQuota)}>Usar este valor</button>
+                </p>
+              )}
+              {quotaIndivisible && !locked('quotaAmount') && (
+                <p className="fund-form-hint text-[var(--vaq-danger)]">
+                  La cuota debe dividir exactamente la meta. Sugerencia: ${divisorSuggestion?.toLocaleString('es-CL')}.{' '}
+                  <button type="button" onClick={() => set('quotaAmount', divisorSuggestion)}>Usar este valor</button>
                 </p>
               )}
             </Field>

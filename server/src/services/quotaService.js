@@ -27,18 +27,28 @@ function periodsElapsed(fund) {
   return Math.max(1, months);
 }
 
-// Retorna cuántas cuotas le faltan al usuario. 0 = al día.
+// Cuotas que el usuario ha cubierto. Usa paidQuotas explícito; cae a monto/valorCuota
+// para contribuciones legacy sin el campo.
+function paidQuotasOf(fund, userContributions) {
+  return userContributions.reduce((s, c) => s + (c.paidQuotas || Math.floor(c.amount / fund.quotaAmount)), 0);
+}
+
+// Total de cuotas del fondo: explícito si está definido, si no se deriva del plazo.
+function totalQuotasOf(fund) {
+  return fund.totalQuotas || totalPeriods(fund.frequency, fund.createdAt, fund.deadline);
+}
+
+// Retorna cuántas cuotas vencidas le faltan al usuario (mora). 0 = al día.
+// Clamp al total: nunca puede haber más cuotas vencidas que el total del fondo.
 function pendingQuotas(fund, userContributions) {
-  const paid = userContributions.reduce((s, c) => s + (c.quotasPaid || Math.floor(c.amount / fund.quotaAmount)), 0);
-  const due  = periodsElapsed(fund);
+  const paid = paidQuotasOf(fund, userContributions);
+  const due  = Math.min(periodsElapsed(fund), totalQuotasOf(fund));
   return Math.max(0, due - paid);
 }
 
-// Retorna el saldo de cuotas restantes (el total absoluto del fondo)
+// Retorna el saldo de cuotas restantes (el total absoluto del fondo).
 function remainingQuotas(fund, userContributions) {
-  const paid = userContributions.reduce((s, c) => s + (c.quotasPaid || Math.floor(c.amount / fund.quotaAmount)), 0);
-  const total = fund.totalQuotas || totalPeriods(fund.frequency, fund.createdAt, fund.deadline);
-  return Math.max(0, total - paid);
+  return Math.max(0, totalQuotasOf(fund) - paidQuotasOf(fund, userContributions));
 }
 
 // Deadline del período actual según la frecuencia del fondo
@@ -55,4 +65,4 @@ function currentPeriodDeadline(fund) {
   return new Date(start.getTime() + elapsed * periodDays[fund.frequency] * 86400000);
 }
 
-module.exports = { totalPeriods, periodsElapsed, pendingQuotas, remainingQuotas, currentPeriodDeadline };
+module.exports = { totalPeriods, periodsElapsed, paidQuotasOf, totalQuotasOf, pendingQuotas, remainingQuotas, currentPeriodDeadline };

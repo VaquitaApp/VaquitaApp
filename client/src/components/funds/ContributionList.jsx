@@ -24,8 +24,8 @@ export default function ContributionList({ contributions = [] }) {
               </td>
               <td className="py-2 pr-4 font-medium text-[var(--vaq-forest)]">
                 {fmtCLP(c.amount)}
-                {c.quotasPaid > 1 && <span className="block text-xs text-[var(--vaq-muted)] font-normal">(Pago de {c.quotasPaid} cuotas)</span>}
-                {c.quotasPaid === 1 && <span className="block text-xs text-[var(--vaq-muted)] font-normal">(Pago de 1 cuota)</span>}
+                {c.paidQuotas > 1 && <span className="block text-xs text-[var(--vaq-muted)] font-normal">(Pago de {c.paidQuotas} cuotas)</span>}
+                {c.paidQuotas === 1 && <span className="block text-xs text-[var(--vaq-muted)] font-normal">(Pago de 1 cuota)</span>}
               </td>
               <td className="py-2 text-[var(--vaq-muted)]">{fmtDate(c.date)}</td>
             </tr>

@@ -72,11 +72,14 @@ describe('POST /api/funds — cuota mínima sugerida con participantes esperados
     const user = await createUser();
     const periods = totalPeriods('monthly', new Date(), new Date(deadline));
     const minQuota = Math.ceil(120000 / (periods * expectedParticipants));
+    // Cuota mayor al mínimo y que además divida exactamente la meta (requisito de fondo cuota).
+    let quotaAmount = minQuota + 1;
+    while (120000 % quotaAmount !== 0) quotaAmount++;
 
     const res = await request(app)
       .post('/api/funds')
       .set(await authHeader(user))
-      .send({ ...quotaFundBody, quotaAmount: minQuota + 1000 });
+      .send({ ...quotaFundBody, quotaAmount });
     expect(res.status).toBe(201);
   });
 
