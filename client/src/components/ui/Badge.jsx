@@ -2,12 +2,14 @@ const STATUS_STYLES = {
   active: 'bg-[var(--vaq-tone-success-bg)] text-[var(--vaq-tone-success-text)]',
   completed: 'bg-[var(--vaq-tone-completed-bg)] text-[var(--vaq-tone-completed-text)]',
   closed: 'bg-[var(--vaq-tone-closed-bg)] text-[var(--vaq-tone-closed-text)]',
+  reached: 'bg-[var(--vaq-tone-warning-bg)] text-[var(--vaq-tone-warning-text)]',
 };
 
 const STATUS_LABELS = {
   active: 'Activo',
   completed: 'Completado',
   closed: 'Cerrado',
+  reached: 'Meta alcanzada',
 };
 
 const CONTRIBUTION_STYLES = {
