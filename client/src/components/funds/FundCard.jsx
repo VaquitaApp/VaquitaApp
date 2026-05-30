@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { StatusBadge, TypeBadge } from '../ui/Badge';
+import { StatusBadge, TypeBadge, RoleBadge } from '../ui/Badge';
 import ProgressBar from '../ui/ProgressBar';
 import { fmtDate, fmtName, fmtCLP } from '../../utils/format';
 
@@ -10,11 +10,14 @@ function totalQuotas(fund) {
   if (fund.frequency === 'weekly') {
     return Math.max(1, Math.floor((end - start) / (7 * 24 * 60 * 60 * 1000)) + 1);
   }
+  if (fund.frequency === 'biweekly') {
+    return Math.max(1, Math.floor((end - start) / (14 * 24 * 60 * 60 * 1000)) + 1);
+  }
   const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
   return Math.max(1, months);
 }
 
-export default function FundCard({ fund }) {
+export default function FundCard({ fund, role }) {
   const isQuota = fund.type === 'quota';
 
   return (
@@ -22,12 +25,18 @@ export default function FundCard({ fund }) {
       to={`/fondos/${fund._id}`}
       className="vaq-card flex flex-col p-5 transition-shadow hover:shadow-md"
     >
-      <div className="mb-3 flex items-start justify-between">
-        <div>
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold text-[var(--vaq-ink)]">{fund.name}</h3>
-          <p className="mt-0.5 text-xs text-[var(--vaq-muted)]">{fmtName(fund.organizer?.name)}</p>
+          {role ? (
+            <div className="mt-1">
+              <RoleBadge isMine={role === 'mine'} organizerName={fmtName(fund.organizer?.name)} />
+            </div>
+          ) : (
+            <p className="mt-0.5 text-xs text-[var(--vaq-muted)]">{fmtName(fund.organizer?.name)}</p>
+          )}
         </div>
-        <StatusBadge status={fund.status} />
+        <StatusBadge status={fund.status === 'active' && (fund.collectedAmount ?? 0) >= fund.targetAmount ? 'reached' : fund.status} />
       </div>
       {fund.goal ? (
         <p className="mb-2 line-clamp-2 text-xs text-[var(--vaq-muted)]" title={fund.goal}>

@@ -22,7 +22,11 @@ export default function ContributionList({ contributions = [] }) {
                 <p className="font-medium text-[var(--vaq-ink)]">{fmtName(c.user?.name) || '—'}</p>
                 <p className="text-xs text-[var(--vaq-muted)]">{c.user?.email}</p>
               </td>
-              <td className="py-2 pr-4 font-medium text-[var(--vaq-forest)]">{fmtCLP(c.amount)}</td>
+              <td className="py-2 pr-4 font-medium text-[var(--vaq-forest)]">
+                {fmtCLP(c.amount)}
+                {c.paidQuotas > 1 && <span className="block text-xs text-[var(--vaq-muted)] font-normal">(Pago de {c.paidQuotas} cuotas)</span>}
+                {c.paidQuotas === 1 && <span className="block text-xs text-[var(--vaq-muted)] font-normal">(Pago de 1 cuota)</span>}
+              </td>
               <td className="py-2 text-[var(--vaq-muted)]">{fmtDate(c.date)}</td>
             </tr>
           ))}

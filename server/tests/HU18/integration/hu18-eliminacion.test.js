@@ -39,33 +39,24 @@ describe('HU18: Eliminación de Cuenta — /api/users/request-delete & /api/user
     expect(res.body.error).toMatch(/organizador/i);
   });
 
-  test('TC-HU18-01b (CA2): Rechaza solicitud si el usuario es participante de un fondo', async () => {
-    const user = await createUser({ email: 'part1@prueba.cl', rut: '22222222-2' });
-    const token = generateAuthToken(user);
-    
-    const fund = await createFund({ organizer: user._id }); // Solo para crear el fondo base
-    // Añadimos al usuario como participante aceptado
-    fund.participants = [{ user: user._id, role: 'member', status: 'accepted' }];
+  test('TC-HU18-01b (CA2): Rechaza solicitud si el usuario es participante aceptado de un fondo (no organizador)', async () => {
+    // El organizador es otro usuario; el usuario bajo prueba es SOLO participante aceptado.
+    // Setup limpio: la validación de "organizador" no aplica y el rechazo proviene
+    // estrictamente de la validación "participante".
+    const orgUser = await createUser({ email: 'org-host@prueba.cl', rut: '11111111-1' });
+    const partUser = await createUser({ email: 'part-only@prueba.cl', rut: '33333333-3' });
+    const partToken = generateAuthToken(partUser);
+
+    const fund = await createFund({ organizer: orgUser._id });
+    fund.participants = [{ user: partUser._id, role: 'member', status: 'accepted' }];
     await fund.save();
 
     const res = await request(app)
       .post('/api/users/request-delete')
-      .set('Authorization', `Bearer ${token}`);
-      
-    // En este test el usuario es organizador Y participante, pero la validación de organizador salta primero.
-    // Para probar estrictamente la validación de participante, el organizador debe ser otro:
-    const user2 = await createUser({ email: 'part2@prueba.cl', rut: '33333333-3' });
-    const token2 = generateAuthToken(user2);
-    fund.organizer = user._id; // Mantenemos a user1 como organizador
-    fund.participants.push({ user: user2._id, role: 'member', status: 'accepted' });
-    await fund.save();
+      .set('Authorization', `Bearer ${partToken}`);
 
-    const res2 = await request(app)
-      .post('/api/users/request-delete')
-      .set('Authorization', `Bearer ${token2}`);
-
-    expect(res2.status).toBe(422);
-    expect(res2.body.error).toMatch(/participante/i);
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/participante/i);
   });
 
   // ─── CA4: Sistema genera token y envía email de confirmación ──────────────

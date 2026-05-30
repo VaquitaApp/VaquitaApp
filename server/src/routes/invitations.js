@@ -1,5 +1,6 @@
 const express = require('express');
 const Fund = require('../models/Fund');
+const { isFundExpired } = require('../utils/funds');
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ async function respond(req, res, action) {
     if (fund.status !== 'active') {
       return res.status(422).json({ error: 'No puedes responder la invitación: el fondo está cerrado o completado.' });
     }
-    if (new Date(fund.deadline) <= new Date()) {
+    if (isFundExpired(fund)) {
       return res.status(422).json({ error: 'No puedes responder la invitación: la fecha límite ya fue superada.' });
     }
 

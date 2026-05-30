@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import './FundForm.css';
-
-const FREQ_MIN_DAYS = { weekly: 7, biweekly: 14, monthly: 30 };
-const FREQ_LABELS   = { weekly: 'semanal', biweekly: 'quincenal', monthly: 'mensual' };
+import { BANKS } from '../../constants/banks';
+import { ACCOUNT_TYPES } from '../../constants/accountTypes';
+import { FREQ_LABELS, FREQ_MIN_DAYS } from '../../constants/frequencies';
 
 function toDateInput(d) {
   if (!d) return '';
@@ -19,6 +19,20 @@ function totalPeriods(frequency, start, end) {
   return Math.max(1, months);
 }
 
+// Menor divisor de `target` que sea >= `q` (para sugerir una cuota que divida la meta).
+function nearestDivisorAtLeast(target, q) {
+  if (!target || !q || q < 1) return target || null;
+  let best = target; // target siempre se divide a sí mismo
+  for (let i = 1; i * i <= target; i++) {
+    if (target % i === 0) {
+      const a = i, b = target / i;
+      if (a >= q && a < best) best = a;
+      if (b >= q && b < best) best = b;
+    }
+  }
+  return best;
+}
+
 function Field({ label, required, children }) {
   return (
     <div className="fund-form-group">
@@ -31,32 +45,6 @@ function Field({ label, required, children }) {
   );
 }
 
-const BANKS = [
-  'Banco de Chile',
-  'Banco Santander',
-  'BCI',
-  'Scotiabank Chile',
-  'Banco Estado',
-  'BICE',
-  'Itaú Chile',
-  'Banco Security',
-  'Banco Falabella',
-  'Banco Ripley',
-  'Banco Consorcio',
-  'Banco Internacional',
-  'Banco BTG Pactual',
-  'HSBC Bank Chile',
-  'Tenpo',
-  'MACH',
-  'Mercado Pago',
-];
-
-const ACCOUNT_TYPES = [
-  { value: 'corriente',          label: 'Cuenta Corriente' },
-  { value: 'vista',              label: 'Cuenta Vista / RUT' },
-  { value: 'ahorro',             label: 'Cuenta de Ahorro' },
-  { value: 'chequera_electronica', label: 'Chequera Electrónica' },
-];
 
 export default function FundForm({ initial = {}, lockedFields = [], onSubmit, loading, submitLabel = 'Crear Fondo Colectivo' }) {
   const [validationError, setValidationError] = useState('');
@@ -64,7 +52,6 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     name: initial.name ?? '',
     description: initial.description ?? '',
     goal: initial.goal ?? '',
-    coverImage: initial.coverImage ?? '',
     type: initial.type ?? 'free',
     targetAmount: initial.targetAmount ?? '',
     minAmount: initial.minAmount ?? '',
@@ -78,6 +65,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     frequency: initial.frequency ?? 'monthly',
     quotaAmount: initial.quotaAmount ?? '',
     expectedParticipants: initial.expectedParticipants ?? '',
+    milestones: initial.milestones ?? [],
   });
 
   function set(key, val) {
@@ -106,6 +94,29 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
     periods && expectedP > 0
       ? Math.ceil(Number(form.targetAmount) / (periods * expectedP))
       : null;
+
+  const targetNum = Number(form.targetAmount);
+  const quotaNum = Number(form.quotaAmount);
+  const quotaIndivisible =
+    form.type === 'quota' && targetNum > 0 && quotaNum > 0 && targetNum % quotaNum !== 0;
+  const divisorSuggestion = quotaIndivisible ? nearestDivisorAtLeast(targetNum, quotaNum) : null;
+
+  // Hitos con monto repetido (comparado como número, ignorando vacíos) → feedback inline.
+  const milestoneAmountCounts = form.milestones.reduce((acc, m) => {
+    if (m.amount !== '' && m.amount != null) {
+      const a = Number(m.amount);
+      acc[a] = (acc[a] || 0) + 1;
+    }
+    return acc;
+  }, {});
+  const hasDuplicateMilestone = Object.values(milestoneAmountCounts).some(c => c > 1);
+  const isDuplicateMilestone = m =>
+    m.amount !== '' && m.amount != null && milestoneAmountCounts[Number(m.amount)] > 1;
+
+  // Hito cuyo monto iguala o supera la meta total → feedback inline.
+  const milestoneExceedsTarget = m =>
+    m.amount !== '' && m.amount != null && targetNum > 0 && Number(m.amount) >= targetNum;
+  const hasMilestoneOverTarget = form.milestones.some(milestoneExceedsTarget);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -146,7 +157,28 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
         );
         return;
       }
+      if (data.targetAmount % data.quotaAmount !== 0) {
+        const sug = nearestDivisorAtLeast(data.targetAmount, data.quotaAmount);
+        setValidationError(
+          `El valor de la cuota debe dividir exactamente la meta ($${data.targetAmount.toLocaleString('es-CL')}). Prueba con $${sug.toLocaleString('es-CL')}.`
+        );
+        return;
+      }
     }
+    if (data.milestones && data.milestones.length > 0) {
+      for (const m of data.milestones) {
+        if (!m.amount || !m.description) {
+          setValidationError('Todos los hitos deben tener descripción y monto.');
+          return;
+        }
+        if (Number(m.amount) >= data.targetAmount) {
+          setValidationError('El monto de un hito debe ser menor a la meta total.');
+          return;
+        }
+      }
+      data.milestones = data.milestones.map(m => ({ ...m, amount: Number(m.amount) })).sort((a,b) => a.amount - b.amount);
+    }
+
     onSubmit(data);
   }
 
@@ -158,6 +190,11 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
   minDate.setDate(minDate.getDate() + deadlineMinDays);
   const maxDate = new Date(today);
   maxDate.setFullYear(maxDate.getFullYear() + 1);
+
+  // Días entre hoy y el plazo elegido (para deshabilitar frecuencias que no caben en el plazo).
+  const daysToDeadline = form.deadline
+    ? (new Date(form.deadline) - new Date(new Date().toLocaleDateString('en-CA'))) / 86400000
+    : null;
 
   return (
     <div className="fund-form-container">
@@ -211,17 +248,6 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
           />
         </Field>
 
-        <Field label="Imagen de Portada (URL) - Opcional">
-          <input
-            type="url"
-            value={form.coverImage}
-            onChange={e => set('coverImage', e.target.value)}
-            disabled={locked('coverImage')}
-            className="fund-form-input"
-            placeholder="https://ejemplo.com/imagen.jpg"
-          />
-        </Field>
-
         <div className="fund-form-row">
           <Field label="Tipo de recolección">
             <select
@@ -267,22 +293,22 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
             <Field label="Frecuencia de aporte">
               <select
                 value={form.frequency}
-                onChange={e => {
-                  const freq = e.target.value;
-                  set('frequency', freq);
-                  if (form.deadline) {
-                    const minDays  = FREQ_MIN_DAYS[freq] ?? 1;
-                    const todayStr = new Date().toLocaleDateString('en-CA');
-                    const minStr   = new Date(new Date(todayStr).getTime() + minDays * 86400000).toLocaleDateString('en-CA');
-                    if (form.deadline < minStr) set('deadline', '');
-                  }
-                }}
+                onChange={e => set('frequency', e.target.value)}
                 disabled={locked('frequency')}
                 className="fund-form-input fund-form-select"
               >
-                <option value="monthly">Mensual</option>
-                <option value="biweekly">Quincenal</option>
-                <option value="weekly">Semanal</option>
+                {[
+                  { value: 'monthly', label: 'Mensual' },
+                  { value: 'biweekly', label: 'Quincenal' },
+                  { value: 'weekly', label: 'Semanal' },
+                ].map(o => {
+                  const noCabe = daysToDeadline != null && FREQ_MIN_DAYS[o.value] > daysToDeadline;
+                  return (
+                    <option key={o.value} value={o.value} disabled={noCabe}>
+                      {o.label}{noCabe ? ` — necesita ≥${FREQ_MIN_DAYS[o.value]} días` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </Field>
 
@@ -303,22 +329,30 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
                   <button type="button" onClick={() => set('quotaAmount', suggestedQuota)}>Usar este valor</button>
                 </p>
               )}
+              {quotaIndivisible && !locked('quotaAmount') && (
+                <p className="fund-form-hint text-[var(--vaq-danger)]">
+                  La cuota debe dividir exactamente la meta. Sugerencia: ${divisorSuggestion?.toLocaleString('es-CL')}.{' '}
+                  <button type="button" onClick={() => set('quotaAmount', divisorSuggestion)}>Usar este valor</button>
+                </p>
+              )}
             </Field>
           </div>
         )}
 
         {form.type === 'quota' && !locked('expectedParticipants') && (
-          <Field label="Participantes esperados (para estimar cuota)">
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={form.expectedParticipants}
-              onChange={e => set('expectedParticipants', e.target.value)}
-              className="fund-form-input"
-              placeholder="Ej: 5"
-            />
-          </Field>
+          <div className="fund-form-row">
+            <Field label="Participantes esperados (para estimar cuota)">
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={form.expectedParticipants}
+                onChange={e => set('expectedParticipants', e.target.value)}
+                className="fund-form-input"
+                placeholder="Ej: 5"
+              />
+            </Field>
+          </div>
         )}
 
         {form.type === 'free' && (
@@ -336,6 +370,64 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
             </Field>
           </div>
         )}
+
+        <div className="fund-form-group">
+          <label className="fund-form-label">Metas Parciales (Hitos) - Opcional</label>
+          <p className="text-xs text-[var(--vaq-muted)] mb-3">Establece hitos intermedios para motivar a los participantes.</p>
+          {form.milestones.map((m, idx) => (
+            <div key={idx} className="flex gap-2 mb-2 items-start">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={m.description}
+                  onChange={e => {
+                    const newM = [...form.milestones];
+                    newM[idx].description = e.target.value;
+                    set('milestones', newM);
+                  }}
+                  className="fund-form-input mb-1"
+                  placeholder="Ej: Compra de materiales"
+                />
+              </div>
+              <div className="w-32">
+                <input
+                  type="number"
+                  min="1"
+                  value={m.amount}
+                  onChange={e => {
+                    const newM = [...form.milestones];
+                    newM[idx].amount = e.target.value;
+                    set('milestones', newM);
+                  }}
+                  className="fund-form-input"
+                  placeholder="Monto"
+                />
+                {milestoneExceedsTarget(m) ? (
+                  <p className="text-xs text-[var(--vaq-danger)] mt-1">Debe ser menor a la meta</p>
+                ) : isDuplicateMilestone(m) && (
+                  <p className="text-xs text-[var(--vaq-danger)] mt-1">Monto repetido</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const newM = form.milestones.filter((_, i) => i !== idx);
+                  set('milestones', newM);
+                }}
+                className="px-2 py-2 text-[var(--vaq-danger)] opacity-80 hover:opacity-100"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => set('milestones', [...form.milestones, { description: '', amount: '' }])}
+            className="text-xs font-medium text-[var(--vaq-ring)] hover:underline"
+          >
+            + Añadir hito
+          </button>
+        </div>
 
         <Field label="Cuenta Destinataria (Para el retiro de fondos)" required>
           <div className={`fund-form-account-group ${locked('recipientAccount') ? 'opacity-60 pointer-events-none' : ''}`}>
@@ -379,7 +471,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || hasDuplicateMilestone || hasMilestoneOverTarget}
           className="fund-form-submit"
         >
           {loading ? 'Procesando...' : submitLabel}

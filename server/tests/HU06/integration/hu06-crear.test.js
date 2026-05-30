@@ -32,13 +32,35 @@ const validFundBody = {
 describe('HU06: Crear Fondo Colectivo — POST /api/funds', () => {
 
   // ─── TC-HU06-01: Campos obligatorios incompletos ──────────────────
-  test('TC-HU06-01: Rechaza si faltan campos obligatorios', async () => {
+  test('TC-HU06-01a: Rechaza body con solo nombre (faltan description, goal, deadline, recipientAccount)', async () => {
     const user = await createUser();
     const res = await request(app)
       .post('/api/funds')
       .set(await authHeader(user))
       .send({ name: 'Solo nombre' });
     expect(res.status).toBe(400);
+  });
+
+  test('TC-HU06-01b: Rechaza body válido sin description (resto de campos válidos)', async () => {
+    const user = await createUser();
+    const { description, ...bodyNoDesc } = validFundBody;
+    const res = await request(app)
+      .post('/api/funds')
+      .set(await authHeader(user))
+      .send(bodyNoDesc);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/descripci[oó]n|description/i);
+  });
+
+  test('TC-HU06-01c: Rechaza body válido sin goal (resto de campos válidos)', async () => {
+    const user = await createUser();
+    const { goal, ...bodyNoGoal } = validFundBody;
+    const res = await request(app)
+      .post('/api/funds')
+      .set(await authHeader(user))
+      .send(bodyNoGoal);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/objetivo|goal/i);
   });
 
   // ─── TC-HU06-02: Monto esperado cero o negativo ──────────────────
@@ -88,12 +110,11 @@ describe('HU06: Crear Fondo Colectivo — POST /api/funds', () => {
     const res = await request(app)
       .post('/api/funds')
       .set(await authHeader(user))
-      .send({ ...validFundBody, minAmount: 5000, coverImage: 'https://img.com/pic.jpg' });
+      .send({ ...validFundBody, minAmount: 5000 });
     expect(res.status).toBe(201);
     expect(res.body.name).toBe('Fondo Paseo');
     expect(res.body.organizer.toString()).toBe(user._id.toString());
     expect(res.body.minAmount).toBe(5000);
-    expect(res.body.coverImage).toBe('https://img.com/pic.jpg');
   });
 
   // ─── TC-HU06-06: Crear fondo "quota" con cuota y frecuencia ──────
@@ -102,7 +123,7 @@ describe('HU06: Crear Fondo Colectivo — POST /api/funds', () => {
     const res = await request(app)
       .post('/api/funds')
       .set(await authHeader(user))
-      .send({ ...validFundBody, type: 'quota', quotaAmount: 10000, frequency: 'monthly' });
+      .send({ ...validFundBody, type: 'quota', totalQuotas: 12, quotaAmount: 10000, frequency: 'monthly', deadline: new Date(Date.now() + 86400000 * 60).toISOString() });
     expect(res.status).toBe(201);
     expect(res.body.type).toBe('quota');
     expect(res.body.quotaAmount).toBe(10000);
@@ -115,7 +136,7 @@ describe('HU06: Crear Fondo Colectivo — POST /api/funds', () => {
     const res = await request(app)
       .post('/api/funds')
       .set(await authHeader(user))
-      .send({ ...validFundBody, type: 'quota', frequency: 'monthly' });
+      .send({ ...validFundBody, type: 'quota', totalQuotas: 12, frequency: 'monthly' });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/required for quota fund/i);
   });

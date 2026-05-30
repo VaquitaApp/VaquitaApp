@@ -14,7 +14,7 @@ function makeParticipant(overrides = {}) {
 // periodDeadline ≈ (7 - daysInto) días desde ahora.
 function makeWeeklyQuotaFund(daysInto = 6) {
   return {
-    type: 'quota',
+    type: 'quota', totalQuotas: 12,
     frequency: 'weekly',
     quotaAmount: 1000,
     createdAt: new Date(Date.now() - daysInto * 86400000),

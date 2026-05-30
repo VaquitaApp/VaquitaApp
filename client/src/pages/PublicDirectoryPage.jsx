@@ -58,6 +58,16 @@ export default function PublicDirectoryPage() {
     };
   }, [debouncedSearch, sort, statusFilter, typeFilter]);
 
+  const isFiltered =
+    searchInput !== '' || sort !== 'deadline' || statusFilter !== 'active' || typeFilter !== '';
+
+  function clearFilters() {
+    setSearchInput('');
+    setSort('deadline');
+    setStatusFilter('active');
+    setTypeFilter('');
+  }
+
   return (
     <div>
       <div className="mb-5">
@@ -106,6 +116,15 @@ export default function PublicDirectoryPage() {
           <option value="quota">Solo cuotas</option>
           <option value="free">Solo libre</option>
         </select>
+        {isFiltered && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="ml-auto self-center text-sm font-semibold text-[var(--vaq-forest)] underline-offset-2 hover:underline"
+          >
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       {loading && <p className="text-sm text-[var(--vaq-muted)]">Cargando…</p>}

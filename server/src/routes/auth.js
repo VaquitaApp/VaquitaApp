@@ -4,27 +4,9 @@ const { v4: uuidv4 } = require('uuid');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { sendVerificationEmail } = require('../services/emailService');
+const { validateRut, validateName } = require('../utils/validators');
 
 const router = express.Router();
-
-function validateRut(rut) {
-  const clean = rut.replace(/\./g, '').replace(/-/, '').toUpperCase();
-  if (!/^\d{7,8}[0-9K]$/.test(clean)) return false;
-  const body = clean.slice(0, -1);
-  const dv = clean.slice(-1);
-  let sum = 0, mul = 2;
-  for (let i = body.length - 1; i >= 0; i--) {
-    sum += Number(body[i]) * mul;
-    mul = mul < 7 ? mul + 1 : 2;
-  }
-  const rem = 11 - (sum % 11);
-  const computed = rem === 11 ? '0' : rem === 10 ? 'K' : String(rem);
-  return dv === computed;
-}
-
-function validateName(name) {
-  return /^[\p{L} ]+$/u.test(name.trim());
-}
 
 function signToken(user) {
   return jwt.sign(
@@ -116,7 +98,9 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/me', auth, async (req, res) => {
+// /me debe ser accesible aunque el email no esté verificado, para que el
+// frontend sepa que el usuario está logueado y muestre el banner de verificación.
+router.get('/me', auth.authNoVerifyCheck, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
       .select('-passwordHash -emailVerificationToken').lean();

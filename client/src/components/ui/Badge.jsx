@@ -2,12 +2,14 @@ const STATUS_STYLES = {
   active: 'bg-[var(--vaq-tone-success-bg)] text-[var(--vaq-tone-success-text)]',
   completed: 'bg-[var(--vaq-tone-completed-bg)] text-[var(--vaq-tone-completed-text)]',
   closed: 'bg-[var(--vaq-tone-closed-bg)] text-[var(--vaq-tone-closed-text)]',
+  reached: 'bg-[var(--vaq-tone-warning-bg)] text-[var(--vaq-tone-warning-text)]',
 };
 
 const STATUS_LABELS = {
   active: 'Activo',
   completed: 'Completado',
   closed: 'Cerrado',
+  reached: 'Meta alcanzada',
 };
 
 const CONTRIBUTION_STYLES = {
@@ -73,6 +75,23 @@ export function InvitationBadge({ status }) {
       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${INVITATION_STYLES[status] ?? fallbackBadge}`}
     >
       {INVITATION_LABELS[status] ?? status}
+    </span>
+  );
+}
+
+export function RoleBadge({ isMine, organizerName }) {
+  if (isMine) {
+    return (
+      <span className="inline-flex max-w-full items-center rounded-full bg-[var(--vaq-badge-bg)] px-2 py-0.5 text-xs font-medium text-[var(--vaq-badge-fg)]">
+        Organizador
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex max-w-full items-center rounded-full bg-[var(--vaq-surface-muted)] px-2 py-0.5 text-xs font-medium text-[var(--vaq-muted)]">
+      <span className="truncate">
+        Invitado por <span className="font-semibold text-[var(--vaq-ink)]">{organizerName}</span>
+      </span>
     </span>
   );
 }

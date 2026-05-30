@@ -1,6 +1,7 @@
 const express = require('express');
 const Fund = require('../models/Fund');
 const { sendJoinRequestAcceptedEmail } = require('../services/emailService');
+const { ERR_DEADLINE_EXPIRED } = require('../errors');
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ async function respond(req, res, action) {
     if (!fund) return res.status(404).json({ error: 'Solicitud inválida o expirada' });
     if (fund.status !== 'active') return res.status(422).json({ error: 'El fondo ya no está activo' });
     if (new Date(fund.deadline).toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
-      return res.status(422).json({ error: 'La fecha límite del fondo ha vencido' });
+      return res.status(422).json({ error: ERR_DEADLINE_EXPIRED });
     }
 
     const idx = fund.participants.findIndex(p => p.joinRequestToken === token);

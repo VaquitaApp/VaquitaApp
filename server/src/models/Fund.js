@@ -23,11 +23,11 @@ const fundSchema = new Schema({
   name:             { type: String, required: true, trim: true },
   description:      { type: String, required: true, trim: true },
   goal:             { type: String, required: true, trim: true },
-  coverImage:       { type: String, default: '' },
   type:             { type: String, enum: ['quota', 'free'], required: true },
   targetAmount:     { type: Number, required: true, min: 1 },
   minAmount:        { type: Number },
   quotaAmount:         { type: Number },
+  totalQuotas:      { type: Number, min: 1 },
   expectedParticipants: { type: Number, min: 1 },
   frequency:           { type: String, enum: ['once', 'weekly', 'biweekly', 'monthly'] },
   deadline:         { type: Date, required: true },
@@ -45,6 +45,10 @@ const fundSchema = new Schema({
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     text: { type: String, required: true, trim: true },
     createdAt: { type: Date, default: Date.now },
+  }],
+  milestones:       [{
+    amount: { type: Number, required: true, min: 1 },
+    description: { type: String, required: true, trim: true }
   }],
   updateLogs:       [{ message: { type: String, required: true }, date: { type: Date, default: Date.now } }],
   paymentTransaction: {
@@ -70,6 +74,20 @@ fundSchema.pre('validate', function (next) {
   if (this.type === 'quota') {
     if (!this.quotaAmount) this.invalidate('quotaAmount', 'required for quota fund');
     if (!this.frequency)   this.invalidate('frequency',   'required for quota fund');
+    if (!this.totalQuotas) this.invalidate('totalQuotas', 'required for quota fund');
+  }
+
+  if (this.milestones && this.milestones.length > 0) {
+    const seenAmounts = new Set();
+    for (const milestone of this.milestones) {
+      if (milestone.amount > this.targetAmount) {
+        this.invalidate('milestones', 'El monto del hito no puede ser mayor a la meta total.');
+      }
+      if (seenAmounts.has(milestone.amount)) {
+        this.invalidate('milestones', 'No puede haber dos hitos con el mismo monto.');
+      }
+      seenAmounts.add(milestone.amount);
+    }
   }
   next();
 });

@@ -11,14 +11,14 @@ import ParticipantList from '../components/funds/ParticipantList';
 import ContributionForm from '../components/funds/ContributionForm';
 import ContributionList from '../components/funds/ContributionList';
 import MockPaymentForm from '../components/funds/MockPaymentForm';
+import MilestonesTimeline from '../components/funds/MilestonesTimeline';
 import FundChart from '../components/funds/FundChart';
 import CommentSection from '../components/funds/CommentSection';
 import ConfirmModal from '../components/ui/ConfirmModal';
 
 import { fmtDate, fmtName } from '../utils/format';
-
-const FREQ_LABELS = { monthly: 'Mensual', biweekly: 'Quincenal', weekly: 'Semanal', once: 'Única vez' };
-const ACCOUNT_TYPE_LABELS = { corriente: 'Cta. Corriente', vista: 'Cta. Vista / RUT', ahorro: 'Cta. de Ahorro', chequera_electronica: 'Chequera Electrónica' };
+import { ACCOUNT_TYPE_LABELS } from '../constants/accountTypes';
+import { freqLabelCap } from '../constants/frequencies';
 
 export default function FundDetailPage() {
   const { id } = useParams();
@@ -65,6 +65,7 @@ export default function FundDetailPage() {
   const accepted = participants.filter(p => p.status === 'accepted');
   const isMember = isOrganizer || accepted.some(p => p.user?._id?.toString() === user?._id?.toString());
   const collectedAmount = contributions.reduce((sum, c) => sum + c.amount, 0);
+  const isFull = !!fund && collectedAmount >= fund.targetAmount;
   const onTimeCount = participants.filter(p => p.contributionStatus === 'onTime').length;
   const hasOverdue = participants.some(p => p.contributionStatus === 'overdue');
   const myParticipant = participants.find(p => p.user?._id?.toString() === user?._id?.toString());
@@ -199,6 +200,11 @@ export default function FundDetailPage() {
           Este fondo se encuentra pausado por el organizador. No se reciben aportes temporalmente.
         </div>
       )}
+      {isFull && fund.status === 'active' && (
+        <div className="mb-4 rounded-lg border border-[var(--vaq-amber)]/35 bg-[var(--vaq-tone-warning-bg)] px-4 py-3 text-sm text-[var(--vaq-tone-warning-text)]">
+          🎯 Meta alcanzada. Falta el pago al destinatario para completar el fondo.
+        </div>
+      )}
 
       {/* Resumen del fondo */}
       <div className="vaq-card p-6 mb-4">
@@ -207,7 +213,7 @@ export default function FundDetailPage() {
             <h1 className="text-xl font-bold text-[var(--vaq-ink)]">{fund.name}</h1>
             <p className="mt-0.5 text-sm text-[var(--vaq-muted)]">Organizado por {fmtName(fund.organizer?.name)}</p>
           </div>
-          <StatusBadge status={fund.status} />
+          <StatusBadge status={isFull && fund.status === 'active' ? 'reached' : fund.status} />
         </div>
 
         {fund.description && (
@@ -220,8 +226,10 @@ export default function FundDetailPage() {
         )}
 
         <div className="mt-4">
-          <ProgressBar value={collectedAmount} max={fund.targetAmount} />
+          <ProgressBar value={collectedAmount} max={fund.targetAmount} milestones={fund.milestones} />
         </div>
+
+        <MilestonesTimeline milestones={fund.milestones} currentAmount={collectedAmount} />
 
         <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-[var(--vaq-muted)]">
           <div>
@@ -231,7 +239,7 @@ export default function FundDetailPage() {
           <div>
             <span className="text-xs text-[var(--vaq-muted)] block mb-0.5">Tipo</span>
             {fund.type === 'quota'
-              ? `Por cuotas (${fund.quotaAmount?.toLocaleString('es-CL')} CLP, ${FREQ_LABELS[fund.frequency] ?? 'Única vez'})`
+              ? `Por cuotas (${fund.quotaAmount?.toLocaleString('es-CL')} CLP, ${freqLabelCap(fund.frequency)})`
               : 'Libre'}
           </div>
           <div>
@@ -285,7 +293,7 @@ export default function FundDetailPage() {
       <div className="vaq-card p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-[var(--vaq-ink)]">Participantes</h2>
-          {isOrganizer && fund.status === 'active' && (
+          {isOrganizer && fund.status === 'active' && !isFull && (
             <button
               onClick={() => setShowInvite(true)}
               className="vaq-btn-primary rounded-md px-3 py-1.5 text-xs transition-opacity hover:opacity-95"
@@ -295,6 +303,7 @@ export default function FundDetailPage() {
           )}
         </div>
         <ParticipantList
+          fund={fund}
           organizer={fund.organizer}
           participants={participants}
           contributions={contributions}
@@ -316,7 +325,7 @@ export default function FundDetailPage() {
       <div className="vaq-card p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-[var(--vaq-ink)]">Historial de aportes</h2>
-          {isMember && fund.status === 'active' && !showContribForm && (
+          {isMember && fund.status === 'active' && !isFull && !showContribForm && (
             <button
               onClick={() => setShowContribForm(true)}
               className="vaq-btn-primary rounded-md px-3 py-1.5 text-xs transition-opacity hover:opacity-95"
@@ -330,14 +339,18 @@ export default function FundDetailPage() {
             <ContributionForm
               fundId={id}
               fund={fund}
-              userContributions={contributions.filter(
-                c => c.user?._id?.toString() === user?._id?.toString()
-              )}
-              onCreated={(c, options) => {
+              collectedAmount={collectedAmount}
+              onCreated={async (c, options) => {
                 setContributions(prev => [
                   { ...c, user: { _id: user._id, name: user.name, email: user.email } },
                   ...prev,
                 ]);
+                try {
+                  const { data } = await getParticipants(id);
+                  setParticipants(data);
+                } catch {
+                  // si falla el refresh, badge queda stale hasta el próximo render con datos frescos
+                }
                 if (!options?.keepOpen) {
                   setShowContribForm(false);
                 }

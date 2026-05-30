@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getFunds } from '../api/funds';
+import { useAuth } from '../contexts/AuthContext';
 import FundCard from '../components/funds/FundCard';
 import FundFilters from '../components/funds/FundFilters';
 
+const INITIAL_FILTERS = { search: '', status: '', sort: 'deadline', role: 'all', type: '' };
+
 export default function FundsPage() {
+  const { user } = useAuth();
   const [funds, setFunds] = useState([]);
-  const [filters, setFilters] = useState({ search: '', status: '', sort: 'deadline' });
+  const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -21,7 +25,25 @@ export default function FundsPage() {
       .then((r) => setFunds(r.data))
       .catch(() => setError('Error al cargar fondos'))
       .finally(() => setLoading(false));
-  }, [filters]);
+  }, [filters.search, filters.status, filters.sort]);
+
+  const userId = user?._id;
+  const displayFunds = funds.filter((f) => {
+    const isMine = String(f.organizer?._id) === String(userId);
+    if (filters.role === 'mine' && !isMine) return false;
+    if (filters.role === 'invited' && isMine) return false;
+    if (filters.type && f.type !== filters.type) return false;
+    return true;
+  });
+
+  const isFiltered =
+    filters.search !== INITIAL_FILTERS.search ||
+    filters.status !== INITIAL_FILTERS.status ||
+    filters.sort !== INITIAL_FILTERS.sort ||
+    filters.role !== INITIAL_FILTERS.role ||
+    filters.type !== INITIAL_FILTERS.type;
+
+  const showEmpty = !loading && !error && displayFunds.length === 0;
 
   return (
     <div>
@@ -35,22 +57,35 @@ export default function FundsPage() {
         </Link>
       </div>
 
-      <FundFilters value={filters} onChange={setFilters} />
+      <FundFilters
+        value={filters}
+        onChange={setFilters}
+        showRole
+        canClear={isFiltered}
+        onClear={() => setFilters(INITIAL_FILTERS)}
+      />
 
       {loading && <p className="text-sm text-[var(--vaq-muted)]">Cargando…</p>}
       {error && <p className="text-sm text-[var(--vaq-danger)]">{error}</p>}
 
-      {!loading && !error && funds.length === 0 && (
+      {showEmpty && !isFiltered && (
         <div className="py-16 text-center text-[var(--vaq-muted)]">
           <p className="text-lg">No tienes fondos aún</p>
-          <p className="mt-1 text-sm">Crea uno nuevo o únete a uno existente desde el directorio</p>
+          <p className="mt-1 text-sm">Crea uno nuevo o únete a uno existente desde el directorio público</p>
+        </div>
+      )}
+
+      {showEmpty && isFiltered && (
+        <div className="py-16 text-center text-[var(--vaq-muted)]">
+          <p className="text-lg">Ningún fondo coincide con los filtros</p>
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {funds.map((f) => (
-          <FundCard key={f._id} fund={f} />
-        ))}
+        {displayFunds.map((f) => {
+          const role = String(f.organizer?._id) === String(userId) ? 'mine' : 'invited';
+          return <FundCard key={f._id} fund={f} role={role} />;
+        })}
       </div>
     </div>
   );

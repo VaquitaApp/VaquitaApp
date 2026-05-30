@@ -51,6 +51,11 @@ router.patch('/profile', auth, async (req, res) => {
       },
     });
   } catch (err) {
+    // ValidationError de Mongoose = input inválido del cliente → 400, no 500.
+    // No exponemos err.message porque contiene detalles del schema interno.
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ error: 'Datos de perfil inválidos' });
+    }
     res.status(500).json({ error: err.message });
   }
 });
