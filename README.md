@@ -1,9 +1,12 @@
 # VaquitaApp
 
+[![CI/CD](https://github.com/VaquitaApp/VaquitaApp/actions/workflows/node.js.yml/badge.svg)](https://github.com/VaquitaApp/VaquitaApp/actions/workflows/node.js.yml)
+
 Plataforma web para gestionar fondos colectivos digitales.
 
 > **INF331 Pruebas de Software — Tema 3 | Universidad Técnica Federico Santa María, Semestre 1 2026**
 > **Entrega 1 — MVP** · Tag: `v1.0-entrega1`
+> **Entrega 2 — CI** · Tag: `v2.0-entrega2`
 > **Repositorio:** https://github.com/VaquitaApp/VaquitaApp
 
 ---
@@ -21,9 +24,21 @@ Plataforma web para gestionar fondos colectivos digitales.
 
 ## Demo y recursos
 
-- **Video demo:** https://www.youtube.com/watch?v=wAFwALj1t4Q
 - **GitHub Wiki:** https://github.com/VaquitaApp/VaquitaApp/wiki
 - **Tablero JIRA:** https://usm-team-vaquitapp.atlassian.net
+
+---
+
+## Entrega 1
+
+- **Presentación:** https://docs.google.com/presentation/d/1Enm3cq8AdLh2bJgn1Aa6K_XZcdc37G_fvE89OILYSZw/edit?usp=sharing
+- **Video demo:** https://www.youtube.com/watch?v=wAFwALj1t4Q
+
+---
+
+## Entrega 2
+
+- **Video demo:** https://www.youtube.com/watch?v=HmHlrf5R01I
 
 ---
 
