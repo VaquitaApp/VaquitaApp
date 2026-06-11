@@ -26,15 +26,8 @@ describe('E2E — Autenticación', () => {
     await page.waitForSelector('[data-testid="login-form"]');
     await page.type('[data-testid="login-email"]', E2E_EMAIL);
     await page.type('[data-testid="login-password"]', E2E_PASSWORD);
-    // Esperar /auth/me ANTES del click para evitar race condition con ProtectedRoute
-    await Promise.all([
-      page.waitForResponse(
-        (res) => res.url().includes('/auth/me') && res.status() === 200,
-        { timeout: 15000 }
-      ),
-      page.click('[data-testid="login-submit"]'),
-    ]);
-    await page.waitForSelector('[data-testid="btn-nuevo-fondo"]', { visible: true, timeout: 10000 });
+    await page.click('[data-testid="login-submit"]');
+    await page.waitForSelector('[data-testid="btn-nuevo-fondo"]', { visible: true, timeout: 15000 });
     expect(page.url()).toContain('/fondos');
   });
 

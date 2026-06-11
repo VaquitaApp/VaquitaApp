@@ -136,7 +136,7 @@ jobs:
         run: npm run build
         working-directory: ./client
         env:
-          VITE_API_URL: http://localhost:3001
+          VITE_API_URL: http://localhost:3001/api
 
       - name: Servir el Frontend en background (puerto 5173)
         run: |
