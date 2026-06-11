@@ -1,5 +1,10 @@
 /**
  * helpers/puppeteer.js — Utilidades compartidas para los tests E2E.
+ *
+ * NOTA ARQUITECTURAL: Esta app es una SPA con React Router (History API).
+ * Las navegaciones internas NO generan eventos HTTP — no usar waitForNavigation
+ * ni confiar en page.waitForURL para rutas internas. Siempre esperar un
+ * elemento DOM del destino que confirme que el componente renderizó.
  */
 const puppeteer = require('puppeteer');
 
@@ -26,13 +31,22 @@ async function newPage(browser) {
   return page;
 }
 
+/**
+ * loginE2E — Inicia sesión y espera a que la página de fondos esté lista.
+ *
+ * Usa waitForSelector sobre [data-testid="btn-nuevo-fondo"] porque:
+ * - Ese elemento solo existe cuando /fondos cargó Y el usuario está autenticado
+ * - Es inmune a race conditions de la History API (React Router)
+ * - waitForNavigation NO funciona para SPAs con React Router
+ */
 async function loginE2E(page) {
   await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2' });
   await page.waitForSelector('[data-testid="login-email"]');
   await page.type('[data-testid="login-email"]', E2E_EMAIL);
   await page.type('[data-testid="login-password"]', E2E_PASSWORD);
   await page.click('[data-testid="login-submit"]');
-  await page.waitForNavigation({ waitUntil: 'networkidle2' });
+  // Esperar un elemento que solo existe en /fondos cuando la sesión está activa
+  await page.waitForSelector('[data-testid="btn-nuevo-fondo"]', { visible: true, timeout: 15000 });
 }
 
 function inDays(n) {
@@ -56,23 +70,20 @@ async function clearAndType(page, selector, text) {
 /**
  * waitForURL — espera hasta que la URL del navegador incluya el patrón indicado.
  * Usa waitForFunction para ser compatible con Puppeteer v22 (sin page.waitForURL).
- *
- * @param {Page}            page
- * @param {string|RegExp}   check   string para includes(), RegExp para test()
- * @param {number}          timeout milisegundos (default 15000)
+ * Solo usar para navegaciones EXTERNAS (page.goto) donde la URL se estabiliza.
+ * Para navegaciones React Router internas, preferir waitForSelector sobre DOM.
  */
 async function waitForURL(page, check, timeout = 15000) {
   if (typeof check === 'string') {
     await page.waitForFunction(
       (s) => window.location.href.includes(s),
-      { timeout, polling: 100 },
+      { timeout, polling: 200 },
       check
     );
   } else {
-    // RegExp: se pasa como (source, flags) porque las RegExp no son serializables
     await page.waitForFunction(
       (src, flags) => new RegExp(src, flags).test(window.location.href),
-      { timeout, polling: 100 },
+      { timeout, polling: 200 },
       check.source,
       check.flags
     );

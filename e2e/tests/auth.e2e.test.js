@@ -8,7 +8,7 @@
  * TC-E2E-AUTH-05  Ruta protegida sin sesión redirige a /login
  */
 const {
-  launchBrowser, newPage, loginE2E, waitForURL,
+  launchBrowser, newPage, loginE2E,
   BASE_URL, E2E_EMAIL, E2E_PASSWORD,
 } = require('../helpers/puppeteer');
 
@@ -27,7 +27,8 @@ describe('E2E — Autenticación', () => {
     await page.type('[data-testid="login-email"]', E2E_EMAIL);
     await page.type('[data-testid="login-password"]', E2E_PASSWORD);
     await page.click('[data-testid="login-submit"]');
-    await waitForURL(page, '/fondos');
+    // React Router navega sin HTTP — esperar elemento DOM del destino, no waitForNavigation
+    await page.waitForSelector('[data-testid="btn-nuevo-fondo"]', { visible: true, timeout: 15000 });
     expect(page.url()).toContain('/fondos');
   });
 
@@ -57,7 +58,8 @@ describe('E2E — Autenticación', () => {
     expect(page.url()).toContain('/fondos');
     await page.waitForSelector('[data-testid="nav-logout"]', { visible: true });
     await page.click('[data-testid="nav-logout"]');
-    await waitForURL(page, '/login');
+    // React Router navega sin HTTP — esperar el formulario de login como confirmación
+    await page.waitForSelector('[data-testid="login-form"]', { visible: true, timeout: 15000 });
     expect(page.url()).toContain('/login');
   });
 
