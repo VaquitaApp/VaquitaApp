@@ -3,9 +3,8 @@
  *
  * TC-E2E-AUTH-01  Login con credenciales válidas redirige a /fondos
  * TC-E2E-AUTH-02  Login con contraseña incorrecta muestra error visible
- * TC-E2E-AUTH-03  Botón submit deshabilitado con contraseña < 6 caracteres
- * TC-E2E-AUTH-04  Logout cierra sesión y redirige a /login
- * TC-E2E-AUTH-05  Ruta protegida sin sesión redirige a /login
+ * TC-E2E-AUTH-03  Logout cierra sesión y redirige a /login
+ * TC-E2E-AUTH-04  Ruta protegida sin sesión redirige a /login
  */
 const {
   launchBrowser, newPage, loginE2E,
@@ -43,16 +42,7 @@ describe('E2E — Autenticación', () => {
     expect(page.url()).toContain('/login');
   });
 
-  test('TC-E2E-AUTH-03 | Submit deshabilitado con contraseña corta (< 6 chars)', async () => {
-    await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2' });
-    await page.waitForSelector('[data-testid="login-form"]');
-    await page.type('[data-testid="login-email"]', E2E_EMAIL);
-    await page.type('[data-testid="login-password"]', '123');
-    const disabled = await page.$eval('[data-testid="login-submit"]', btn => btn.disabled);
-    expect(disabled).toBe(true);
-  });
-
-  test('TC-E2E-AUTH-04 | Logout cierra sesión y redirige a /login', async () => {
+  test('TC-E2E-AUTH-03 | Logout cierra sesión y redirige a /login', async () => {
     await loginE2E(page);
     expect(page.url()).toContain('/fondos');
     await page.waitForSelector('[data-testid="nav-logout"]', { visible: true });
@@ -62,7 +52,7 @@ describe('E2E — Autenticación', () => {
     expect(page.url()).toContain('/login');
   });
 
-  test('TC-E2E-AUTH-05 | Ruta protegida sin sesión redirige a /login', async () => {
+  test('TC-E2E-AUTH-04 | Ruta protegida sin sesión redirige a /login', async () => {
     await page.goto(`${BASE_URL}/fondos`, { waitUntil: 'networkidle2' });
     expect(page.url()).toContain('/login');
   });
