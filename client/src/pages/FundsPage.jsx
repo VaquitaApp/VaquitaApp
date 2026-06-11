@@ -52,7 +52,7 @@ export default function FundsPage() {
           <h1 className="text-2xl font-bold text-[var(--vaq-ink)]">Mis Fondos</h1>
           <p className="mt-0.5 text-sm text-[var(--vaq-muted)]">Fondos donde eres organizador o participante</p>
         </div>
-        <Link to="/fondos/crear" className="vaq-btn-primary rounded-lg px-4 py-2 text-sm">
+        <Link to="/fondos/crear" data-testid="btn-nuevo-fondo" className="vaq-btn-primary rounded-lg px-4 py-2 text-sm">
           + Nuevo fondo
         </Link>
       </div>

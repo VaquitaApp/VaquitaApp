@@ -47,18 +47,19 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <p className="mb-4 rounded-lg bg-[var(--vaq-danger-soft)] px-3 py-2 text-center text-sm text-[var(--vaq-danger)]">
+          <p data-testid="login-error" className="mb-4 rounded-lg bg-[var(--vaq-danger-soft)] px-3 py-2 text-center text-sm text-[var(--vaq-danger)]">
             {error}
           </p>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form">
           <div>
             <label htmlFor="login-email" className="mb-1 block text-sm font-medium text-[var(--vaq-ink)]">
               Email
             </label>
             <input
               id="login-email"
+              data-testid="login-email"
               type="email"
               required
               value={form.email}
@@ -73,6 +74,7 @@ export default function LoginPage() {
             </label>
             <PasswordInput
               id="login-password"
+              data-testid="login-password"
               required
               value={form.password}
               onChange={set('password')}
@@ -82,6 +84,7 @@ export default function LoginPage() {
           </div>
           <button
             type="submit"
+            data-testid="login-submit"
             disabled={loading || form.password.length < 6}
             className="w-full rounded-lg bg-[var(--vaq-badge-bg)] py-2.5 text-sm font-semibold text-[var(--vaq-badge-fg)] transition-opacity hover:opacity-95 disabled:opacity-50"
           >
