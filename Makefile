@@ -1,4 +1,4 @@
-.PHONY: setup dev test coverage docker docker-down docker-clean e2e-install e2e-seed e2e e2e-report
+.PHONY: setup dev test coverage docker docker-down docker-clean e2e-install e2e-seed e2e
 
 setup:
 	./scripts/setup.sh
@@ -21,9 +21,6 @@ e2e-seed:
 
 e2e: e2e-install e2e-seed
 	cd e2e && npm test
-
-e2e-report: e2e-install e2e-seed
-	cd e2e && npm run test:report
 
 # ── Docker ────────────────────────────────────────────────────
 docker:

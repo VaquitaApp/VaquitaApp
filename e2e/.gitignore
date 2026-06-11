@@ -1,4 +1,4 @@
 node_modules/
-reports/*.png
-reports/*.txt
+reports/*
+!reports/.gitkeep
 .env

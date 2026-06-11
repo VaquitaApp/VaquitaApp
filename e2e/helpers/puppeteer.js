@@ -27,6 +27,11 @@ async function newPage(browser) {
   const page = await browser.newPage();
   page.setDefaultTimeout(15000);
   await page.setViewport({ width: 1280, height: 800 });
+  // Registro global de páginas abiertas: jest.environment.js lo recorre
+  // para capturar screenshots automáticamente cuando un test falla.
+  if (!global.__E2E_PAGES__) global.__E2E_PAGES__ = new Set();
+  global.__E2E_PAGES__.add(page);
+  page.once('close', () => global.__E2E_PAGES__.delete(page));
   return page;
 }
 
