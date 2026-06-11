@@ -27,7 +27,7 @@ describe('E2E — Autenticación', () => {
     await page.type('[data-testid="login-email"]', E2E_EMAIL);
     await page.type('[data-testid="login-password"]', E2E_PASSWORD);
     await page.click('[data-testid="login-submit"]');
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    await page.waitForURL(url => url.includes('/fondos'), { timeout: 15000 });
     expect(page.url()).toContain('/fondos');
   });
 
@@ -57,7 +57,7 @@ describe('E2E — Autenticación', () => {
     expect(page.url()).toContain('/fondos');
     await page.waitForSelector('[data-testid="nav-logout"]', { visible: true });
     await page.click('[data-testid="nav-logout"]');
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    await page.waitForURL(url => url.includes('/login'), { timeout: 15000 });
     expect(page.url()).toContain('/login');
   });
 

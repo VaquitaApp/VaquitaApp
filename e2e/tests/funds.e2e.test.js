@@ -59,7 +59,7 @@ describe('E2E — Gestión de Fondos', () => {
 
     await page.waitForSelector('[data-testid="fund-submit"]:not([disabled])');
     await page.click('[data-testid="fund-submit"]');
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    await page.waitForURL(url => /\/fondos\/[a-f0-9]{24}/.test(url), { timeout: 15000 });
 
     fundUrl = page.url();
     expect(fundUrl).toMatch(/\/fondos\/[a-f0-9]{24}/);
@@ -92,12 +92,12 @@ describe('E2E — Gestión de Fondos', () => {
     await page.goto(fundUrl, { waitUntil: 'networkidle2' });
     await page.waitForSelector('[data-testid="btn-editar-fondo"]', { visible: true });
     await page.click('[data-testid="btn-editar-fondo"]');
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    await page.waitForURL(url => url.includes('/editar'), { timeout: 15000 });
     await page.waitForSelector('[data-testid="fund-name"]', { visible: true });
     await clearAndType(page, '[data-testid="fund-name"]', FUND_NAME_EDITED);
     await page.waitForSelector('[data-testid="fund-submit"]:not([disabled])');
     await page.click('[data-testid="fund-submit"]');
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    await page.waitForURL(url => /\/fondos\/[a-f0-9]{24}$/.test(url), { timeout: 15000 });
     await page.waitForSelector('[data-testid="fund-detail-name"]');
     const updatedName = await page.$eval('[data-testid="fund-detail-name"]', el => el.textContent.trim());
     expect(updatedName).toBe(FUND_NAME_EDITED);
@@ -135,7 +135,7 @@ describe('E2E — Gestión de Fondos', () => {
     await page.waitForSelector('[data-testid="confirm-modal-submit"]:not([disabled])');
     await page.click('[data-testid="confirm-modal-submit"]');
 
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    await page.waitForURL(url => url.includes('/fondos') && !url.includes('/fondos/'), { timeout: 15000 });
     expect(page.url()).toContain('/fondos');
     await new Promise(r => setTimeout(r, 500));
     const textos = await page.$$eval('[data-testid="fund-card"]', cards => cards.map(c => c.textContent)).catch(() => []);
