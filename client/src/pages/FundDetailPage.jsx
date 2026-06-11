@@ -210,7 +210,7 @@ export default function FundDetailPage() {
       <div className="vaq-card p-6 mb-4">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h1 className="text-xl font-bold text-[var(--vaq-ink)]">{fund.name}</h1>
+            <h1 data-testid="fund-detail-name" className="text-xl font-bold text-[var(--vaq-ink)]">{fund.name}</h1>
             <p className="mt-0.5 text-sm text-[var(--vaq-muted)]">Organizado por {fmtName(fund.organizer?.name)}</p>
           </div>
           <StatusBadge status={isFull && fund.status === 'active' ? 'reached' : fund.status} />
@@ -459,6 +459,7 @@ export default function FundDetailPage() {
               {fund.status === 'active' && (
                 <Link
                   to={`/fondos/${id}/editar`}
+                  data-testid="btn-editar-fondo"
                   className="vaq-btn-secondary inline-flex rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--vaq-ring)]"
                 >
                   Editar fondo
@@ -475,6 +476,7 @@ export default function FundDetailPage() {
               {fund.status === 'active' && collectedAmount === 0 && (
                 <button
                   onClick={() => setConfirmAction('close')}
+                  data-testid="btn-cerrar-fondo"
                   disabled={actionLoading}
                   className="vaq-btn-secondary rounded-lg border-[var(--vaq-amber)]/50 px-4 py-2 text-sm font-medium text-[var(--vaq-amber)] transition-colors hover:border-[var(--vaq-amber)] disabled:opacity-50"
                 >
@@ -484,6 +486,7 @@ export default function FundDetailPage() {
               {fund.status === 'active' && collectedAmount === 0 && (
                 <button
                   onClick={() => setConfirmAction('delete')}
+                  data-testid="btn-eliminar-fondo"
                   disabled={actionLoading}
                   className="vaq-btn-secondary rounded-lg border-[var(--vaq-danger)]/35 px-4 py-2 text-sm font-medium text-[var(--vaq-danger)] transition-colors hover:border-[var(--vaq-danger)] disabled:opacity-50"
                 >

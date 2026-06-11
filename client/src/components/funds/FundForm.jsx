@@ -202,6 +202,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
         <Field label="Nombre del Fondo" required>
           <input
             type="text"
+            data-testid="fund-name"
             value={form.name}
             onChange={e => set('name', e.target.value)}
             disabled={locked('name')}
@@ -215,6 +216,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
           <Field label="Objetivo" required>
             <input
               type="text"
+              data-testid="fund-goal"
               value={form.goal}
               onChange={e => set('goal', e.target.value)}
               disabled={locked('goal')}
@@ -238,6 +240,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
 
         <Field label="Descripción" required>
           <textarea
+            data-testid="fund-description"
             value={form.description}
             onChange={e => set('description', e.target.value)}
             disabled={locked('description')}
@@ -264,6 +267,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
           <Field label="Meta Total (CLP)" required>
             <input
               type="number"
+              data-testid="fund-target-amount"
               min="1"
               value={form.targetAmount}
               onChange={e => set('targetAmount', e.target.value)}
@@ -278,6 +282,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
         <Field label="Fecha límite" required>
           <input
             type="date"
+            data-testid="fund-deadline"
             value={form.deadline}
             onChange={e => set('deadline', e.target.value)}
             disabled={locked('deadline')}
@@ -433,6 +438,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
           <div className={`fund-form-account-group ${locked('recipientAccount') ? 'opacity-60 pointer-events-none' : ''}`}>
             <div className="fund-form-row">
               <select
+                data-testid="fund-bank"
                 value={form.recipientAccount.bank}
                 onChange={e => setAccount('bank', e.target.value)}
                 className="fund-form-input fund-form-select"
@@ -452,6 +458,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
             </div>
             <input
               type="text"
+              data-testid="fund-account-number"
               inputMode="numeric"
               pattern="[0-9]+"
               placeholder="Número de cuenta (solo dígitos)"
@@ -471,6 +478,7 @@ export default function FundForm({ initial = {}, lockedFields = [], onSubmit, lo
 
         <button
           type="submit"
+          data-testid="fund-submit"
           disabled={loading || hasDuplicateMilestone || hasMilestoneOverTarget}
           className="fund-form-submit"
         >

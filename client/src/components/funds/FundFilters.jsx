@@ -42,6 +42,7 @@ export default function FundFilters({ value, onChange, showRole = false, canClea
       <div className="flex flex-wrap gap-3">
         <input
           type="text"
+          data-testid="filter-search"
           placeholder="Buscar por nombre…"
           value={value.search}
           onChange={(e) => set('search', e.target.value)}

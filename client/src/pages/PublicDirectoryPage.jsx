@@ -71,7 +71,7 @@ export default function PublicDirectoryPage() {
   return (
     <div>
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-[var(--vaq-ink)]">Directorio público</h1>
+        <h1 data-testid="directory-title" className="text-2xl font-bold text-[var(--vaq-ink)]">Directorio público</h1>
         <p className="mt-0.5 text-sm text-[var(--vaq-muted)]">Fondos públicos a los que aún no perteneces</p>
       </div>
 
