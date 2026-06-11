@@ -3,8 +3,15 @@
  *
  * NOTA ARQUITECTURAL: Esta app es una SPA con React Router (History API).
  * Las navegaciones internas NO generan eventos HTTP — no usar waitForNavigation
- * ni confiar en page.waitForURL para rutas internas. Siempre esperar un
- * elemento DOM del destino que confirme que el componente renderizó.
+ * para rutas de React Router. En su lugar:
+ *
+ *  - Para el LOGIN: usamos Promise.all([waitForResponse('/auth/me'), click(submit)])
+ *    porque la secuencia de red es POST /login → GET /me → setUser() → navigate().
+ *    Esperar la respuesta de /me garantiza que el AuthContext ya tiene el usuario
+ *    antes de intentar cualquier waitForSelector en rutas protegidas.
+ *
+ *  - Para otras navegaciones internas (editar, eliminar, etc.): waitForSelector
+ *    sobre el primer elemento del destino que confirma que React terminó de montar.
  */
 const puppeteer = require('puppeteer');
 
@@ -32,21 +39,34 @@ async function newPage(browser) {
 }
 
 /**
- * loginE2E — Inicia sesión y espera a que la página de fondos esté lista.
+ * loginE2E — Inicia sesión y espera a que el AuthContext tenga el usuario listo.
  *
- * Usa waitForSelector sobre [data-testid="btn-nuevo-fondo"] porque:
- * - Ese elemento solo existe cuando /fondos cargó Y el usuario está autenticado
- * - Es inmune a race conditions de la History API (React Router)
- * - waitForNavigation NO funciona para SPAs con React Router
+ * Flujo de red del login:
+ *   1. POST /api/auth/login  → guarda token en localStorage
+ *   2. GET  /api/auth/me     → setUser() en AuthContext
+ *   3. navigate('/fondos')   → React Router cambia URL (History API, sin HTTP)
+ *
+ * Usamos Promise.all para arrancar waitForResponse ANTES del click y evitar
+ * cualquier race condition. Una vez que /me responde con 200, React ya tiene
+ * el usuario y ProtectedRoute renderiza /fondos correctamente.
  */
 async function loginE2E(page) {
   await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2' });
   await page.waitForSelector('[data-testid="login-email"]');
   await page.type('[data-testid="login-email"]', E2E_EMAIL);
   await page.type('[data-testid="login-password"]', E2E_PASSWORD);
-  await page.click('[data-testid="login-submit"]');
-  // Esperar un elemento que solo existe en /fondos cuando la sesión está activa
-  await page.waitForSelector('[data-testid="btn-nuevo-fondo"]', { visible: true, timeout: 15000 });
+
+  // Arrancar escucha de /auth/me ANTES del click para no perder la respuesta
+  await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().includes('/auth/me') && res.status() === 200,
+      { timeout: 15000 }
+    ),
+    page.click('[data-testid="login-submit"]'),
+  ]);
+
+  // Dar tiempo a React para propagar setUser() y montar /fondos
+  await page.waitForSelector('[data-testid="btn-nuevo-fondo"]', { visible: true, timeout: 10000 });
 }
 
 function inDays(n) {
@@ -70,8 +90,8 @@ async function clearAndType(page, selector, text) {
 /**
  * waitForURL — espera hasta que la URL del navegador incluya el patrón indicado.
  * Usa waitForFunction para ser compatible con Puppeteer v22 (sin page.waitForURL).
- * Solo usar para navegaciones EXTERNAS (page.goto) donde la URL se estabiliza.
- * Para navegaciones React Router internas, preferir waitForSelector sobre DOM.
+ * Solo usar cuando realmente necesitas verificar la URL — para sincronizar
+ * renderizado prefiere waitForSelector sobre un elemento del destino.
  */
 async function waitForURL(page, check, timeout = 15000) {
   if (typeof check === 'string') {
