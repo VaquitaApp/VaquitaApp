@@ -28,10 +28,11 @@ async function newPage(browser) {
 
 async function loginE2E(page) {
   await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2' });
-  await page.locator('[data-testid="login-email"]').fill(E2E_EMAIL);
-  await page.locator('[data-testid="login-password"]').fill(E2E_PASSWORD);
-  await page.locator('[data-testid="login-submit"]').click();
-  await waitForURL(page, '/fondos');
+  await page.waitForSelector('[data-testid="login-email"]');
+  await page.type('[data-testid="login-email"]', E2E_EMAIL);
+  await page.type('[data-testid="login-password"]', E2E_PASSWORD);
+  await page.click('[data-testid="login-submit"]');
+  await page.waitForNavigation({ waitUntil: 'networkidle2' });
 }
 
 function inDays(n) {
@@ -41,13 +42,25 @@ function inDays(n) {
 }
 
 async function waitAndClick(page, selector) {
-  await page.locator(selector).click();
+  await page.waitForSelector(selector, { visible: true });
+  await page.click(selector);
 }
 
 async function clearAndType(page, selector, text) {
-  await page.locator(selector).fill(text);
+  await page.waitForSelector(selector, { visible: true });
+  await page.click(selector, { clickCount: 3 });
+  await page.keyboard.press('Backspace');
+  await page.type(selector, text);
 }
 
+/**
+ * waitForURL — espera hasta que la URL del navegador incluya el patrón indicado.
+ * Usa waitForFunction para ser compatible con Puppeteer v22 (sin page.waitForURL).
+ *
+ * @param {Page}            page
+ * @param {string|RegExp}   check   string para includes(), RegExp para test()
+ * @param {number}          timeout milisegundos (default 15000)
+ */
 async function waitForURL(page, check, timeout = 15000) {
   if (typeof check === 'string') {
     await page.waitForFunction(
@@ -56,6 +69,7 @@ async function waitForURL(page, check, timeout = 15000) {
       check
     );
   } else {
+    // RegExp: se pasa como (source, flags) porque las RegExp no son serializables
     await page.waitForFunction(
       (src, flags) => new RegExp(src, flags).test(window.location.href),
       { timeout, polling: 100 },

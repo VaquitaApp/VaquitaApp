@@ -23,18 +23,20 @@ describe('E2E — Autenticación', () => {
 
   test('TC-E2E-AUTH-01 | Login válido redirige a /fondos', async () => {
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2' });
-    await page.locator('[data-testid="login-email"]').fill(E2E_EMAIL);
-    await page.locator('[data-testid="login-password"]').fill(E2E_PASSWORD);
-    await page.locator('[data-testid="login-submit"]').click();
+    await page.waitForSelector('[data-testid="login-form"]');
+    await page.type('[data-testid="login-email"]', E2E_EMAIL);
+    await page.type('[data-testid="login-password"]', E2E_PASSWORD);
+    await page.click('[data-testid="login-submit"]');
     await waitForURL(page, '/fondos');
     expect(page.url()).toContain('/fondos');
   });
 
   test('TC-E2E-AUTH-02 | Contraseña incorrecta muestra mensaje de error', async () => {
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2' });
-    await page.locator('[data-testid="login-email"]').fill(E2E_EMAIL);
-    await page.locator('[data-testid="login-password"]').fill('contraseña_incorrecta');
-    await page.locator('[data-testid="login-submit"]').click();
+    await page.waitForSelector('[data-testid="login-form"]');
+    await page.type('[data-testid="login-email"]', E2E_EMAIL);
+    await page.type('[data-testid="login-password"]', 'contraseña_incorrecta');
+    await page.click('[data-testid="login-submit"]');
     await page.waitForSelector('[data-testid="login-error"]', { visible: true });
     const errorText = await page.$eval('[data-testid="login-error"]', el => el.textContent);
     expect(errorText.length).toBeGreaterThan(0);
@@ -43,8 +45,9 @@ describe('E2E — Autenticación', () => {
 
   test('TC-E2E-AUTH-03 | Submit deshabilitado con contraseña corta (< 6 chars)', async () => {
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2' });
-    await page.locator('[data-testid="login-email"]').fill(E2E_EMAIL);
-    await page.locator('[data-testid="login-password"]').fill('123');
+    await page.waitForSelector('[data-testid="login-form"]');
+    await page.type('[data-testid="login-email"]', E2E_EMAIL);
+    await page.type('[data-testid="login-password"]', '123');
     const disabled = await page.$eval('[data-testid="login-submit"]', btn => btn.disabled);
     expect(disabled).toBe(true);
   });
@@ -52,7 +55,8 @@ describe('E2E — Autenticación', () => {
   test('TC-E2E-AUTH-04 | Logout cierra sesión y redirige a /login', async () => {
     await loginE2E(page);
     expect(page.url()).toContain('/fondos');
-    await page.locator('[data-testid="nav-logout"]').click();
+    await page.waitForSelector('[data-testid="nav-logout"]', { visible: true });
+    await page.click('[data-testid="nav-logout"]');
     await waitForURL(page, '/login');
     expect(page.url()).toContain('/login');
   });
