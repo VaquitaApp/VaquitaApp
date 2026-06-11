@@ -16,7 +16,7 @@
  * y data-testid="confirm-modal-submit".
  */
 const {
-  launchBrowser, newPage, loginE2E,
+  launchBrowser, newPage, loginE2E, waitForURL,
   BASE_URL, inDays, clearAndType,
 } = require('../helpers/puppeteer');
 
@@ -37,12 +37,11 @@ describe('E2E — Gestión de Fondos', () => {
 
   test('TC-E2E-FUND-01 | Crear fondo libre exitosamente', async () => {
     await page.goto(`${BASE_URL}/fondos/crear`, { waitUntil: 'networkidle2' });
-    await page.waitForSelector('[data-testid="fund-name"]');
 
-    await page.type('[data-testid="fund-name"]', FUND_NAME);
-    await page.type('[data-testid="fund-goal"]', 'Objetivo de prueba E2E');
-    await page.type('[data-testid="fund-description"]', 'Descripción del fondo de prueba E2E');
-    await clearAndType(page, '[data-testid="fund-target-amount"]', '50000');
+    await page.locator('[data-testid="fund-name"]').fill(FUND_NAME);
+    await page.locator('[data-testid="fund-goal"]').fill('Objetivo de prueba E2E');
+    await page.locator('[data-testid="fund-description"]').fill('Descripción del fondo de prueba E2E');
+    await page.locator('[data-testid="fund-target-amount"]').fill('50000');
 
     // Los inputs type="date" en React requieren setear el value vía nativeInputValueSetter
     const deadline = inDays(30);
@@ -54,12 +53,11 @@ describe('E2E — Gestión de Fondos', () => {
       input.dispatchEvent(new Event('change', { bubbles: true }));
     }, deadline);
 
-    await page.select('[data-testid="fund-bank"]', 'Banco Estado');
-    await page.type('[data-testid="fund-account-number"]', '12345678');
+    await page.locator('[data-testid="fund-bank"]').fill('Banco Estado');
+    await page.locator('[data-testid="fund-account-number"]').fill('12345678');
 
-    await page.waitForSelector('[data-testid="fund-submit"]:not([disabled])');
-    await page.click('[data-testid="fund-submit"]');
-    await page.waitForURL(url => /\/fondos\/[a-f0-9]{24}/.test(url), { timeout: 15000 });
+    await page.locator('[data-testid="fund-submit"]').click();
+    await waitForURL(page, /\/fondos\/[a-f0-9]{24}/);
 
     fundUrl = page.url();
     expect(fundUrl).toMatch(/\/fondos\/[a-f0-9]{24}/);
@@ -67,7 +65,6 @@ describe('E2E — Gestión de Fondos', () => {
 
   test('TC-E2E-FUND-02 | Campo nombre es required — validity.valid = false si vacío', async () => {
     await page.goto(`${BASE_URL}/fondos/crear`, { waitUntil: 'networkidle2' });
-    await page.waitForSelector('[data-testid="fund-name"]');
     const nameValid = await page.$eval('[data-testid="fund-name"]', el => el.validity.valid);
     expect(nameValid).toBe(false);
   });
@@ -90,14 +87,11 @@ describe('E2E — Gestión de Fondos', () => {
   test('TC-E2E-FUND-05 | Editar nombre del fondo y verificar cambio', async () => {
     expect(fundUrl).toBeDefined();
     await page.goto(fundUrl, { waitUntil: 'networkidle2' });
-    await page.waitForSelector('[data-testid="btn-editar-fondo"]', { visible: true });
-    await page.click('[data-testid="btn-editar-fondo"]');
-    await page.waitForURL(url => url.includes('/editar'), { timeout: 15000 });
-    await page.waitForSelector('[data-testid="fund-name"]', { visible: true });
-    await clearAndType(page, '[data-testid="fund-name"]', FUND_NAME_EDITED);
-    await page.waitForSelector('[data-testid="fund-submit"]:not([disabled])');
-    await page.click('[data-testid="fund-submit"]');
-    await page.waitForURL(url => /\/fondos\/[a-f0-9]{24}$/.test(url), { timeout: 15000 });
+    await page.locator('[data-testid="btn-editar-fondo"]').click();
+    await waitForURL(page, '/editar');
+    await page.locator('[data-testid="fund-name"]').fill(FUND_NAME_EDITED);
+    await page.locator('[data-testid="fund-submit"]').click();
+    await waitForURL(page, /\/fondos\/[a-f0-9]{24}$/);
     await page.waitForSelector('[data-testid="fund-detail-name"]');
     const updatedName = await page.$eval('[data-testid="fund-detail-name"]', el => el.textContent.trim());
     expect(updatedName).toBe(FUND_NAME_EDITED);
@@ -105,8 +99,7 @@ describe('E2E — Gestión de Fondos', () => {
 
   test('TC-E2E-FUND-06 | Filtrar por texto encuentra el fondo', async () => {
     await page.goto(`${BASE_URL}/fondos`, { waitUntil: 'networkidle2' });
-    await page.waitForSelector('[data-testid="filter-search"]');
-    await page.type('[data-testid="filter-search"]', 'E2E');
+    await page.locator('[data-testid="filter-search"]').fill('E2E');
     // Espera debounce de 350ms + margen
     await new Promise(r => setTimeout(r, 600));
     const textos = await page.$$eval('[data-testid="fund-card"]', cards => cards.map(c => c.textContent));
@@ -126,16 +119,13 @@ describe('E2E — Gestión de Fondos', () => {
   test('TC-E2E-FUND-07 | Eliminar fondo sin aportes lo quita del listado', async () => {
     expect(fundUrl).toBeDefined();
     await page.goto(fundUrl, { waitUntil: 'networkidle2' });
-    await page.waitForSelector('[data-testid="btn-eliminar-fondo"]', { visible: true });
-    await page.click('[data-testid="btn-eliminar-fondo"]');
+    await page.locator('[data-testid="btn-eliminar-fondo"]').click();
 
     // Interactuar con el ConfirmModal de React (no window.confirm)
-    await page.waitForSelector('[data-testid="confirm-modal-keyword-input"]', { visible: true });
-    await page.type('[data-testid="confirm-modal-keyword-input"]', 'ELIMINAR');
-    await page.waitForSelector('[data-testid="confirm-modal-submit"]:not([disabled])');
-    await page.click('[data-testid="confirm-modal-submit"]');
+    await page.locator('[data-testid="confirm-modal-keyword-input"]').fill('ELIMINAR');
+    await page.locator('[data-testid="confirm-modal-submit"]').click();
 
-    await page.waitForURL(url => url.includes('/fondos') && !url.includes('/fondos/'), { timeout: 15000 });
+    await waitForURL(page, /\/fondos(?!\/[a-f0-9]{24})/);
     expect(page.url()).toContain('/fondos');
     await new Promise(r => setTimeout(r, 500));
     const textos = await page.$$eval('[data-testid="fund-card"]', cards => cards.map(c => c.textContent)).catch(() => []);
