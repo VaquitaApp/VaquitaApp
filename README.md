@@ -165,7 +165,9 @@ docker-compose up --build     # rebuild tras cambiar dependencias
 
 ## Ejecutar los tests
 
-La suite consta de **314 tests** (unitarios + integración) organizados por carpeta de Historia de Usuario en `server/tests/HUXX/`. Usan base de datos en memoria. **No requieren MongoDB en ejecución.**
+### Tests del servidor (unitarios + integración)
+
+La suite consta de **314 tests** organizados por carpeta de Historia de Usuario en `server/tests/HUXX/`. Usan base de datos en memoria. **No requieren MongoDB en ejecución.**
 
 ```bash
 make test        # todos los tests
@@ -178,6 +180,17 @@ cd server && npm run test:coverage
 # Docker
 docker-compose run --rm server npm test
 ```
+
+### Tests E2E (Puppeteer)
+
+La suite E2E consta de **12 tests** que simulan flujos de usuario reales en un navegador headless (autenticación, CRUD de fondos, filtros, directorio público y perfil). A diferencia de los tests del servidor, **requieren la aplicación corriendo** (MongoDB + backend + frontend).
+
+```bash
+make dev         # terminal 1: levanta la app completa
+make e2e         # terminal 2: instala deps, seedea el usuario E2E y corre la suite
+```
+
+Cada ejecución genera un reporte HTML en `e2e/reports/`, y los fallos capturan screenshots automáticamente. Casos de prueba, variables y detalles en [`e2e/README.md`](e2e/README.md). En CI corren en el job `e2e` del pipeline.
 
 ---
 
