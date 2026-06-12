@@ -4,6 +4,11 @@ const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'localhost',
   port: parseInt(process.env.SMTP_PORT || '1025'),
   secure: false,
+  // Proveedores reales (Brevo/SES) exigen autenticación; Mailpit local no.
+  // Sin SMTP_USER definido, el transporter queda igual que siempre.
+  ...(process.env.SMTP_USER && {
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  }),
 });
 
 async function sendEmail({ to, subject, html }) {
