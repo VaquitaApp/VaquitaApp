@@ -11,9 +11,9 @@ COPY . .
 EXPOSE 3001
 CMD ["npm", "run", "dev"]
 
-# ── Producción — imagen para ECR / App Runner (staging y prod) ───────
+# ── Producción — imagen para ECR / ECS Express Mode (staging y prod) ─
 # Solo dependencias de producción; el ambiente se define por variables
-# de entorno en App Runner (MONGO_URI, JWT_SECRET, SMTP, APP_BASE_URL).
+# de entorno en la task definition (MONGO_URI, JWT_SECRET, SMTP, APP_BASE_URL).
 FROM base AS prod
 ENV NODE_ENV=production
 RUN npm ci --omit=dev
