@@ -5,6 +5,7 @@ on:
     branches: [ develop, main ]
   pull_request:
     branches: [ develop, main ]
+  workflow_dispatch:
 
 jobs:
   # ──────────────────────────────────────────────────────────────
@@ -186,4 +187,82 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_TITLE: "E2E — Puppeteer - VaquitaApp"
           SLACK_MESSAGE: "Job E2E (Puppeteer) terminó. Revisa evidencias en GitHub Actions."
+          SLACK_COLOR: ${{ job.status }}
+
+  # ──────────────────────────────────────────────────────────────
+  # JOB 3: Deploy del backend a staging (ECS Express Mode)
+  # Corre solo en push a develop (o disparo manual sobre develop),
+  # y solo si build-and-test y e2e pasaron. Usa OIDC: no hay
+  # Access Keys de larga vida en GitHub. Ver docs/deploy.md.
+  # ──────────────────────────────────────────────────────────────
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [ build-and-test, e2e ]
+    if: github.ref == 'refs/heads/develop' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+
+    permissions:
+      id-token: write   # requerido para el token OIDC
+      contents: read
+
+    env:
+      AWS_REGION: us-east-1
+      ECR_REPO: 414061811062.dkr.ecr.us-east-1.amazonaws.com/vaquitaapp-api
+      SERVICE_ARN: arn:aws:ecs:us-east-1:414061811062:service/default/vaquitaapp-api-staging
+      STAGING_URL: https://va-e3512a79ac0e46b3b080c1c914857691.ecs.us-east-1.on.aws
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar credenciales AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login a ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build y push de la imagen (prod, amd64 nativo)
+        run: |
+          docker build --target prod \
+            -t "$ECR_REPO:${{ github.sha }}" \
+            -t "$ECR_REPO:latest" ./server
+          docker push "$ECR_REPO:${{ github.sha }}"
+          docker push "$ECR_REPO:latest"
+
+      - name: Actualizar servicio ECS (preservando env vars)
+        run: |
+          # Lee el primaryContainer actual y cambia SOLO la imagen, conservando
+          # containerPort, awsLogsConfiguration y todas las env vars (MONGO_URI,
+          # JWT_SECRET, SMTP_*). Así los secretos nunca pasan por GitHub.
+          PRIMARY=$(aws ecs describe-express-gateway-service \
+            --service-arn "$SERVICE_ARN" --region "$AWS_REGION" \
+            --query 'service.activeConfigurations[0].primaryContainer' --output json \
+            | jq -c --arg img "$ECR_REPO:${{ github.sha }}" \
+                '{image:$img, containerPort, awsLogsConfiguration, environment}')
+          aws ecs update-express-gateway-service \
+            --service-arn "$SERVICE_ARN" --region "$AWS_REGION" \
+            --primary-container "$PRIMARY"
+
+      - name: Verificar /api/health tras el rollout
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS -m 10 "$STAGING_URL/api/health" | grep -q '"ok":true'; then
+              echo "Health OK tras el deploy."
+              exit 0
+            fi
+            echo "Esperando rollout del servicio... intento $i/30"
+            sleep 10
+          done
+          echo "El servicio no respondió 200 en /api/health tras el deploy."
+          exit 1
+
+      - name: Notificar resultado del deploy a Slack
+        uses: rtCamp/action-slack-notify@v2
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_TITLE: "Deploy backend (staging) - VaquitaApp"
+          SLACK_MESSAGE: "Deploy a ECS staging del commit ${{ github.sha }} terminó."
           SLACK_COLOR: ${{ job.status }}
