@@ -4,6 +4,8 @@ Un ambiente es **un set de valores de variables de entorno** sobre el mismo cód
 (patrón 12-factor). Nunca hay código distinto por ambiente; la rama define *qué
 versión* se despliega y las variables definen *dónde y con qué datos*.
 
+> **Cómo se despliega** (manual y automático): ver [`deploy.md`](./deploy.md).
+
 | | dev (local) | CI (tests) | staging (nube) | prod (nube) |
 |---|---|---|---|---|
 | **Fuente de código** | working tree | rama del PR | rama `develop` | rama `main` (release) |
