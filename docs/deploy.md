@@ -77,90 +77,37 @@ hace exactamente lo de arriba, pero disparado por un push a `develop` y solo si 
 push a develop  →  build-and-test  →  e2e (Puppeteer)  →  deploy-staging
 ```
 
-Pasos del job: OIDC → login ECR → `docker build`/`push` (`:<sha>` + `:latest`) →
+Pasos del job: credenciales AWS (llaves) → login ECR → `docker build`/`push` (`:<sha>` + `:latest`) →
 `describe` + swap de imagen + `update-express-gateway-service` → poll de `/api/health` →
 notificación a Slack. Corre en `ubuntu-latest` (amd64 nativo, sin emulación), por eso
 usa `docker build` directo en vez de `buildx --platform`.
 
-### 2.1 Autenticación: OIDC (sin llaves persistentes)
+### 2.1 Autenticación: Access Keys en GitHub Secrets
 
-En vez de guardar un Access Key/Secret en GitHub Secrets, el pipeline usa **OIDC**:
-GitHub Actions presenta un token efímero que AWS valida contra un rol IAM. Cero
-credenciales de larga vida en GitHub.
-
-**Bootstrap (una sola vez, requiere admin de la cuenta AWS — `diegovilloutafredes`,
-no `vaquita-deploy-cli` que no tiene permisos de IAM):**
+El pipeline usa las credenciales del usuario IAM `vaquita-deploy-cli` (permisos ECR + ECS),
+guardadas como **GitHub Secrets** y leídas por `aws-actions/configure-aws-credentials`:
 
 ```bash
-ACCOUNT_ID=414061811062
-
-# 1) Identity provider de GitHub (idempotente: falla si ya existe, se ignora)
-aws iam create-open-id-connect-provider \
-  --url https://token.actions.githubusercontent.com \
-  --client-id-list sts.amazonaws.com
-
-# 2) Rol con trust policy acotada a ESTE repo + rama develop
-cat > /tmp/trust.json <<JSON
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Principal": { "Federated": "arn:aws:iam::${ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com" },
-    "Action": "sts:AssumeRoleWithWebIdentity",
-    "Condition": {
-      "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
-      "StringLike":   { "token.actions.githubusercontent.com:sub": "repo:VaquitaApp/VaquitaApp:ref:refs/heads/develop" }
-    }
-  }]
-}
-JSON
-aws iam create-role --role-name github-actions-deploy \
-  --assume-role-policy-document file:///tmp/trust.json
-
-# 3) Permisos mínimos: push a ECR + describe/update del servicio Express +
-#    iam:PassRole de los roles de la task (update crea una nueva revisión que
-#    los referencia, lo que dispara el chequeo de PassRole).
-aws iam attach-role-policy --role-name github-actions-deploy \
-  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
-
-cat > /tmp/ecs.json <<JSON
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ecs:DescribeExpressGatewayService",
-        "ecs:UpdateExpressGatewayService"
-      ],
-      "Resource": "arn:aws:ecs:us-east-1:${ACCOUNT_ID}:service/default/vaquitaapp-api-staging"
-    },
-    {
-      "Effect": "Allow",
-      "Action": "iam:PassRole",
-      "Resource": [
-        "arn:aws:iam::${ACCOUNT_ID}:role/ecsTaskExecutionRole",
-        "arn:aws:iam::${ACCOUNT_ID}:role/ecsInfrastructureRoleForExpressServices"
-      ]
-    }
-  ]
-}
-JSON
-aws iam put-role-policy --role-name github-actions-deploy \
-  --policy-name deploy-ecs-express --policy-document file:///tmp/ecs.json
+# Valores tomados de vaquita-deploy-cli_accessKeys.csv (el CSV NO se commitea)
+gh secret set AWS_ACCESS_KEY_ID     --repo VaquitaApp/VaquitaApp --body "AKIA..."
+gh secret set AWS_SECRET_ACCESS_KEY --repo VaquitaApp/VaquitaApp --body "..."
 ```
 
-Luego guardar el ARN del rol como **repository variable** (no secreto):
-
-```bash
-gh variable set AWS_DEPLOY_ROLE_ARN \
-  --body "arn:aws:iam::414061811062:role/github-actions-deploy" \
-  --repo VaquitaApp/VaquitaApp
+```yaml
+# en el job deploy-staging:
+- uses: aws-actions/configure-aws-credentials@v4
+  with:
+    aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    aws-region: us-east-1
 ```
 
-> La trust policy está acotada a `refs/heads/develop`, así que un push (o disparo
-> manual) en cualquier otra rama no puede asumir el rol. La misma policy cubre el
-> trigger `workflow_dispatch` sobre `develop` (mismo claim `sub`).
+> **Tradeoff de seguridad:** son credenciales de larga vida (no expiran) almacenadas en
+> GitHub; si se filtran, sirven hasta rotarlas o desactivarlas. Mitigación: el usuario
+> solo tiene permisos ECR + ECS (no admin) y se revoca al instante en IAM. La alternativa
+> más segura es **OIDC** (token efímero, sin llaves almacenadas), que requiere crear un
+> OIDC provider + rol IAM con admin de la cuenta; descrita en
+> `aws-deploy-automatico-y-produccion.md` §4.
 
 ### 2.2 El servicio ECS no se queda sin env vars
 
@@ -182,7 +129,7 @@ Resultado: los secretos siguen viviendo en el servicio ECS y nunca aparecen en G
       solo si los anteriores pasan.
 - [ ] La imagen en ECR queda etiquetada con el SHA del commit y el servicio corre esa imagen.
 - [ ] `/api/health` responde `{"ok":true}` tras el deploy automático.
-- [ ] Sin Access Key de larga vida en GitHub (solo el ARN del rol como variable + OIDC).
+- [ ] Credenciales AWS en GitHub Secrets (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`); usuario con permisos mínimos ECR + ECS.
 - [ ] Slack notifica el resultado.
 
 ---

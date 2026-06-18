@@ -192,8 +192,8 @@ jobs:
   # ──────────────────────────────────────────────────────────────
   # JOB 3: Deploy del backend a staging (ECS Express Mode)
   # Corre solo en push a develop (o disparo manual sobre develop),
-  # y solo si build-and-test y e2e pasaron. Usa OIDC: no hay
-  # Access Keys de larga vida en GitHub. Ver docs/deploy.md.
+  # y solo si build-and-test y e2e pasaron. Autentica con Access Keys
+  # (GitHub Secrets) del usuario vaquita-deploy-cli. Ver docs/deploy.md.
   # ──────────────────────────────────────────────────────────────
   deploy-staging:
     runs-on: ubuntu-latest
@@ -201,7 +201,6 @@ jobs:
     if: github.ref == 'refs/heads/develop' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
 
     permissions:
-      id-token: write   # requerido para el token OIDC
       contents: read
 
     env:
@@ -214,10 +213,11 @@ jobs:
       - name: Checkout del código
         uses: actions/checkout@v4
 
-      - name: Configurar credenciales AWS (OIDC)
+      - name: Configurar credenciales AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login a ECR
