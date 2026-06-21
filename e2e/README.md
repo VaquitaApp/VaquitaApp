@@ -24,15 +24,32 @@ formularios, clicks, navegación y verificación de lo que el usuario ve.
 
 ## Ejecución local
 
+### Recomendado — un comando
+
+Desde la raíz del repo:
+
 ```bash
-# Prerequisitos: MongoDB corriendo, backend en :3001, frontend en :5173
+make e2e
+```
+
+Levanta el stack (MongoDB + backend + frontend), seedea el usuario E2E, corre
+los 12 tests y al terminar detiene lo que haya levantado. Reutiliza servicios que
+ya estén corriendo (`make dev` o `make docker`), así que también sirve para
+re-correr rápido teniendo el stack arriba.
+
+> **Requiere Node 20** (igual que el CI; Puppeteer 22 no corre en Node >= 23). El
+> repo trae `.nvmrc`, así que con nvm/fnm basta `nvm use`. Si tu shell tiene una
+> versión más nueva, el script usa automáticamente `node@20` de Homebrew si está
+> instalado (`brew install node@20`).
+
+### Pasos manuales (con el stack ya arriba)
+
+```bash
 cd e2e
 npm install
 node seed.js   # crea usuario e2e@vaquitaapp.test (verificado)
 npm test
 ```
-
-O desde la raíz del repo: `make e2e`.
 
 ## Evidencias (carpeta `reports/`)
 
