@@ -105,7 +105,7 @@ cp server/.env.example server/.env
 cp client/.env.example client/.env
 ```
 
-Edita `server/.env` y reemplaza `JWT_SECRET=change_me`:
+Edita `server/.env` y reemplaza el valor de `JWT_SECRET`:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -167,7 +167,7 @@ docker-compose up --build     # rebuild tras cambiar dependencias
 
 ### Tests del servidor (unitarios + integración)
 
-La suite consta de **314 tests** organizados por carpeta de Historia de Usuario en `server/tests/HUXX/`. Usan base de datos en memoria. **No requieren MongoDB en ejecución.**
+La suite consta de **283 tests** organizados por carpeta de Historia de Usuario en `server/tests/HUXX/`. Usan base de datos en memoria. **No requieren MongoDB en ejecución.**
 
 ```bash
 make test        # todos los tests
@@ -183,12 +183,15 @@ docker-compose run --rm server npm test
 
 ### Tests E2E (Puppeteer)
 
-La suite E2E consta de **12 tests** que simulan flujos de usuario reales en un navegador headless (autenticación, CRUD de fondos, filtros, directorio público y perfil). A diferencia de los tests del servidor, **requieren la aplicación corriendo** (MongoDB + backend + frontend).
+La suite E2E consta de **12 tests** que simulan flujos de usuario reales en un navegador headless (autenticación, CRUD de fondos, filtros, directorio público y perfil).
 
 ```bash
-make dev         # terminal 1: levanta la app completa
-make e2e         # terminal 2: instala deps, seedea el usuario E2E y corre la suite
+make e2e   # levanta el stack, seedea, corre la suite y limpia al terminar
 ```
+
+`make e2e` se encarga de todo: levanta MongoDB + backend + frontend (o reutiliza los que ya estén corriendo, p. ej. con `make dev`), espera a que respondan, corre los 12 tests y detiene al terminar lo que haya levantado.
+
+> **Requiere Node 20** (igual que el CI; Puppeteer 22 no corre en Node >= 23). El repo trae `.nvmrc`; con nvm/fnm basta `nvm use`. Si tu shell tiene una versión más nueva, el script usa `node@20` de Homebrew automáticamente si está instalado.
 
 Cada ejecución genera un reporte HTML en `e2e/reports/`, y los fallos capturan screenshots automáticamente. Casos de prueba, variables y detalles en [`e2e/README.md`](e2e/README.md). En CI corren en el job `e2e` del pipeline.
 
