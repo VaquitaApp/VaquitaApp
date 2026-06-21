@@ -49,7 +49,7 @@ if (-not (Test-Path $serverEnv)) {
 
     # Generar JWT_SECRET aleatorio
     $jwtSecret = node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-    (Get-Content $serverEnv) -replace "JWT_SECRET=change_me", "JWT_SECRET=$jwtSecret" |
+    (Get-Content $serverEnv) -replace "^JWT_SECRET=.*", "JWT_SECRET=$jwtSecret" |
         Set-Content $serverEnv
     Write-Host "✓ server\.env creado (JWT_SECRET generado automaticamente)" -ForegroundColor Green
 } else {
