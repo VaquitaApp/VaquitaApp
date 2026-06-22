@@ -7,6 +7,7 @@ Plataforma web para gestionar fondos colectivos digitales.
 > **INF331 Pruebas de Software — Tema 3 | Universidad Técnica Federico Santa María, Semestre 1 2026**
 > **Entrega 1 — MVP** · Tag: `v1.0-entrega1`
 > **Entrega 2 — CI** · Tag: `v2.0-entrega2`
+> **Entrega 3 — E2E** · Tag: `v3.0-entrega3`
 > **Repositorio:** https://github.com/VaquitaApp/VaquitaApp
 
 ---
@@ -24,6 +25,7 @@ Plataforma web para gestionar fondos colectivos digitales.
 
 ## Demo y recursos
 
+- **App en vivo (staging):** https://develop.d2vrjru2oltydg.amplifyapp.com/
 - **GitHub Wiki:** https://github.com/VaquitaApp/VaquitaApp/wiki
 - **Tablero JIRA:** https://usm-team-vaquitapp.atlassian.net
 
@@ -42,15 +44,23 @@ Plataforma web para gestionar fondos colectivos digitales.
 
 ---
 
+## Entrega 3
+
+- **Presentación:** https://docs.google.com/presentation/d/15Gfcy3x4-Hck1BUPRlNcQ94y_jzNkZ-AxxSBsghIg0s/edit?usp=sharing
+- **Video demo:** https://www.youtube.com/watch?v=36sDp_9hETw
+
+---
+
 ## Stack tecnológico
 
-| Capa          | Tecnología                               |
-| ------------- | ---------------------------------------- |
-| Frontend      | React 18 + Vite + Tailwind CSS 4         |
-| Backend       | Node.js 20 + Express                     |
-| Base de datos | MongoDB 7                                |
-| Testing       | Jest + Supertest + mongodb-memory-server |
-| Email (local) | Mailpit                                  |
+| Capa              | Tecnología                                                                            |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| Frontend          | React 18 + Vite + Tailwind CSS 4                                                       |
+| Backend           | Node.js 20 + Express                                                                   |
+| Base de datos     | MongoDB 7                                                                              |
+| Testing           | Jest + Supertest + mongodb-memory-server + Puppeteer (E2E)                             |
+| Email (local)     | Mailpit                                                                                |
+| Despliegue (nube) | AWS Amplify (frontend) + ECS Express (backend) + ECR · MongoDB Atlas · Brevo (email)  |
 
 ---
 
