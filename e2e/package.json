@@ -1,0 +1,38 @@
+{
+  "name": "vaquitaapp-e2e",
+  "version": "1.0.0",
+  "description": "Pruebas E2E con Puppeteer para VaquitaApp — INF331 Entrega 3",
+  "private": true,
+  "scripts": {
+    "seed": "node seed.js",
+    "test": "jest --runInBand --forceExit"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.0.0",
+    "mongoose": "^8.0.0",
+    "puppeteer": "^22.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "jest-html-reporters": "^3.1.7"
+  },
+  "jest": {
+    "testEnvironment": "<rootDir>/jest.environment.js",
+    "testMatch": [
+      "**/tests/**/*.e2e.test.js"
+    ],
+    "testTimeout": 60000,
+    "reporters": [
+      "default",
+      [
+        "jest-html-reporters",
+        {
+          "publicPath": "./reports",
+          "filename": "e2e-report.html",
+          "pageTitle": "VaquitaApp — Reporte E2E"
+        }
+      ]
+    ]
+  }
+}

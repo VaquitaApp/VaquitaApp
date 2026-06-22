@@ -58,6 +58,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
+      target: dev
     container_name: vaquitaapp-server
     ports:
       - "3001:3001"

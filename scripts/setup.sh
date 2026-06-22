@@ -51,9 +51,9 @@ if [ ! -f server/.env ]; then
   # Generar JWT_SECRET aleatorio y reemplazarlo en .env
   JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
   if [[ "$OSTYPE" == "darwin"* ]]; then
-    sed -i '' "s|JWT_SECRET=change_me|JWT_SECRET=$JWT_SECRET|" server/.env
+    sed -i '' "s|^JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|" server/.env
   else
-    sed -i "s|JWT_SECRET=change_me|JWT_SECRET=$JWT_SECRET|" server/.env
+    sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|" server/.env
   fi
   echo -e "${GREEN}✓ server/.env creado (JWT_SECRET generado automáticamente)${NC}"
 else

@@ -170,6 +170,7 @@ export default function Navbar() {
             <ThemeToggle />
             <button
               type="button"
+              data-testid="nav-logout"
               onClick={handleLogout}
               className={`rounded-lg border border-[var(--vaq-danger)]/25 bg-[var(--vaq-danger-soft)] px-3 py-2 text-sm font-semibold text-[var(--vaq-danger)] transition-colors hover:bg-[var(--vaq-danger)]/15 dark:hover:bg-[var(--vaq-danger)]/25 ${linkFocus}`}
             >

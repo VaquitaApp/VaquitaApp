@@ -23,6 +23,7 @@ export default function FundCard({ fund, role }) {
   return (
     <Link
       to={`/fondos/${fund._id}`}
+      data-testid="fund-card"
       className="vaq-card flex flex-col p-5 transition-shadow hover:shadow-md"
     >
       <div className="mb-3 flex items-start justify-between gap-2">

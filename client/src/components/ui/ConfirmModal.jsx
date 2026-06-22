@@ -39,6 +39,7 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
               </label>
               <input
                 type="text"
+                data-testid="confirm-modal-keyword-input"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 className="vaq-input mt-1 border-[var(--vaq-danger)]/40 focus:ring-[var(--vaq-danger)]"
@@ -59,6 +60,7 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
           </button>
           <button
             type="button"
+            data-testid="confirm-modal-submit"
             onClick={handleConfirm}
             disabled={!isValid}
             className="rounded-lg bg-[var(--vaq-danger)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
