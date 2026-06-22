@@ -8,7 +8,7 @@ applications:
             - nvm use 20 2>/dev/null || nvm install 20
             - npm ci
             # Inyecta las variables VITE_* definidas en la consola de Amplify
-            # al bundle de Vite (se hornean en build-time vía .env.production).
+            # al bundle de Vite (se inyectan en build-time vía .env.production).
             - env | grep -e VITE_ >> .env.production || true
         build:
           commands:
@@ -17,7 +17,7 @@ applications:
         # Relativo a appRoot (client/): client/dist
         baseDirectory: dist
         files:
-          - '**/*'
+          - "**/*"
       cache:
         paths:
           - node_modules/**/*
