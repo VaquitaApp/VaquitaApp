@@ -1,4 +1,4 @@
-.PHONY: setup dev test coverage docker docker-down docker-clean e2e-install e2e-seed e2e
+.PHONY: setup dev test coverage docker docker-down docker-clean e2e-install e2e-seed e2e stop
 
 setup:
 	./scripts/setup.sh
@@ -34,3 +34,7 @@ docker-down:
 
 docker-clean:
 	docker-compose down -v
+
+# ── Detener todo lo local, Docker o nativo, y liberar puertos ──
+stop:
+	./scripts/stop.sh
